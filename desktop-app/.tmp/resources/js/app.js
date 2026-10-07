@@ -18,7 +18,16 @@
     const box = $("#toasts");
     const el = document.createElement("div");
     el.className = "toast" + (kind ? " toast--" + kind : "");
-    el.textContent = msg;
+    const icons = { ok: "✅", err: "⛔", warn: "⚠️", info: "ℹ️" };
+    const ico = document.createElement("span");
+    ico.className = "toast__ico";
+    ico.setAttribute("aria-hidden", "true");
+    ico.textContent = icons[kind] || "ℹ️";
+    const txt = document.createElement("span");
+    txt.className = "toast__txt";
+    txt.textContent = msg;
+    el.appendChild(ico);
+    el.appendChild(txt);
     box.appendChild(el);
     setTimeout(() => el.classList.add("toast--out"), 3200);
     setTimeout(() => el.remove(), 3500);
@@ -126,6 +135,8 @@
       },
     },
     settings: { wsPath: "" },
+    customPresets: [],   // {name, scan:{...}} — пользовательские пресеты
+    compact: false,      // компактная таблица
     paths: { dataDir: "", accPath: "", reportsDir: "", wsPath: "" },
     wsVersion: "",
     account: null,
@@ -884,6 +895,298 @@
     btn.textContent = "🕘 История" + (S.history.length ? " (" + S.history.length + ")" : "");
   }
 
+  /* ───────── пользовательские пресеты (v1.4.0) ───────── */
+  function renderCustomPresets() {
+    const box = $("#customPresetChips");
+    if (!box) return;
+    box.innerHTML = S.customPresets
+      .map(
+        (p, i) =>
+          '<span class="chip chip--custom" role="button" tabindex="0" data-pi="' + i +
+          '" title="Пресет: применить. ✕ — удалить">' +
+            '<span class="chip__custom-name">' + esc(p.name) + "</span>" +
+            '<button type="button" class="chip__del" data-del-preset="' + i + '" title="Удалить пресет" aria-label="Удалить пресет ' + esc(p.name) + '">✕</button>' +
+          "</span>"
+      )
+      .join("");
+    $$("#customPresetChips .chip--custom", box).forEach((el) => {
+      const apply = () => {
+        const p = S.customPresets[+el.getAttribute("data-pi")];
+        if (!p) return;
+        Object.assign(S.scan, DEFAULT_SCAN, p.scan);
+        syncInputsFromState();
+        updateCmdPreview();
+        $$("#presetChips .chip").forEach((c) => c.classList.remove("is-active"));
+        el.classList.add("is-active");
+        $("#presetHint").innerHTML = "Пресет «<b>" + esc(p.name) + "</b>» применён. Команду можно посмотреть над кнопкой скана.";
+        persist();
+        toast("Пресет применён: " + p.name, "ok");
+      };
+      el.addEventListener("click", (e) => {
+        if (e.target.closest("[data-del-preset]")) return;
+        apply();
+      });
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); apply(); }
+      });
+    });
+    $$("[data-del-preset]", box).forEach((b) =>
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const i = +b.getAttribute("data-del-preset");
+        const p = S.customPresets[i];
+        if (!p) return;
+        if (!confirm('Удалить пресет "' + p.name + '"?')) return;
+        S.customPresets.splice(i, 1);
+        renderCustomPresets();
+        persist();
+        toast("Пресет удалён", "ok");
+      })
+    );
+  }
+
+  function togglePresetSaveRow(show) {
+    const row = $("#presetSaveRow");
+    if (!row) return;
+    row.classList.toggle("hidden", !show);
+    if (show) {
+      $("#presetName").value = "";
+      $("#presetName").focus();
+    }
+  }
+
+  function saveCurrentPreset() {
+    const name = ($("#presetName").value || "").trim();
+    if (!name) { toast("Введите название пресета", "warn"); $("#presetName").focus(); return; }
+    if (S.customPresets.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+      if (!confirm('Пресет "' + name + '" уже есть — перезаписать?')) return;
+      S.customPresets = S.customPresets.filter((p) => p.name.toLowerCase() !== name.toLowerCase());
+    }
+    syncStateFromInputs();
+    S.customPresets.push({ name: name, scan: Object.assign({}, S.scan) });
+    if (S.customPresets.length > 20) S.customPresets = S.customPresets.slice(-20);
+    renderCustomPresets();
+    togglePresetSaveRow(false);
+    persist();
+    toast('Пресет сохранён: ' + name, "ok");
+  }
+
+  /* ───────── Δ-сравнение с записью истории (v1.4.0) ───────── */
+  function compareWithHistory(i) {
+    const h = S.history[i];
+    if (!h) return;
+    const cur = new Set(S.results.map((r) => r.endpoint));
+    const old = new Set(h.results.map((r) => r.endpoint));
+    const newList = Array.from(cur).filter((ep) => !old.has(ep));
+    const goneList = Array.from(old).filter((ep) => !cur.has(ep));
+    const fmt = (list) => list.slice(0, 6).join(", ") + (list.length > 6 ? " … +" + (list.length - 6) : "");
+    const panel =
+      '<div class="history__cmp">' +
+        '<div class="history__cmp-title">Δ сравнение с текущей таблицей:</div>' +
+        '<div class="history__cmp-row">' +
+          '<span class="is-ok">➕ новых: <b>' + newList.length + "</b></span>" +
+          (newList.length ? '<span class="history__cmp-list">' + esc(fmt(newList)) + "</span>" : "") +
+        "</div>" +
+        '<div class="history__cmp-row">' +
+          '<span class="is-err">➖ пропали: <b>' + goneList.length + "</b></span>" +
+          (goneList.length ? '<span class="history__cmp-list">' + esc(fmt(goneList)) + "</span>" : "") +
+        "</div>" +
+      "</div>";
+    // вставляем/заменяем панель сравнения после нужного элемента
+    const item = $('#historyPanel .history__item[data-hi="' + i + '"]');
+    if (!item) return;
+    const oldPanel = $("#historyPanel .history__cmp");
+    if (oldPanel) oldPanel.remove();
+    item.insertAdjacentHTML("afterend", panel);
+    if (!newList.length && !goneList.length) {
+      toast("Различий нет — наборы эндпоинтов совпадают", "ok");
+    } else {
+      toast("Δ: новых " + newList.length + ", пропали " + goneList.length, "info");
+    }
+  }
+
+  /* ───────── компактная таблица (v1.4.0) ───────── */
+  function applyCompact() {
+    const wrap = $("#resultsTable");
+    if (!wrap) return;
+    wrap.classList.toggle("is-compact", !!S.compact);
+    const btn = $("#btnDensity");
+    if (btn) btn.classList.toggle("is-toggled", !!S.compact);
+  }
+
+  function toggleCompact() {
+    S.compact = !S.compact;
+    applyCompact();
+    persist();
+    toast(S.compact ? "Компактная таблица включена" : "Обычная таблица", "info");
+  }
+
+  /* ───────── QR-код конфига (v1.4.0) ───────── */
+  function toggleQr(open) {
+    const m = $("#qrModal");
+    if (m) m.classList.toggle("hidden", !open);
+  }
+
+  function showConfQr() {
+    if (typeof window.qrcode !== "function") { toast("QR-модуль не загружен", "err"); return; }
+    const conf = buildConf();
+    try {
+      const qr = window.qrcode(0, "L"); // L — максимальная ёмкость (2953 байта)
+      qr.addData(conf);
+      qr.make();
+      $("#qrBox").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 3, scalable: true });
+      toggleQr(true);
+    } catch (e) {
+      toast("Конфиг " + conf.length + " симв. — не помещается в QR (лимит 2953). Обычно виноват длинный I1: уберите его или сохраните конфиг файлом.", "err");
+    }
+  }
+
+  async function saveQrPng() {
+    if (typeof window.qrcode !== "function") return;
+    try {
+      const qr = window.qrcode(0, "M");
+      qr.addData(buildConf());
+      qr.make();
+      const cell = 6, margin = 4, count = qr.getModuleCount();
+      const size = (count + margin * 2) * cell;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = "#000000";
+      for (let r = 0; r < count; r++) {
+        for (let c = 0; c < count; c++) {
+          if (qr.isDark(r, c)) ctx.fillRect((c + margin) * cell, (r + margin) * cell, cell, cell);
+        }
+      }
+      const dataUrl = canvas.toDataURL("image/png");
+      const name = ($( "#cfgFileName").textContent || "warp.conf").replace(/\.conf$/, "") + "-qr.png";
+      if (IS_MOCK) {
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        toast("PNG скачан: " + name, "ok");
+        return;
+      }
+      const path = await os().showSaveDialog("Сохранить QR-код", { defaultPath: name });
+      if (!path) return;
+      const base64 = dataUrl.split(",")[1];
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      if (fs().writeBinaryFile) await fs().writeBinaryFile(path, bytes.buffer);
+      else await fs().writeFile(path, dataUrl);
+      toast("QR сохранён: " + path, "ok");
+    } catch (e) {
+      toast("Не удалось построить QR: " + (e && e.message ? e.message : e), "err");
+    }
+  }
+
+  /* ───────── резервная копия состояния (v1.4.0) ───────── */
+  function snapshotState() {
+    return JSON.stringify({
+      app: "WARPSCOUT GUI",
+      format: 2,
+      exportedAt: new Date().toISOString(),
+      scan: S.scan,
+      cfg: S.cfg,
+      settings: S.settings,
+      customPresets: S.customPresets,
+      compact: S.compact,
+      history: S.history.slice(0, 10),
+    });
+  }
+
+  function exportState() {
+    const json = snapshotState();
+    const name = "warpscout-backup-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + ".json";
+    if (IS_MOCK) {
+      const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+      toast("Резервная копия скачана: " + name, "ok");
+      return;
+    }
+    os()
+      .showSaveDialog("Резервная копия WARPSCOUT GUI", { defaultPath: name })
+      .then(async (path) => {
+        if (!path) return;
+        await fs().writeFile(path, json);
+        toast("Копия сохранена: " + path, "ok");
+      })
+      .catch((e) => toast("Ошибка экспорта: " + (e && e.message ? e.message : e), "err"));
+  }
+
+  function applyImportedState(st) {
+    if (!st || typeof st !== "object" || (!st.scan && !st.cfg)) {
+      toast("Файл не похож на резервную копию WARPSCOUT GUI", "err");
+      return;
+    }
+    if (st.scan) S.scan = Object.assign({}, DEFAULT_SCAN, st.scan);
+    if (st.cfg) S.cfg = deepMerge(S.cfg, st.cfg);
+    if (st.settings) S.settings = Object.assign({}, S.settings, st.settings);
+    if (Array.isArray(st.customPresets)) S.customPresets = st.customPresets.filter((p) => p && p.name && p.scan).slice(0, 20);
+    S.compact = !!st.compact;
+    if (Array.isArray(st.history)) S.history = st.history.slice(0, 10);
+    applyTheme(S.settings.theme || "dark");
+    applyCompact();
+    syncInputsFromState();
+    syncCfgInputsFromState();
+    updateCmdPreview();
+    renderResults();
+    renderConf();
+    renderCustomPresets();
+    renderHistoryBtn();
+    persist();
+    toast("Настройки восстановлены из копии", "ok");
+  }
+
+  function importState() {
+    if (!IS_MOCK && HAS_NL) {
+      os()
+        .showOpenDialog("Выберите файл резервной копии", { multiSelections: false })
+        .then(async (p) => {
+          let picked = Array.isArray(p) ? p[0] : p;
+          if (!picked) return;
+          try {
+            const text = await fs().readFile(picked);
+            applyImportedState(JSON.parse(text));
+          } catch (e) {
+            toast("Не удалось прочитать файл: " + (e && e.message ? e.message : e), "err");
+          }
+        })
+        .catch(() => {});
+      return;
+    }
+    $("#importStateFile").value = "";
+    $("#importStateFile").click();
+  }
+
+  function bindImportStateFile() {
+    $("#importStateFile").addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          applyImportedState(JSON.parse(String(reader.result)));
+        } catch (err) {
+          toast("Некорректный JSON: " + (err && err.message ? err.message : err), "err");
+        }
+      };
+      reader.readAsText(file);
+    });
+  }
+
   function toggleKbd(open) {
     const m = $("#kbdModal");
     if (m) m.classList.toggle("hidden", !open);
@@ -932,6 +1235,8 @@
               '<span class="history__cnt ' + (h.working ? "is-ok" : "is-err") + '">' +
                 h.working + " рабочих" + (h.torn ? " / " + h.torn + " разорвано" : "") +
               "</span>" +
+              '<span class="history__cmp-btn" role="button" tabindex="0" data-cmp="' + i +
+              '" title="Δ сравнить с текущей таблицей (без загрузки)">Δ</span>' +
             "</button>"
         )
         .join("");
@@ -940,7 +1245,16 @@
     const bClr = $("#btnHistClear");
     if (bClr) bClr.addEventListener("click", clearHistory);
     $$(".history__item", panel).forEach((b) =>
-      b.addEventListener("click", () => loadHistory(+b.getAttribute("data-hi")))
+      b.addEventListener("click", (e) => {
+        if (e.target.closest("[data-cmp]")) return;
+        loadHistory(+b.getAttribute("data-hi"));
+      })
+    );
+    $$("[data-cmp]", panel).forEach((c) =>
+      c.addEventListener("click", (e) => {
+        e.stopPropagation();
+        compareWithHistory(+c.getAttribute("data-cmp"));
+      })
     );
   }
 
@@ -1440,14 +1754,14 @@
     if (!HAS_NL) return;
     try {
       store()
-        .setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, foundCmd: S.foundCmd || "", history: S.history.slice(0, 10) }))
+        .setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, customPresets: S.customPresets, compact: S.compact, foundCmd: S.foundCmd || "", history: S.history.slice(0, 10) }))
         .catch(() => {});
     } catch (e) {}
   }, 400);
 
   window.addEventListener("beforeunload", () => {
     if (!HAS_NL) return;
-    try { store().setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, foundCmd: S.foundCmd || "", history: S.history.slice(0, 10) })); } catch (e) {}
+    try { store().setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, customPresets: S.customPresets, compact: S.compact, foundCmd: S.foundCmd || "", history: S.history.slice(0, 10) })); } catch (e) {}
   });
 
   /* ───────── проверка warpscout ───────── */
@@ -1518,6 +1832,8 @@
       if (st.scan) S.scan = Object.assign({}, DEFAULT_SCAN, st.scan);
       if (st.cfg) S.cfg = deepMerge(S.cfg, st.cfg);
       if (st.settings) S.settings = Object.assign({}, S.settings, st.settings);
+      if (Array.isArray(st.customPresets)) S.customPresets = st.customPresets.filter((p) => p && p.name && p.scan).slice(0, 20);
+      S.compact = !!st.compact;
       if (Array.isArray(st.history)) S.history = st.history.slice(0, 10);
       S.foundCmd = st.foundCmd || "";
     } catch (e) {}
@@ -1607,6 +1923,21 @@
       if (e.key === "Escape") { e.stopPropagation(); clearFilter(true); }
     });
     $("#resFilterClear").addEventListener("click", () => clearFilter(true));
+
+    $("#btnDensity").addEventListener("click", toggleCompact);
+    $("#btnConfQr").addEventListener("click", showConfQr);
+    $("#btnQrPng").addEventListener("click", saveQrPng);
+    $("#btnQrCopy").addEventListener("click", () => copyText(buildConf(), "Конфиг скопирован"));
+    $("#btnExportState").addEventListener("click", exportState);
+    $("#btnImportState").addEventListener("click", importState);
+    bindImportStateFile();
+    $("#btnPresetSave").addEventListener("click", () => togglePresetSaveRow(true));
+    $("#btnPresetSaveCancel").addEventListener("click", () => togglePresetSaveRow(false));
+    $("#btnPresetSaveOk").addEventListener("click", saveCurrentPreset);
+    $("#presetName").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); saveCurrentPreset(); }
+      if (e.key === "Escape") { e.stopPropagation(); togglePresetSaveRow(false); }
+    });
 
     $("#btnTheme").addEventListener("click", toggleTheme);
     $("#btnToConfig").addEventListener("click", () => {
@@ -1748,6 +2079,9 @@
       S.sortByPing = false;
       S.prevEndpoints = null;
       S.diff = null;
+      S.customPresets = [];
+      S.compact = false;
+      S.history = []; // БАГФИКС 1.4.0: «Сбросить настройки и данные» теперь чистит и историю
       resetFilterSilently();
       try { await store().setData("state", "{}"); } catch (e) {}
       syncInputsFromState();
@@ -1755,6 +2089,9 @@
       updateCmdPreview();
       renderResults();
       renderConf();
+      renderCustomPresets();
+      applyCompact();
+      renderHistoryBtn();
       toast("Настройки сброшены", "ok");
     });
 
@@ -1793,6 +2130,10 @@
       if (e.key === "Escape") {
         const modal = $("#kbdModal");
         if (modal && !modal.classList.contains("hidden")) { toggleKbd(false); return; }
+        const qr = $("#qrModal");
+        if (qr && !qr.classList.contains("hidden")) { toggleQr(false); return; }
+        const saveRow = $("#presetSaveRow");
+        if (saveRow && !saveRow.classList.contains("hidden")) { togglePresetSaveRow(false); return; }
         if (S.historyOpen) { toggleHistory(false); return; }
         if (S.filter && document.activeElement === $("#resFilter")) { clearFilter(true); return; }
         if (S.running.scan) stopScan();
@@ -1808,6 +2149,9 @@
     // модалка горячих клавиш
     $("#btnKbd").addEventListener("click", () => toggleKbd(true));
     $$("[data-close-kbd]").forEach((el) => el.addEventListener("click", () => toggleKbd(false)));
+
+    // модалка QR
+    $$("[data-close-qr]").forEach((el) => el.addEventListener("click", () => toggleQr(false)));
 
     // внешние ссылки — системный браузер
     $$("a[data-ext]").forEach((a) =>
@@ -1825,6 +2169,8 @@
 
     await restoreState();
     applyTheme(S.settings.theme || "dark");
+    applyCompact();
+    renderCustomPresets();
     await computePaths();
     syncInputsFromState();
     syncCfgInputsFromState();
@@ -1840,6 +2186,8 @@
       S.results = h.results.map((r) => Object.assign({}, r));
       S.viewMeta = { withP: h.withP, withSpeed: h.withSpeed };
       S.viewProto = h.proto;
+      renderResults(); // БАГФИКС 1.4.0: без этого таблица оставалась пустой до первого действия
+      fillEndpointSelect();
     }
     renderHistoryBtn();
     await loadAccount();

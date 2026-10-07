@@ -802,3 +802,115 @@ html[data-theme="light"] .socks-info { border-color: rgba(30, 158, 86, 0.4); }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ═══ v1.4.0: компактная таблица ═══ */
+.rtable.is-compact td { padding: 3px 8px; font-size: 11px; }
+.rtable.is-compact th { padding: 4px 8px; font-size: 9.5px; }
+.rtable.is-compact td.row-actions button { padding: 2px 4px; font-size: 11px; }
+.btn.is-toggled { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent-text); }
+
+/* ═══ v1.4.0: пользовательские пресеты ═══ */
+.chips__custom { display: contents; }
+.chip--custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-style: dashed;
+  border-color: var(--accent-line);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+.chip--custom:hover { background: var(--accent-soft); }
+.chip--custom.is-active { background: var(--accent-soft); color: var(--accent-text); }
+.chip__custom-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip__del {
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 1px 3px;
+  border-radius: 4px;
+}
+.chip__del:hover { color: var(--err); background: var(--err-soft); }
+.chip--add { border-style: dashed; color: var(--text-faint); }
+.chip--add:hover { color: var(--accent-text); border-color: var(--accent-line); }
+.preset-save {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: tabIn 0.18s ease;
+}
+.preset-save input { flex: 1; min-height: 32px; font-size: 12.5px; padding: 5px 10px; }
+
+/* ═══ v1.4.0: панель Δ-сравнения в истории ═══ */
+.history__cmp {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 7px;
+  padding: 8px 10px;
+  margin: 2px 0 4px 8px;
+  animation: chipIn 0.2s ease;
+}
+.history__cmp-title { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 5px; }
+.history__cmp-row { display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; color: var(--text-dim); padding: 1.5px 0; flex-wrap: wrap; }
+.history__cmp-row .is-ok { color: var(--ok); font-weight: 600; }
+.history__cmp-row .is-err { color: var(--err); font-weight: 600; }
+.history__cmp-list { font-family: var(--mono); font-size: 10.5px; color: var(--text-faint); word-break: break-all; }
+.history__cmp-btn {
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  flex: none;
+  color: var(--text-faint);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s, transform 0.12s;
+}
+.history__cmp-btn:hover, .history__cmp-btn:focus-visible {
+  color: var(--accent-text);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+/* ═══ v1.4.0: иконки в тостах ═══ */
+.toast { display: flex; align-items: flex-start; gap: 9px; }
+.toast__ico { flex: none; font-size: 13px; line-height: 1.3; }
+.toast__txt { flex: 1; min-width: 0; }
+
+/* ═══ v1.4.0: индикатор активного раздела в сайдбаре ═══ */
+.nav__item { position: relative; }
+.nav__item.is-active::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 55%;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(242, 124, 32, 0.7);
+  animation: navIn 0.25s ease;
+}
+@keyframes navIn { from { height: 0; opacity: 0; } to { height: 55%; opacity: 1; } }
+
+/* ═══ v1.4.0: QR-модалка ═══ */
+.modal__card--qr { width: min(380px, calc(100vw - 32px)); }
+.modal__body--qr { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.qr-box {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  display: inline-flex;
+}
+.qr-box svg { display: block; width: 240px; height: 240px; }
+.row-buttons--center { justify-content: center; }

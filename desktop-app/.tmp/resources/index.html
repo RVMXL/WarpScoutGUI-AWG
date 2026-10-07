@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=13v2" />
+  <link rel="stylesheet" href="css/app.css?v=14v1" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -54,7 +54,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v1.3.0 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v1.4.0 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -74,6 +74,13 @@
                 <button class="chip" data-preset="fast" type="button">⚡ Быстрый</button>
                 <button class="chip" data-preset="hard" type="button">🧱 Жёсткая сеть</button>
                 <button class="chip" data-preset="full" type="button">🔬 Тщательный</button>
+                <span id="customPresetChips" class="chips__custom"></span>
+                <button class="chip chip--add" id="btnPresetSave" type="button" title="Сохранить текущие параметры как пресет">＋ Свой</button>
+              </div>
+              <div class="preset-save hidden" id="presetSaveRow">
+                <input type="text" id="presetName" maxlength="24" placeholder="Название пресета" aria-label="Название пресета" />
+                <button class="btn btn--primary btn--sm" id="btnPresetSaveOk" type="button">Сохранить</button>
+                <button class="btn btn--ghost btn--sm" id="btnPresetSaveCancel" type="button">Отмена</button>
               </div>
               <p class="hint" id="presetHint">По умолчанию: <code>warpscout scan -p awg -P -n 10 -exclude-node DME</code></p>
             </div>
@@ -287,6 +294,7 @@
                   <button class="btn btn--ghost btn--sm" id="btnHistory" type="button" title="История сканов этого приложения">🕘 История</button>
                   <button class="btn btn--ghost btn--sm" id="btnExportCsv" type="button" title="Сохранить таблицу в CSV">⬇ CSV</button>
                   <button class="btn btn--ghost btn--sm" id="btnSortPing" type="button" title="Переключить: порядок отчёта / сортировка по TUN PING">↕ пинг</button>
+                  <button class="btn btn--ghost btn--sm" id="btnDensity" type="button" title="Компактная таблица (меньше отступы)">≡ плотность</button>
                   <button class="btn btn--ghost btn--sm" id="btnToConfig" type="button" title="Лучший результат → генератор конфига">→ Конфиг</button>
                 </div>
               </div>
@@ -440,6 +448,7 @@
               <div class="card__head">
                 <h2>Предпросмотр <span class="mono-badge" id="cfgFileName">warp.conf</span></h2>
                 <div class="card__tools">
+                  <button class="btn btn--ghost btn--sm" id="btnConfQr" type="button" title="Показать QR-код конфига (импорт камерой в WireGuard / AmneziaVPN)">▣ QR</button>
                   <button class="btn btn--ghost btn--sm" id="btnCopyConf" type="button">⧉ Копировать</button>
                   <button class="btn btn--primary btn--sm" id="btnSaveConf" type="button">💾 Сохранить как…</button>
                 </div>
@@ -611,8 +620,11 @@
           </div>
           <div class="card">
             <div class="card__head"><h2>Данные приложения</h2></div>
-            <p class="hint">Настройки и последние результаты хранятся локально в хранилище приложения.</p>
+            <p class="hint">Настройки, пресеты и последние результаты хранятся локально в хранилище приложения. Резервная копия — один JSON-файл со всеми параметрами, пресетами и историей.</p>
             <div class="row-buttons">
+              <button class="btn btn--ghost" id="btnExportState" type="button" title="Сохранить все настройки, пресеты и историю в файл">⬇ Резервная копия</button>
+              <button class="btn btn--ghost" id="btnImportState" type="button" title="Восстановить настройки из файла резервной копии">⬆ Восстановить</button>
+              <input type="file" id="importStateFile" accept=".json,application/json" class="hidden" />
               <button class="btn btn--danger" id="btnResetStorage" type="button">Сбросить настройки и данные</button>
             </div>
           </div>
@@ -657,8 +669,28 @@
     </div>
   </div>
 
+  <!-- ══════════ QR-код конфига (модалка) ══════════ -->
+  <div class="modal hidden" id="qrModal" role="dialog" aria-modal="true" aria-label="QR-код конфига">
+    <div class="modal__backdrop" data-close-qr></div>
+    <div class="modal__card modal__card--qr">
+      <div class="modal__head">
+        <h2>▣ QR-код конфига</h2>
+        <button class="modal__close" type="button" data-close-qr aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal__body modal__body--qr">
+        <div class="qr-box" id="qrBox" aria-label="QR-код с текстом конфига"></div>
+        <p class="modal__note">Отсканируйте камерой в WireGuard (Сканировать QR-код) или AmneziaVPN — конфиг перенесётся без файлов. Слишком длинный конфиг может не поместиться — тогда сохраните его файлом.</p>
+        <div class="row-buttons row-buttons--center">
+          <button class="btn btn--ghost btn--sm" id="btnQrPng" type="button">⬇ Сохранить PNG</button>
+          <button class="btn btn--ghost btn--sm" id="btnQrCopy" type="button">⧉ Скопировать конфиг</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js?v=13final"></script>
-  <script src="js/app.js?v=13final"></script>
+  <script src="js/mock.js?v=14v1"></script>
+  <script src="js/qrcode.js?v=14v1"></script>
+  <script src="js/app.js?v=14v1"></script>
 </body>
 </html>
