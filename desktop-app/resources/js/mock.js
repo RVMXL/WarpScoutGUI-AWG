@@ -115,10 +115,35 @@
     return Promise.resolve({ id, pid: 4000 + id });
   }
 
+  // отчёт без -P: 5 колонок, без разорванных
+  const MOCK_REPORT_NOP = [
+    "# WARP endpoints: 6 working / 8 probed",
+    "# sorted by endpoint ping",
+    "# ENDPOINT PING = ICMP ping to the endpoint address from this host, no tunnel involved",
+    "# SEEN AS = region external services see through the tunnel",
+    "# NODE / NODE LOCATION = Cloudflare WARP edge node the tunnel landed on, and where it sits",
+    "# One /24 pool can land on several different nodes - NODE is per endpoint, not per subnet",
+    "",
+    "ENDPOINT               ENDPOINT PING SEEN AS    NODE   NODE LOCATION",
+    "188.114.98.58:2408     41ms          HK         HKG    Hong Kong, HK",
+    "162.159.192.1:1701     44ms          HK         HKG    Hong Kong, HK",
+    "188.114.97.177:2408    52ms          SE         ARN    Stockholm, SE",
+    "188.114.99.218:2408    55ms          DE         FRA    Frankfurt-am-Main, DE",
+    "162.159.198.1:4500     ?             NL         AMS    Amsterdam, NL",
+    "162.159.193.10:500     ?             PL         WAW    Warsaw, PL",
+    "",
+    "# Best endpoint per node (lowest endpoint ping)",
+    "NODE   ENDPOINT               ENDPOINT PING SEEN AS    NODE LOCATION",
+    "HKG    188.114.98.58:2408     41ms          HK         Hong Kong, HK",
+    "ARN    188.114.97.177:2408    52ms          SE         Stockholm, SE",
+  ].join("\n");
+
   const scripts = {
     scan(cmd) {
-      const withP = /\s-P\b|tun-ping\b/.test(cmd) || true; // демо всегда с -P
+      const withP = /(^|\s)-P(\s|$)|tun-ping/.test(cmd);
       const chunks = [];
+      const report = withP ? MOCK_REPORT : MOCK_REPORT_NOP;
+      window.NeutralinoMock.lastReport = report; // finishScan в демо берёт отчёт, соответствующий флагам
       chunks.push({ delay: 200, data: "Using cached WARP account from warpscout-account.json\r\n" });
       chunks.push({ delay: 300, data: "\r\nPhase 1: probing reachable WARP ports: 12...\r\n" });
       chunks.push({ delay: 700, data: "  4/12\r\n" });
@@ -129,7 +154,7 @@
       chunks.push({ delay: 500, data: "  node: SE ARN (188.114.97.177:2408)\r\n  node: DE FRA (188.114.99.218:2408)\r\n  5/8\r\n" });
       chunks.push({ delay: 500, data: "Phase 2: verifying tunnels (proto=awg): done\r\n" });
       chunks.push({ delay: 300, data: "\r\nFull report written to demo-report.txt\r\n" });
-      chunks.push({ delay: 200, data: MOCK_REPORT, type: "stdout" });
+      chunks.push({ delay: 200, data: report, type: "stdout" });
       chunks.push({ delay: 100, type: "exit", data: "0" });
       return chunks;
     },
@@ -171,7 +196,7 @@
         { delay: 600, data: top + "\r\n" },
         { delay: 100, data: box("SOCKS5   socks5h://127.0.0.1:1080") + "\r\n" },
         { delay: 100, data: box("Endpoint " + ep) + "\r\n" },
-        { delay: 100, data: box("Tunnel   awg") + "\r\n" },
+        { delay: 100, data: box("Tunnel   " + ((cmd.match(/-p\s+(\S+)/) || [null, "awg"])[1])) + "\r\n" },
         { delay: 100, data: box("Exit     Hong Kong, HK (HKG node)") + "\r\n" },
         { delay: 100, data: bot + "\r\n" },
         { delay: 300, data: "Ctrl+C to stop the proxy\r\n" },
@@ -203,7 +228,15 @@
         else if (key.includes("socks")) script = scripts.socks(cmd);
         else if (key.includes("version")) script = scripts.version(cmd);
         else script = [{ delay: 100, data: "(демо: команда не поддержана в превью)\r\n" }, { delay: 50, type: "exit", data: "0" }];
-        return streamProcess(cmd, script);
+        if (opts && opts.stream) return streamProcess(cmd, script);
+        // не-стриминговый вызов (как os.execCommand в реальном рантайме): ждём весь вывод
+        const out = script
+          .filter((c) => c.type !== "exit")
+          .map((c) => String(c.data))
+          .join("");
+        return new Promise((resolve) => {
+          setTimeout(() => resolve({ id: -1, pid: 0, stdOut: out, stdErr: "", exitCode: 0, output: out }), 400);
+        });
       },
       spawnProcess(cmd) {
         return streamProcess(cmd, scripts.socks(cmd));
@@ -212,9 +245,19 @@
         if (processes[id]) {
           processes[id].killed = true;
           delete processes[id];
-          emitEvent("spawnedProcess", { id, pid: 4000 + id, type: "exit", data: "143" });
+          emitEvent("spawnedProcess", { id, pid: 4000 + id, type: "exit", data: 143 });
         }
         return Promise.resolve();
+      },
+      // реальный API Neutralino v6: os.updateSpawnedProcess(id, "exit") завершает процесс
+      updateSpawnedProcess(id, action) {
+        if (action === "exit") return this.killProcess(Number(id));
+        return Promise.resolve();
+      },
+      getSpawnedProcesses() {
+        return Promise.resolve(
+          Object.keys(processes).map((id) => ({ id: Number(id), pid: 4000 + Number(id), stream: "out" }))
+        );
       },
       showSaveDialog(title, opts) {
         const name = (opts && opts.defaultPath) || "warp.conf";

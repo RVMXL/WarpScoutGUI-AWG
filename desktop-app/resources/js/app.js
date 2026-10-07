@@ -89,7 +89,7 @@
   const S = {
     scan: Object.assign({}, DEFAULT_SCAN),
     results: [],        // {endpoint, ping, tunPing, loss, seenAs, node, loc, torn}
-    sortDesc: false,
+    sortByPing: false,
     selected: "",
     cfg: {
       ver: "awg31",
@@ -97,7 +97,7 @@
       dnsCustom: "",
       endpoint: "",
       mtu: 1280,
-      keepalive: 25,
+      keepalive: 0,
       allowed: "both",
       allowedCustom: "",
       tableOff: false,
@@ -151,6 +151,14 @@
   const fs = () => window.Neutralino.filesystem;
   const store = () => window.Neutralino.storage;
 
+  async function killProc(id) {
+    if (id == null) return;
+    try {
+      if (os().updateSpawnedProcess) await os().updateSpawnedProcess(id, "exit");
+      else if (os().killProcess) await os().killProcess(id);
+    } catch (e) { /* процесс уже завершился */ }
+  }
+
   const procRegistry = {};
   function registerProc(id, handler) { procRegistry[id] = handler; }
   function unregisterProc(id) { delete procRegistry[id]; }
@@ -161,6 +169,23 @@
       const h = procRegistry[d.id];
       if (h) h(d);
     });
+    // страховка: если exit-событие потеряно — раз в 5 сек сверяемся со списком живых процессов
+    setInterval(async () => {
+      const ids = Object.keys(procRegistry);
+      if (!ids.length) return;
+      if (!os().getSpawnedProcesses) return;
+      try {
+        const live = await os().getSpawnedProcesses();
+        const liveIds = new Set((live || []).map((p) => String(p.id)));
+        for (const id of ids) {
+          if (!liveIds.has(String(id))) {
+            const h = procRegistry[id];
+            delete procRegistry[id];
+            if (h) h({ id: Number(id), type: "exit", data: -1 });
+          }
+        }
+      } catch (e) { /* рантайм недоступен — не страшно */ }
+    }, 5000);
   }
 
   async function ensureDir(dir) {
@@ -178,37 +203,40 @@
     a.push("-p " + s.proto);
     if (s.tunPing) {
       a.push("-P");
-      if (s.pingTarget && s.pingTarget.trim()) a.push("-ping-target " + s.pingTarget.trim());
-      if (s.tunPingCount && +s.tunPingCount !== 10) a.push("-tun-ping-count " + (+s.tunPingCount));
+      if (s.pingTarget && s.pingTarget.trim()) a.push("-ping-target " + safeVal(s.pingTarget));
+      if (s.tunPingCount && +s.tunPingCount !== 10) a.push("-tun-ping-count " + Math.min(50, Math.max(5, Math.round(+s.tunPingCount))));
     }
     if (s.full) a.push("-f");
-    else if (s.sample && +s.sample !== 5) a.push("-n " + (+s.sample));
-    if (s.port !== "" && s.port != null) a.push("-port " + (+s.port));
-    if (s.jt && +s.jt !== 10) a.push("-jt " + (+s.jt));
-    if (s.timeout && +s.timeout !== 2) a.push("-t " + (+s.timeout));
+    else if (s.sample && +s.sample !== 5) a.push("-n " + Math.min(256, Math.max(1, Math.round(+s.sample))));
+    if (s.port !== "" && s.port != null) a.push("-port " + Math.min(65535, Math.max(0, Math.round(+s.port))));
+    if (s.jt && +s.jt !== 10) a.push("-jt " + Math.min(100, Math.max(1, Math.round(+s.jt))));
+    if (s.timeout && +s.timeout !== 2) a.push("-t " + Math.min(30, Math.max(1, Math.round(+s.timeout))));
     if (s.ipv6) a.push("-6");
-    if (s.target && s.target.trim()) a.push("-target " + s.target.trim());
-    if (s.node && s.node.trim()) a.push("-node " + s.node.trim());
-    if (s.country && s.country.trim()) a.push("-country " + s.country.trim());
-    if (s.exclNode && s.exclNode.trim()) a.push("-exclude-node " + s.exclNode.trim());
-    if (s.exclCountry && s.exclCountry.trim()) a.push("-exclude-country " + s.exclCountry.trim());
+    if (s.target && s.target.trim()) a.push("-target " + safeVal(s.target));
+    const isMasque = s.proto === "masque" || s.proto === "masque-h2";
+    if (s.node && s.node.trim() && !isMasque) a.push("-node " + safeVal(s.node));
+    if (s.country && s.country.trim() && !isMasque) a.push("-country " + safeVal(s.country));
+    if (s.exclNode && s.exclNode.trim() && !isMasque) a.push("-exclude-node " + safeVal(s.exclNode));
+    if (s.exclCountry && s.exclCountry.trim() && !isMasque) a.push("-exclude-country " + safeVal(s.exclCountry));
     if (s.through && s.through.trim()) {
-      a.push("-through " + s.through.trim());
+      a.push("-through " + safeVal(s.through));
       if (s.innerProto) a.push("-inner-proto " + s.innerProto);
     }
     if (s.proto === "awg") {
-      if (s.genI1) a.push("-gen-i1 " + s.genI1);
-      if (s.i1Sni && s.i1Sni.trim()) a.push("-i1-sni " + s.i1Sni.trim());
+      if (s.genI1) {
+        a.push("-gen-i1 " + s.genI1);
+        if (s.i1Sni && s.i1Sni.trim()) a.push("-i1-sni " + safeVal(s.i1Sni)); // валиден только вместе с -gen-i1
+      }
       if (s.genJunk) a.push("-gen-junk");
       else {
-        if (s.jc !== "" && +s.jc !== 6) a.push("-jc " + (+s.jc));
-        if (s.jmin !== "" && +s.jmin !== 10) a.push("-jmin " + (+s.jmin));
-        if (s.jmax !== "" && +s.jmax !== 50) a.push("-jmax " + (+s.jmax));
+        if (s.jc !== "" && s.jc != null && +s.jc !== 6) a.push("-jc " + Math.min(255, Math.max(0, Math.round(+s.jc))));
+        if (s.jmin !== "" && s.jmin != null && +s.jmin !== 10) a.push("-jmin " + Math.min(5000, Math.max(0, Math.round(+s.jmin))));
+        if (s.jmax !== "" && s.jmax != null && +s.jmax !== 50) a.push("-jmax " + Math.min(5000, Math.max(0, Math.round(+s.jmax))));
       }
     }
     if (s.proto === "masque" || s.proto === "masque-h2") {
-      if (s.masqueSni && s.masqueSni.trim()) a.push("-masque-sni " + s.masqueSni.trim());
-      if (s.masqueAttempts && +s.masqueAttempts !== 3) a.push("-masque-attempts " + (+s.masqueAttempts));
+      if (s.masqueSni && s.masqueSni.trim()) a.push("-masque-sni " + safeVal(s.masqueSni));
+      if (s.masqueAttempts && +s.masqueAttempts !== 3) a.push("-masque-attempts " + Math.min(10, Math.max(1, Math.round(+s.masqueAttempts))));
     }
     if (s.speed) a.push("-speed");
     if (s.bestBySpeed) a.push("-best-by speed");
@@ -224,9 +252,18 @@
     return exe + " scan " + joinArgs(args) + ' -o "' + report + '"' + acc;
   }
 
+  // ── R1/R3: безопасные значения флагов для Windows cmd ──
+  function safeVal(v) {
+    if (v == null) return "";
+    return String(v)
+      .replace(/\s*,\s*/g, ",")            // «DME, FRA» -> «DME,FRA»
+      .replace(/["'&|^%!<>()*?~;]/g, "")   // опасные для cmd/argv символы
+      .trim();
+  }
+
   function quoteExe() {
-    const p = S.paths.wsPath || "warpscout.exe";
-    return '"' + p + '"';
+    const p = (S.paths.wsPath || "warpscout.exe").replace(/[\\/]+$/, "");
+    return '"' + p.replace(/"/g, "") + '"';
   }
 
   function updateCmdPreview() {
@@ -239,6 +276,8 @@
   }
 
   /* ───────── парсер отчёта ───────── */
+  // Формат строки: "%-22s %-13s %s%s%-10s %-6s %s" — IPv6-эндпоинт длиннее 22 символов,
+  // поэтому первый токен всегда отделяем по первому пробелу, остальное — по 2+ пробелам.
   function parseReport(text, withP, withSpeed) {
     const lines = text.split(/\r?\n/);
     const results = [];
@@ -246,19 +285,14 @@
     for (const raw of lines) {
       const line = raw.trimEnd();
       if (/^#\s+\d+ torn down/.test(line)) { zone = "torn"; continue; }
-      if (/^#/.test(line)) { if (zone === "rows") zone = "after"; continue; }
-      if (!line.trim()) { if (zone === "rows") zone = "mid"; continue; }
-      if (/^ENDPOINT\s/.test(line) && zone !== "torn" && zone !== "nodebest") {
-        zone = "rows";
-        continue;
-      }
+      if (/^#/.test(line)) { continue; }
+      if (!line.trim()) { continue; }
+      if (/^ENDPOINT\s/.test(line) && zone !== "nodebest" && zone !== "torn") { zone = "rows"; continue; }
       if (/^NODE\s+ENDPOINT/.test(line)) { zone = "nodebest"; continue; }
-      if (zone === "rows" || zone === "torn" || zone === "mid") {
-        if (/^\s/.test(raw) === false && zone === "mid") { zone = "after"; continue; }
-        const tokens = line.split(/\s{2,}/).map((t) => t.trim()).filter((t) => t.length);
-        const row = parseRowTokens(tokens, withP, withSpeed);
+      if (zone === "rows" || zone === "torn") {
+        const row = parseRowTokens(line, withP, withSpeed);
         if (row) {
-          row.torn = zone === "torn" || zone === "mid";
+          row.torn = zone === "torn";
           results.push(row);
         }
       }
@@ -266,19 +300,26 @@
     return results;
   }
 
-  function parseRowTokens(tokens, withP, withSpeed) {
-    // ожидаемо: [endpoint, ping, (tunPing, loss), (speed), seenAs, node, location]
-    if (tokens.length < 4) return null;
-    const row = { endpoint: tokens[0], ping: "", tunPing: "", loss: "", speed: "", seenAs: "", node: "", loc: "" };
-    let i = 1;
+  function parseRowTokens(line, withP, withSpeed) {
+    const m = /^(\S+)\s+(.*)$/.exec(line);
+    if (!m) return null;
+    const endpoint = m[1];
+    if (!/:\d+$/.test(endpoint)) return null;
+    const tokens = m[2].split(/\s{2,}/).map((t) => t.trim()).filter((t) => t.length);
+    const row = { endpoint, ping: "", tunPing: "", loss: "", speed: "", seenAs: "", node: "", loc: "" };
+    let i = 0;
     row.ping = tokens[i++] || "";
     if (withP) { row.tunPing = tokens[i++] || ""; row.loss = tokens[i++] || ""; }
     if (withSpeed) row.speed = tokens[i++] || "";
     row.seenAs = tokens[i++] || "";
     row.node = tokens[i++] || "";
     row.loc = tokens.slice(i).join(" ") || "";
-    if (!/:\d+$/.test(row.endpoint)) return null;
     return row;
+  }
+
+  function exitCodeOf(data) {
+    const code = typeof data === "number" ? data : parseInt(String(data == null ? "" : data).trim(), 10);
+    return Number.isFinite(code) ? code : -1;
   }
 
   function pingMs(pingStr) {
@@ -309,14 +350,12 @@
     const withP = S.scan.tunPing;
     const withSpeed = S.scan.speed || S.scan.bestBySpeed;
 
-    let rows = S.results.slice();
-    if (!S.sortDesc) {
-      rows.sort((a, b) => (a.torn - b.torn) || (pingMs(a.ping || (a.tunPing && a.tunPing)) - pingMs(b.ping || (b.tunPing && b.tunPing))));
-    } else {
+    const rows = S.results.slice();
+    if (S.sortByPing) {
       rows.sort((a, b) => (a.torn - b.torn) || (pingMs(a.tunPing || a.ping) - pingMs(b.tunPing || b.ping)));
-    }
+    } // иначе — порядок отчёта warpscout: потери → пинг
 
-    const cols = ["Эндпоинт", S.sortDesc ? "TUN PING" : "PING"];
+    const cols = ["Эндпоинт", S.sortByPing ? "TUN PING ↑" : "PING"];
     if (withP) cols.push("LOSS");
     if (withSpeed) cols.push("SPEED");
     cols.push("SEEN AS", "NODE", "Локация узла");
@@ -337,7 +376,7 @@
       .map((r, idx) => {
         const cells = [
           "<td>" + esc(r.endpoint) + "</td>",
-          "<td>" + pingCell(S.sortDesc ? (r.tunPing || r.ping) : r.ping) + "</td>",
+          "<td>" + pingCell(S.sortByPing ? (r.tunPing || r.ping) : r.ping) + "</td>",
           withP ? "<td>" + pingCell(r.tunPing) + "</td><td>" + lossCell(r.loss) + "</td>" : "",
           withSpeed ? "<td>" + esc(r.speed || "—") + "</td>" : "",
           "<td>" + esc(r.seenAs || "—") + "</td>",
@@ -381,9 +420,15 @@
 
   async function runScan() {
     if (S.running.scan) return;
+    S.running.scan = true;
+    setScanRunning(true);
     const s = S.scan;
-    if ((s.proto === "masque" || s.proto === "masque-h2") && (s.node || s.country)) {
-      toast("Для MASQUE фильтры -node/-country не применяются — Cloudflare вернёт одну ноду", "err");
+    // для masque фильтры -node/-country/-exclude-* не применяются — buildScanArgs их вырезает
+    if (!S.account && !IS_MOCK) {
+      S.running.scan = false;
+      setScanRunning(false);
+      toast("Сначала создайте аккаунт WARP — вкладка «Аккаунт»", "err");
+      switchTab("account");
       return;
     }
     const withP = !!s.tunPing;
@@ -395,18 +440,11 @@
     const cmd = buildScanCmd(s);
     $("#scanLog").textContent = "";
     switchSubtab("log");
-    setScanRunning(true);
     setPhase("Запуск warpscout…", 2);
     S.results = [];
     renderResults();
     updateCmdPreview();
-
-    if (!S.account && !IS_MOCK) {
-      setScanRunning(false);
-      toast("Сначала создайте аккаунт WARP — вкладка «Аккаунт»", "err");
-      switchTab("account");
-      return;
-    }
+    S.scanStopped = false;
     try {
       const proc = await os().execCommand(cmd, { stream: true });
       S.procIds.scan = proc.id;
@@ -419,9 +457,11 @@
           // прогресс
           const mPhase1 = /Phase 1: probing reachable WARP ports: (\d+)\.\.\./.exec(buf);
           const mPhase2 = /Phase 2: verifying tunnels \(proto=(\w+)\): (\d+)\.\.\./.exec(buf);
+          const mSpeed = /Speedtest|speed test|Measuring speed/i.test(buf);
           const mStep = /(\d+)\/(\d+)\s*$/.exec(buf.trim());
           if (mPhase1) setPhase("Фаза 1: ищем проходимые порты", null);
           if (mPhase2) setPhase("Фаза 2: проверяем туннели", null);
+          if (mSpeed && !mStep) setPhase("Замер скорости (медленно, ждите)…", null);
           if (mStep) {
             const frac = (+mStep[1] / Math.max(1, +mStep[2])) * 100;
             setPhase(mPhase2 ? "Фаза 2: проверяем туннели" : "Фаза 1: ищем проходимые порты", frac);
@@ -429,29 +469,36 @@
         } else if (d.type === "exit") {
           unregisterProc(proc.id);
           setScanRunning(false);
-          setPhase("Читаем отчёт…", 100);
-          finishScan(withP, withSpeed, +((d.data || "0").trim()) === 0);
+          setPhase(S.scanStopped ? "Остановлено" : "Читаем отчёт…", 100);
+          if (!S.scanStopped) finishScan(withP, withSpeed, exitCodeOf(d.data));
+          else toast("Скан остановлен", "ok");
         }
       });
     } catch (e) {
+      S.running.scan = false;
       setScanRunning(false);
       toast("Не удалось запустить warpscout: " + (e && e.message ? e.message : e), "err");
       switchSubtab("results");
     }
   }
 
-  async function finishScan(withP, withSpeed, exitOk) {
+  async function finishScan(withP, withSpeed, exitCode) {
     let text = "";
     try {
       text = await fs().readFile(S.paths.reportPath);
     } catch (e) {
-      // в демо-режиме берём отчёт из мока
-      if (IS_MOCK && window.NeutralinoMock) text = window.NeutralinoMock.report;
+      // в демо-режиме берём отчёт, соответствующий флагам последнего «скана»
+      if (IS_MOCK && window.NeutralinoMock) text = window.NeutralinoMock.lastReport || window.NeutralinoMock.report;
     }
     if (!text) {
       appendLog($("#scanLog"), "\n[GUI] Отчёт не найден — смотрим конец лога.\n");
-      toast("Скан завершён, но отчёт пуст. Смотрите лог.", "err");
-      switchSubtab("results");
+      if (exitCode !== 0) {
+        toast("warpscout завершился с ошибкой (код " + exitCode + "). Смотрите лог — часто не хватает аккаунта или фильтры слишком строгие.", "err");
+        switchSubtab("log");
+      } else {
+        toast("Скан завершён, но отчёт пуст. Смотрите лог.", "err");
+        switchSubtab("results");
+      }
       return;
     }
     S.results = parseReport(text, withP, withSpeed);
@@ -470,10 +517,9 @@
   }
 
   async function stopScan() {
-    if (S.procIds.scan != null) {
-      try { await os().killProcess(S.procIds.scan); } catch (e) {}
-      S.procIds.scan = null;
-    }
+    S.scanStopped = true;
+    await killProc(S.procIds.scan);
+    S.procIds.scan = null;
     setScanRunning(false);
     toast("Скан остановлен", "ok");
   }
@@ -530,11 +576,7 @@
       kv("Jmax", o.jmax);
       kv("S1", o.s1); kv("S2", o.s2); kv("S3", o.s3); kv("S4", o.s4);
       kv("H1", o.h1); kv("H2", o.h2); kv("H3", o.h3); kv("H4", o.h4);
-      if (ver === "awg20" || ver === "awg31") {
-        if ((o.i1 || "").trim()) kv("I1", o.i1.trim());
-      } else if ((o.i1 || "").trim()) {
-        kv("I1", o.i1.trim());
-      }
+      if ((o.i1 || "").trim()) kv("I1", o.i1.trim());
     }
     if (ver === "awg31") {
       kv("ContentPaddingAddition", o.cpa);
@@ -553,7 +595,7 @@
     sec("Peer");
     kv("PublicKey", acc ? acc.peer_public_key : "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=");
     kv("AllowedIPs", cfgAllowedIps());
-    kv("Endpoint", c.endpoint || "188.114.98.58:2408");
+    kv("Endpoint", c.endpoint || "8.47.69.43:2408");
     if (c.keepalive > 0) kv("PersistentKeepalive", c.keepalive);
 
     return lines.join("\n") + "\n";
@@ -570,7 +612,8 @@
     const conf = buildConf();
     $("#confPreview").innerHTML = hlConf(conf);
     const ver = S.cfg.ver;
-    $("#cfgFileName").textContent = ver === "wg" ? "warp-wg.conf" : "warp-" + ver.replace("awg", "awg") + ".conf";
+    const names = { wg: "warp-wg.conf", awg15: "warp-awg15.conf", awg20: "warp-awg20.conf", awg31: "warp-awg31.conf" };
+    $("#cfgFileName").textContent = names[ver] || "warp.conf";
     $("#cfgObfCard").classList.toggle("hidden", ver === "wg");
     $("#cfgAwg31Grid").style.display = ver === "awg31" ? "" : "none";
     $("#cfgVerHint").textContent = VER_HINTS[ver];
@@ -682,6 +725,7 @@
   async function runRegister(fresh) {
     if (S.running.register) return;
     S.running.register = true;
+    registerUi();
     const log = $("#accLog");
     log.textContent = "";
     appendLog(log, "$ warpscout register" + (fresh ? " -fresh" : "") + "\n");
@@ -689,6 +733,8 @@
       appendLog(log, "[демо] Используется демо-аккаунт. В приложении здесь выполняется настоящая регистрация.\n");
       S.account = await loadAccount();
       renderAccount();
+      S.running.register = false;
+      registerUi();
       toast("Демо: аккаунт уже есть", "ok");
       return;
     }
@@ -702,46 +748,56 @@
         else if (d.type === "exit") {
           unregisterProc(proc.id);
           S.running.register = false;
-          const ok = +((d.data || "1").trim()) === 0;
-          appendLog(log, ok ? "\n[GUI] Готово.\n" : "\n[GUI] Регистрация завершилась с ошибкой (код " + d.data + ").\n");
+          registerUi();
+          const ok = exitCodeOf(d.data) === 0;
+          appendLog(log, ok ? "\n[GUI] Готово.\n" : "\n[GUI] Регистрация завершилась с ошибкой (код " + exitCodeOf(d.data) + ").\n");
           if (ok) { loadAccount().then(renderAccount); toast("Аккаунт готов", "ok"); }
           else toast("Регистрация не удалась — смотрите лог", "err");
         }
       });
     } catch (e) {
       S.running.register = false;
+      registerUi();
       appendLog(log, "\n[GUI] Не удалось запустить warpscout: " + (e && e.message ? e.message : e) + "\n");
       toast("Ошибка запуска warpscout", "err");
     }
   }
 
+  function registerUi() {
+    $("#btnRegister").hidden = S.running.register;
+    $("#btnRegisterFresh").hidden = S.running.register;
+    $("#btnRegisterStop").hidden = !S.running.register;
+  }
+
   /* ───────── SOCKS ───────── */
   async function socksToggle() {
     if (S.running.socks) {
-      try { await os().killProcess(S.procIds.socks); } catch (e) {}
+      await killProc(S.procIds.socks);
       S.procIds.socks = null;
       S.running.socks = false;
       socksUi();
       return;
     }
+    S.running.socks = true;
+    socksUi();
     const ep = $("#socksEndpoint").value.trim();
-    if (!/^.+:\d+$/.test(ep)) { toast("Укажите эндпоинт в формате ip:порт", "err"); return; }
+    if (!/^\[?[0-9a-zA-Z.:]+\]?:\d{1,5}$/.test(ep)) { toast("Укажите эндпоинт в формате ip:порт (например 188.114.98.58:2408)", "err"); S.running.socks = false; socksUi(); return; }
     const port = $("#socksPort").value || "1080";
     const proto = $("#socksProto").value;
     const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
     const cmd = quoteExe() + " socks -e " + ep + " -p " + proto + " -P " + port + acc;
     $("#socksLog").textContent = "";
-    const proc = await os().spawnProcess(cmd);
+    let proc;
+    try { proc = await os().spawnProcess(cmd); } catch (e) { S.running.socks = false; socksUi(); toast("Не удалось запустить", "err"); return; }
+    if (proc && proc.id != null) registerProc(proc.id, () => {});
     S.procIds.socks = proc.id;
-    S.running.socks = true;
-    socksUi();
     registerProc(proc.id, (d) => {
       if (d.type === "stdout" || d.type === "stderr") appendLog($("#socksLog"), typeof d.data === "string" ? d.data : "");
       else if (d.type === "exit") {
         unregisterProc(proc.id);
         S.running.socks = false;
         socksUi();
-        appendLog($("#socksLog"), "\n[GUI] Прокси остановлен (код " + d.data + ").\n");
+        appendLog($("#socksLog"), "\n[GUI] Прокси остановлен.\n");
       }
     });
     $("#socksAddr").textContent = "socks5h://127.0.0.1:" + port;
@@ -838,8 +894,14 @@
         else { flags[f](tokens[i + 1]); i++; }
       }
     }
+    // MASQUE несовместим с фильтрами узлов — сбрасываем, иначе warpscout вернёт ошибку
+    if (s.proto === "masque" || s.proto === "masque-h2") {
+      s.node = ""; s.country = ""; s.exclNode = ""; s.exclCountry = "";
+    }
+    S.foundCmd = ""; // применена — не даём переиспользовать устаревшую
     syncInputsFromState();
     updateCmdPreview();
+    persist();
     switchTab("scan");
     toast("Параметры применены к скану", "ok");
   }
@@ -980,9 +1042,16 @@
   const persist = debounce(() => {
     if (!HAS_NL) return;
     try {
-      store().setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, foundCmd: S.foundCmd || "" }));
+      store()
+        .setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, foundCmd: S.foundCmd || "" }))
+        .catch(() => {});
     } catch (e) {}
   }, 400);
+
+  window.addEventListener("beforeunload", () => {
+    if (!HAS_NL) return;
+    try { store().setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, foundCmd: S.foundCmd || "" })); } catch (e) {}
+  });
 
   /* ───────── проверка warpscout ───────── */
   async function checkWarpscout() {
@@ -990,7 +1059,7 @@
     try {
       const cmd = quoteExe() + " version";
       const res = await os().execCommand(cmd);
-      const out = ((res && res.output) || "").trim();
+      const out = String((res && (res.stdOut != null ? res.stdOut : res.output)) || "").trim();
       if (/^\d+\.\d+/.test(out)) {
         S.wsVersion = out;
         el.textContent = "● warpscout v" + out + " — готов";
@@ -1031,8 +1100,9 @@
     } else {
       let dataDir = "";
       try { dataDir = await os().getPath("data"); } catch (e) { dataDir = ""; }
-      dataDir = (dataDir || ".").replace(/[\\/]+$/, "") + "\\WARPScoutGUI";
-      S.paths.dataDir = dataDir;
+      dataDir = (dataDir || (window.NL_PATH || "") || "").replace(/[\\/]+$/, "");
+      if (!dataDir) dataDir = "."; // крайний случай: относительно CWD
+      S.paths.dataDir = dataDir + "\\WARPScoutGUI";
     }
     S.paths.accPath = S.paths.dataDir + "\\warpscout-account.json";
     S.paths.reportsDir = S.paths.dataDir + "\\reports";
@@ -1129,7 +1199,7 @@
     $("#btnRunScan").addEventListener("click", runScan);
     $("#btnStopScan").addEventListener("click", stopScan);
     $("#btnCopyCmd").addEventListener("click", () => copyText(buildScanCmd(S.scan), "Команда скопирована"));
-    $("#btnSortPing").addEventListener("click", () => { S.sortDesc = !S.sortDesc; renderResults(); });
+    $("#btnSortPing").addEventListener("click", () => { S.sortByPing = !S.sortByPing; renderResults(); });
     $("#btnToConfig").addEventListener("click", () => {
       const best = S.results.find((r) => !r.torn);
       if (!best) { toast("Сначала выполните скан", "err"); return; }
@@ -1205,6 +1275,13 @@
     $("#btnRegisterFresh").addEventListener("click", () => {
       if (confirm("Создать новый аккаунт WARP с нуля? Текущие ключи будут заменены.")) runRegister(true);
     });
+    $("#btnRegisterStop").addEventListener("click", async () => {
+      await killProc(S.procIds.register);
+      S.procIds.register = null;
+      S.running.register = false;
+      registerUi();
+      appendLog($("#accLog"), "\n[GUI] Остановлено пользователем.\n");
+    });
     $("#btnOpenAccFolder").addEventListener("click", () => {
       if (IS_MOCK) { toast("Только в приложении Windows", "err"); return; }
       os().open(S.paths.dataDir).catch(() => toast("Не удалось открыть папку", "err"));
@@ -1224,14 +1301,19 @@
 
     // инструменты
     $("#btnFjRun").addEventListener("click", () => runTool("fj"));
-    $("#btnFjStop").addEventListener("click", () => { try { os().killProcess(S.procIds.fj); } catch (e) {} });
+    $("#btnFjStop").addEventListener("click", () => { killProc(S.procIds.fj); });
     $("#btnFsRun").addEventListener("click", () => runTool("fs"));
-    $("#btnFsStop").addEventListener("click", () => { try { os().killProcess(S.procIds.fs); } catch (e) {} });
+    $("#btnFsStop").addEventListener("click", () => { killProc(S.procIds.fs); });
     $("#btnApplyFound").addEventListener("click", applyFoundCmd);
 
     // настройки
     $("#btnBrowseWs").addEventListener("click", browseWsPath);
-    $("#btnCheckWs").addEventListener("click", () => { S.paths.wsPath = $("#setWsPath").value.trim() || S.paths.wsPath; checkWarpscout(); });
+    $("#btnCheckWs").addEventListener("click", () => {
+      S.paths.wsPath = $("#setWsPath").value.trim() || S.paths.wsPath;
+      S.settings.wsPath = S.paths.wsPath;
+      persist();
+      checkWarpscout();
+    });
     $("#btnOpenAcc").addEventListener("click", () => {
       if (IS_MOCK) { toast("Только в приложении Windows", "err"); return; }
       os().open(S.paths.dataDir).catch(() => {});
@@ -1243,11 +1325,25 @@
     $("#btnResetStorage").addEventListener("click", async () => {
       if (!confirm("Сбросить все настройки и данные приложения?")) return;
       S.scan = Object.assign({}, DEFAULT_SCAN);
+      S.cfg = {
+        ver: "awg31", dns: "cloudflare", dnsCustom: "", endpoint: "", mtu: 1280,
+        keepalive: 0, allowed: "both", allowedCustom: "", tableOff: false,
+        obf: {
+          jc: 4, jmin: 40, jmax: 70, s1: 0, s2: 0, s3: 0, s4: 0,
+          h1: "1", h2: "2", h3: "3", h4: "4", i1: EXAMPLE_I1,
+          cpa: "27-97", rekeyAfter: "116-131", rekeyTo: "6-9", rejectAfter: "171-196",
+          keepaliveTo: "9-16", maxHs: "18-26", trailers: "on", noCookies: "on", hpk: "",
+        },
+      };
       S.results = [];
+      S.sortByPing = false;
+      try { await store().setData("state", "{}"); } catch (e) {}
       syncInputsFromState();
+      syncCfgInputsFromState();
       updateCmdPreview();
       renderResults();
-      toast("Сброшено", "ok");
+      renderConf();
+      toast("Настройки сброшены", "ok");
     });
 
     // горячие клавиши
@@ -1294,6 +1390,9 @@
     }
     renderAccountStatusline();
   }
+
+  // отладочный хук (безвредно): помогает диагностике через консоль
+  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {

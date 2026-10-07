@@ -1,6 +1,6 @@
 {
   "applicationId": "ru.warpscout.gui",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "defaultMode": "window",
   "port": 0,
   "documentRoot": "/resources/",
@@ -9,11 +9,19 @@
   "enableNativeAPI": true,
   "tokenSecurity": "one-time",
   "nativeBlockList": [],
-  "logging": { "enabled": true, "writeToLogFile": false },
-  "nativeAllowList": ["app.*", "os.*", "filesystem.*", "storage.*", "window.*", "events.*", "debug.*"],
-  "globalVariables": {
-    "NL_GV_warpDefaultCommand": "warpscout scan -p awg -P -n 10 -exclude-node DME"
+  "logging": {
+    "enabled": true,
+    "writeToLogFile": false
   },
+  "nativeAllowList": [
+    "app.*",
+    "os.*",
+    "filesystem.*",
+    "storage.*",
+    "window.*",
+    "events.*",
+    "debug.*"
+  ],
   "modes": {
     "window": {
       "title": "WARPSCOUT GUI",

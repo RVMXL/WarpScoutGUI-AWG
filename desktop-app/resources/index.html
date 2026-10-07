@@ -52,7 +52,7 @@
           <div class="statusline__row" id="stWs" title="">● warpscout: проверка…</div>
           <div class="statusline__row" id="stAcc">● аккаунт: проверка…</div>
         </div>
-        <div class="sidebar__ver">WARPSCOUT GUI v1.0.0 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v1.0.1 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -131,19 +131,19 @@
               <div class="form-grid form-grid--2">
                 <label class="field">
                   <span class="field__label">Исключить узлы <code>-exclude-node</code></span>
-                  <input type="text" id="fExclNode" value="DME" list="colos" placeholder="DME, FRA" />
+                  <input type="text" id="fExclNode" value="DME" list="colos" placeholder="DME,FRA" />
                 </label>
                 <label class="field">
                   <span class="field__label">Исключить страны <code>-exclude-country</code></span>
-                  <input type="text" id="fExclCountry" placeholder="RU, HK" list="isoCodes" />
+                  <input type="text" id="fExclCountry" placeholder="RU,HK" list="isoCodes" />
                 </label>
                 <label class="field">
                   <span class="field__label">Только узлы <code>-node</code></span>
-                  <input type="text" id="fNode" placeholder="HEL, ARN" list="colos" />
+                  <input type="text" id="fNode" placeholder="HEL,ARN" list="colos" />
                 </label>
                 <label class="field">
                   <span class="field__label">Только страны <code>-country</code></span>
-                  <input type="text" id="fCountry" placeholder="DE, NL" list="isoCodes" />
+                  <input type="text" id="fCountry" placeholder="DE,NL" list="isoCodes" />
                 </label>
               </div>
               <datalist id="colos">
@@ -180,7 +180,7 @@
                   <input type="text" id="fI1Sni" placeholder="случайный известный хост" />
                 </label>
                 <label class="field">
-                  <span class="field__label">Mусорных пакетов <code>-jc</code></span>
+                  <span class="field__label">Мусорных пакетов <code>-jc</code></span>
                   <input type="number" id="fJc" min="0" max="255" value="6" />
                 </label>
                 <label class="field">
@@ -224,11 +224,11 @@
                 </label>
                 <label class="field">
                   <span class="field__label">Протокол внутри <code>-inner-proto</code></span>
-                  <select id="fInnerProto"><option value="">wg (по умолчанию)</option><option value="awg">awg</option><option value="wg">wg</option></select>
+                  <select id="fInnerProto"><option value="">wg (по умолчанию)</option><option value="awg">awg</option></select>
                 </label>
                 <label class="field field--wide">
                   <span class="field__label">Свои адреса <code>-target</code> (IP или CIDR, через запятую)</span>
-                  <input type="text" id="fTarget" placeholder="188.114.98.58, 162.159.192.0/28" />
+                  <input type="text" id="fTarget" placeholder="188.114.98.58,162.159.192.0/28" />
                 </label>
                 <label class="field">
                   <span class="field__label">Цель TUN PING <code>-ping-target</code></span>
@@ -351,8 +351,8 @@
                   <input type="number" id="cfgMtu" value="1280" min="576" max="1500" />
                 </label>
                 <label class="field">
-                  <span class="field__label">PersistentKeepalive</span>
-                  <input type="number" id="cfgKeepalive" value="25" min="0" max="120" />
+                  <span class="field__label">PersistentKeepalive (0 — не писать строку)</span>
+                  <input type="number" id="cfgKeepalive" value="0" min="0" max="120" />
                 </label>
                 <label class="field">
                   <span class="field__label">AllowedIPs</span>
@@ -453,6 +453,7 @@
             <div class="row-buttons">
               <button class="btn btn--primary" id="btnRegister" type="button">⚙️ Зарегистрировать / обновить ключи</button>
               <button class="btn btn--danger" id="btnRegisterFresh" type="button">🔥 Новый аккаунт (-fresh)</button>
+              <button class="btn btn--ghost" id="btnRegisterStop" type="button" hidden>■ Остановить</button>
               <button class="btn btn--ghost" id="btnOpenAccFolder" type="button">📁 Открыть папку</button>
             </div>
             <p class="hint">«Обновить ключи» меняет ключи, не создавая новое устройство. «Новый аккаунт» регистрирует устройство с нуля.</p>
