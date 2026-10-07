@@ -4,15 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="/css/app.css" />
-  <link rel="icon" href="/icons/favicon.png" />
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
   <div id="app" class="app">
     <!-- ══════════ Sidebar ══════════ -->
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <img src="/icons/appIcon.png" alt="Логотип WARPSCOUT GUI" class="brand__icon" />
+        <img src="icons/appIcon.png" alt="Логотип WARPSCOUT GUI" class="brand__icon" />
         <div class="brand__text">
           <div class="brand__name">WARPSCOUT<span class="brand__gui">GUI</span></div>
           <div class="brand__sub">поиск живых эндпоинтов WARP</div>
@@ -52,7 +52,8 @@
           <div class="statusline__row" id="stWs" title="">● warpscout: проверка…</div>
           <div class="statusline__row" id="stAcc">● аккаунт: проверка…</div>
         </div>
-        <div class="sidebar__ver">WARPSCOUT GUI v1.1.0 · warpscout v0.16.0</div>
+        <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
+        <div class="sidebar__ver">WARPSCOUT GUI v1.2.0 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -289,6 +290,7 @@
                 </div>
               </div>
               <div class="history hidden" id="historyPanel" aria-label="История сканов"></div>
+              <div class="res-stats hidden" id="resStats" aria-label="Статистика результатов"></div>
               <div class="table-wrap" id="resultsWrap">
                 <table class="rtable" id="resultsTable">
                   <thead id="resultsHead"></thead>
@@ -622,8 +624,31 @@
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <script src="/js/neutralino.js"></script>
-  <script src="/js/mock.js"></script>
-  <script src="/js/app.js"></script>
+  <!-- ══════════ Горячие клавиши (модалка) ══════════ -->
+  <div class="modal hidden" id="kbdModal" role="dialog" aria-modal="true" aria-label="Горячие клавиши">
+    <div class="modal__backdrop" data-close-kbd></div>
+    <div class="modal__card">
+      <div class="modal__head">
+        <h2>⌨ Горячие клавиши</h2>
+        <button class="modal__close" type="button" data-close-kbd aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal__body">
+        <table class="kbd-table">
+          <tbody>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>1</kbd>…<kbd>6</kbd></td><td>переключение вкладок</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>начать скан</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>остановить скан / закрыть панель или окно</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>сохранить конфиг (на вкладке «Конфиг»)</td></tr>
+            <tr><td><kbd>?</kbd></td><td>показать эту справку</td></tr>
+          </tbody>
+        </table>
+        <p class="modal__note">Подсказка: наведите курсор на строку результата — появятся быстрые действия (⧉ копировать, ⚙ в конфиг, 🧦 в SOCKS).</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/neutralino.js"></script>
+  <script src="js/mock.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

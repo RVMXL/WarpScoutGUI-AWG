@@ -138,11 +138,29 @@
     "ARN    188.114.97.177:2408    52ms          SE         Stockholm, SE",
   ].join("\n");
 
+  // В демо отчёт слегка «живой»: чётные прогоны добавляют CDG-эндпоинт и теряют WAW —
+  // чтобы дифф «новые / пропали» в веб-демо был наглядным (в реальном app diff считает warpscout).
+  let scanRuns = 0;
+  function varyReport(report) {
+    scanRuns++;
+    if (scanRuns % 2 === 1) return report; // нечётные прогоны — эталонный отчёт
+    const withP = report.indexOf("TUN PING") !== -1;
+    const lines = report.split("\n");
+    const drop = lines.findIndex((l) => l.startsWith("162.159.193.10:500"));
+    if (drop !== -1) lines.splice(drop, 1);
+    const anchor = lines.findIndex((l) => l.startsWith("188.114.98.58:2408"));
+    const newRow = withP
+      ? "188.114.96.7:878      61ms          4ms        3%     FR         CDG    Paris, FR"
+      : "188.114.96.7:878      61ms          FR         CDG    Paris, FR";
+    if (anchor !== -1) lines.splice(anchor + 1, 0, newRow);
+    return lines.join("\n");
+  }
+
   const scripts = {
     scan(cmd) {
       const withP = /(^|\s)-P(\s|$)|tun-ping/.test(cmd);
       const chunks = [];
-      const report = withP ? MOCK_REPORT : MOCK_REPORT_NOP;
+      const report = varyReport(withP ? MOCK_REPORT : MOCK_REPORT_NOP);
       window.NeutralinoMock.lastReport = report; // finishScan в демо берёт отчёт, соответствующий флагам
       chunks.push({ delay: 200, data: "Using cached WARP account from warpscout-account.json\r\n" });
       chunks.push({ delay: 300, data: "\r\nPhase 1: probing reachable WARP ports: 12...\r\n" });

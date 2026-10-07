@@ -585,6 +585,75 @@ textarea { resize: vertical; min-height: 40px; line-height: 1.4; }
 @keyframes toastIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
 @keyframes toastOut { to { opacity: 0; transform: translateX(16px); } }
 
+/* ═══ Статистика результатов (chips) ═══ */
+.res-stats { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.stat-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; color: var(--text-dim);
+  background: var(--bg-input); border: 1px solid var(--border-soft);
+  border-radius: 999px; padding: 3px 10px;
+  animation: chipIn 0.25s ease both;
+}
+.stat-chip b { color: var(--text); font-weight: 700; }
+.stat-chip--ok { border-color: rgba(70, 194, 110, 0.35); background: var(--ok-soft); }
+.stat-chip--ok b { color: var(--ok); }
+.stat-chip--err { border-color: rgba(224, 91, 77, 0.35); background: var(--err-soft); }
+.stat-chip--err b { color: var(--err); }
+.stat-chip--best { border-color: var(--accent-line); background: var(--accent-soft); }
+.stat-chip--best b { color: var(--accent-text); }
+.stat-chip--new { border-color: rgba(70, 194, 110, 0.35); background: var(--ok-soft); }
+.stat-chip--new b { color: var(--ok); }
+button.stat-chip { cursor: pointer; font-family: var(--font); transition: border-color 0.15s, transform 0.15s; }
+button.stat-chip:hover { border-color: var(--err); transform: translateY(-1px); }
+@keyframes chipIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+
+/* лучший эндпоинт + новые строки */
+.rtable tr.is-best { background: linear-gradient(90deg, rgba(242, 124, 32, 0.08), transparent 60%); }
+.rtable tr.is-best td:first-child { color: var(--accent-text); }
+.best-star { color: var(--accent); margin-right: 6px; font-size: 12px; text-shadow: 0 0 8px rgba(242, 124, 32, 0.6); }
+.new-badge {
+  margin-left: 8px; font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+  color: var(--ok); border: 1px solid rgba(70, 194, 110, 0.45); border-radius: 4px;
+  padding: 0 4px; vertical-align: 1px; text-transform: uppercase;
+  animation: newPulse 1.6s ease infinite;
+}
+@keyframes newPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* ═══ Модалка горячих клавиш ═══ */
+.modal { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; }
+.modal__backdrop { position: absolute; inset: 0; background: rgba(5, 8, 10, 0.62); backdrop-filter: blur(3px); }
+.modal__card {
+  position: relative; width: min(430px, calc(100vw - 32px));
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  animation: modalIn 0.18s ease both;
+}
+@keyframes modalIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+.modal__head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--border-soft); }
+.modal__head h2 { font-size: 14px; font-weight: 700; }
+.modal__close { background: none; border: none; color: var(--text-faint); font-size: 14px; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+.modal__close:hover { color: var(--text); background: var(--bg-card-hover); }
+.modal__body { padding: 12px 16px 16px; }
+.kbd-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.kbd-table td { padding: 6px 4px; border-bottom: 1px solid var(--border-soft); color: var(--text-dim); }
+.kbd-table td:last-child { color: var(--text); }
+.kbd-table tr:last-child td { border-bottom: none; }
+kbd {
+  font-family: var(--mono); font-size: 11px; color: var(--text);
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px;
+}
+.modal__note { margin-top: 10px; font-size: 11.5px; color: var(--text-faint); line-height: 1.5; }
+.sidebar__kbd {
+  margin-top: 8px; width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 11px; color: var(--text-dim);
+  background: transparent; border: 1px dashed var(--border);
+  border-radius: 8px; padding: 6px 8px; cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.sidebar__kbd:hover { color: var(--accent-text); border-color: var(--accent-line); background: var(--accent-soft); }
+
 /* ═══ Responsive ═══ */
 @media (max-width: 1080px) {
   .scan-grid, .config-grid { grid-template-columns: 1fr; }

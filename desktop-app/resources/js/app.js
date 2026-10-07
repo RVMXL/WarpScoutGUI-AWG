@@ -131,6 +131,8 @@
     running: { scan: false, register: false, fj: false, fs: false, socks: false },
     procIds: {},
     demoScanned: false,
+    prevEndpoints: null,  // Set эндпоинтов прошлого скана (для сравнения)
+    diff: null,           // {newList:[], newCount, gone:[]} — diff с прошлым сканом
   };
 
   const PRESETS = {
@@ -369,6 +371,18 @@
       rows.sort((a, b) => (a.torn - b.torn) || (pingMs(a.tunPing || a.ping) - pingMs(b.tunPing || b.ping)));
     } // иначе — порядок отчёта warpscout: потери → пинг
 
+    // лучший рабочий эндпоинт (мин. TUN PING, иначе PING)
+    let bestEp = "";
+    const workingRows = rows.filter((r) => !r.torn);
+    if (workingRows.length) {
+      let bestV = Infinity;
+      workingRows.forEach((r) => {
+        const v = pingMs(r.tunPing || r.ping);
+        if (v < bestV) { bestV = v; bestEp = r.endpoint; }
+      });
+    }
+
+    renderResStats();
     const cols = ["Эндпоинт", S.sortByPing ? "TUN PING ↑" : "PING"];
     if (withP) cols.push("LOSS");
     if (withSpeed) cols.push("SPEED");
@@ -389,8 +403,13 @@
     body.innerHTML = rows
       .map((r, idx) => {
         const ep = r.endpoint;
+        const isNew = !!(S.diff && S.diff.newList && S.diff.newList.indexOf(ep) !== -1);
         const cells = [
-          "<td>" + esc(ep) + "</td>",
+          "<td>" +
+            (ep === bestEp ? '<span class="best-star" title="Лучший пинг">★</span>' : "") +
+            esc(ep) +
+            (isNew ? '<span class="new-badge" title="Появился в этом скане">new</span>' : "") +
+          "</td>",
           "<td>" + pingCell(S.sortByPing ? (r.tunPing || r.ping) : r.ping) + "</td>",
           withP ? "<td>" + pingCell(r.tunPing) + "</td><td>" + lossCell(r.loss) + "</td>" : "",
           withSpeed ? "<td>" + esc(r.speed || "—") + "</td>" : "",
@@ -405,7 +424,9 @@
         ];
         const sel = ep === S.selected ? " is-selected" : "";
         const torn = r.torn ? " is-torn" : "";
-        return '<tr data-ep="' + esc(ep) + '" class="' + sel.trim() + torn + '">' + cells.join("") + "</tr>";
+        const best = ep === bestEp ? " is-best" : "";
+        const nw = isNew ? " is-new" : "";
+        return '<tr data-ep="' + esc(ep) + '" class="' + (sel + torn + best + nw).trim() + '">' + cells.join("") + "</tr>";
       })
       .join("");
 
@@ -436,6 +457,57 @@
         })
       );
     });
+  }
+
+  /* ───────── статистика результатов ───────── */
+  function renderResStats() {
+    const el = $("#resStats");
+    if (!el) return;
+    if (!S.results.length) {
+      el.classList.add("hidden");
+      el.innerHTML = "";
+      return;
+    }
+    const working = S.results.filter((r) => !r.torn);
+    const torn = S.results.length - working.length;
+    const pings = working.map((r) => pingMs(r.tunPing || r.ping)).filter((v) => v !== Infinity);
+    const sorted = pings.slice().sort((a, b) => a - b);
+    const best = sorted.length ? sorted[0] : 0;
+    const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+    const nodes = {};
+    working.forEach((r) => { if (r.node) nodes[r.node] = (nodes[r.node] || 0) + 1; });
+    const nodeNames = Object.keys(nodes);
+
+    const chips = [
+      '<span class="stat-chip">📡 всего <b>' + S.results.length + "</b></span>",
+      '<span class="stat-chip stat-chip--ok">✅ рабочих <b>' + working.length + "</b></span>",
+    ];
+    if (torn) chips.push('<span class="stat-chip stat-chip--err">✂ разорвано <b>' + torn + "</b></span>");
+    if (best) chips.push('<span class="stat-chip stat-chip--best" title="Минимальный пинг среди рабочих">⚡ лучший <b>' + best + " ms</b></span>");
+    if (median) chips.push('<span class="stat-chip" title="Медианный пинг рабочих">⚖ медиана <b>' + median + " ms</b></span>");
+    if (nodeNames.length) {
+      chips.push('<span class="stat-chip" title="Узлы: ' + esc(nodeNames.join(", ")) + '">🌍 узлов <b>' + nodeNames.length + "</b></span>");
+    }
+    if (S.diff) {
+      if (S.diff.newCount) {
+        chips.push('<span class="stat-chip stat-chip--new" title="Эндпоинтов, которых не было в прошлом скане">➕ новых <b>' + S.diff.newCount + "</b></span>");
+      }
+      if (S.diff.gone.length) {
+        chips.push(
+          '<button type="button" class="stat-chip stat-chip--gone" id="chipGone" title="' +
+            esc(S.diff.gone.join(", ")) +
+            '">➖ пропали <b>' + S.diff.gone.length + "</b></button>"
+        );
+      }
+    }
+    el.innerHTML = chips.join("");
+    el.classList.remove("hidden");
+    const goneBtn = $("#chipGone");
+    if (goneBtn) {
+      goneBtn.addEventListener("click", () => {
+        toast("Пропали с прошлого скана (" + S.diff.gone.length + "): " + S.diff.gone.join(", "), "warn");
+      });
+    }
   }
 
   /* ───────── прогон скана ───────── */
@@ -482,6 +554,8 @@
     $("#scanLog").textContent = "";
     switchSubtab("log");
     setPhase("Запуск warpscout…", 2);
+    // запоминаем эндпоинты прошлого скана для сравнения (diff)
+    S.prevEndpoints = S.results.length ? new Set(S.results.map((r) => r.endpoint)) : null;
     S.results = [];
     renderResults();
     updateCmdPreview();
@@ -545,6 +619,15 @@
     S.results = parseReport(text, withP, withSpeed);
     S.viewMeta = { withP, withSpeed };
     S.viewProto = S.scan.proto;
+    // diff с прошлым сканом
+    if (S.prevEndpoints) {
+      const curSet = new Set(S.results.map((r) => r.endpoint));
+      const newList = S.results.map((r) => r.endpoint).filter((ep) => !S.prevEndpoints.has(ep));
+      const gone = Array.from(S.prevEndpoints).filter((ep) => !curSet.has(ep));
+      S.diff = { newList, newCount: newList.length, gone };
+    } else {
+      S.diff = null;
+    }
     S.selected = S.results.find((r) => !r.torn) ? S.results.find((r) => !r.torn).endpoint : "";
     pushHistory(S.scan.proto);
     renderResults();
@@ -702,12 +785,18 @@
     });
     S.history = S.history.slice(0, 10);
     renderHistoryBtn();
+    persist();
   }
 
   function renderHistoryBtn() {
     const btn = $("#btnHistory");
     if (!btn) return;
     btn.textContent = "🕘 История" + (S.history.length ? " (" + S.history.length + ")" : "");
+  }
+
+  function toggleKbd(open) {
+    const m = $("#kbdModal");
+    if (m) m.classList.toggle("hidden", !open);
   }
 
   function toggleHistory(force) {
@@ -743,6 +832,8 @@
     const h = S.history[i];
     if (!h) return;
     S.results = h.results.map((r) => Object.assign({}, r));
+    S.prevEndpoints = null;
+    S.diff = null;
     S.viewMeta = { withP: h.withP, withSpeed: h.withSpeed };
     S.viewProto = h.proto;
     S.sortByPing = false;
@@ -1493,6 +1584,8 @@
       };
       S.results = [];
       S.sortByPing = false;
+      S.prevEndpoints = null;
+      S.diff = null;
       try { await store().setData("state", "{}"); } catch (e) {}
       syncInputsFromState();
       syncCfgInputsFromState();
@@ -1503,13 +1596,45 @@
     });
 
     // горячие клавиши
+    const TAB_ORDER = ["scan", "config", "account", "socks", "tools", "settings"];
     document.addEventListener("keydown", (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && !e.shiftKey && !e.altKey && e.key >= "1" && e.key <= "6") {
+        e.preventDefault();
+        switchTab(TAB_ORDER[+e.key - 1]);
+        return;
+      }
+      if (mod && e.key === "Enter") {
         e.preventDefault();
         switchTab("scan");
         if (!S.running.scan) runScan();
+        return;
+      }
+      if (mod && (e.key === "s" || e.key === "S" || e.key === "ы" || e.key === "Ы")) {
+        const active = $(".nav__item.is-active");
+        if (active && active.getAttribute("data-tab") === "config") {
+          e.preventDefault();
+          saveConf();
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        const modal = $("#kbdModal");
+        if (modal && !modal.classList.contains("hidden")) { toggleKbd(false); return; }
+        if (S.historyOpen) { toggleHistory(false); return; }
+        if (S.running.scan) stopScan();
+        return;
+      }
+      if (!mod && !e.altKey && (e.key === "?" || (e.shiftKey && e.key === "/"))) {
+        const t = e.target;
+        if (t && /^(input|textarea|select)$/i.test(t.tagName)) return;
+        toggleKbd(true);
       }
     });
+
+    // модалка горячих клавиш
+    $("#btnKbd").addEventListener("click", () => toggleKbd(true));
+    $$("[data-close-kbd]").forEach((el) => el.addEventListener("click", () => toggleKbd(false)));
 
     // внешние ссылки — системный браузер
     $$("a[data-ext]").forEach((a) =>
