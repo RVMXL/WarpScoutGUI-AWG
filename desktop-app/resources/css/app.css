@@ -1232,3 +1232,141 @@ html[data-theme="light"] .cmp-table th { --card-bg: rgba(243, 241, 235, 0.97); }
   .rtable tbody tr.is-entering { animation: none; opacity: 1; transform: none; }
   .trend__csv:hover { transform: none; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   v1.8.0 — живая панель скана, шаринг пресетов, детали стилей
+   ══════════════════════════════════════════════════════════════ */
+.scan-live {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(180deg, var(--accent-soft), transparent 60%),
+    var(--bg-card);
+  padding: 11px 14px 12px;
+  display: grid;
+  gap: 8px;
+  box-shadow: var(--shadow);
+  animation: liveIn 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@keyframes liveIn { from { opacity: 0; transform: translateY(7px); } }
+
+.scan-live__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.scan-live__dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: liveDot 1.6s ease-out infinite;
+}
+@keyframes liveDot {
+  0% { box-shadow: 0 0 0 0 rgba(242, 124, 32, 0.45); }
+  70% { box-shadow: 0 0 0 9px rgba(242, 124, 32, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(242, 124, 32, 0); }
+}
+html[data-theme="light"] .scan-live__dot {
+  animation-name: liveDotLight;
+}
+@keyframes liveDotLight {
+  0% { box-shadow: 0 0 0 0 rgba(224, 112, 15, 0.4); }
+  70% { box-shadow: 0 0 0 9px rgba(224, 112, 15, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(224, 112, 15, 0); }
+}
+.scan-live__title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+.scan-live__phase {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scan-live__meta {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.scan-live__time {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent-text);
+  font-variant-numeric: tabular-nums;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  padding: 1px 9px;
+}
+.scan-live__canvas {
+  width: 100%;
+  height: 46px;
+  display: block;
+  border-radius: 6px;
+}
+.scan-live__nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.scan-live__nodes:empty { display: none; }
+.scan-live__node {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  border-radius: 999px;
+  padding: 2.5px 9px;
+  font-variant-numeric: tabular-nums;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scan-live__node.is-entering { animation: nodeIn 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.15); }
+@keyframes nodeIn { from { opacity: 0; transform: translateX(-8px) scale(0.92); } }
+
+/* кнопки шаринга пресетов в шапке карточки */
+.card__head .card__tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+#btnPresetsExport:not(:disabled):active,
+#btnPresetsImport:not(:disabled):active { transform: translateY(1px); }
+
+/* детали стилей v1.8.0: акцентная полоса у строки при hover */
+.rtable tbody tr:not(.is-torn):hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+/* плавный подъём кнопки скана при наведении уже есть — добавляем тень нажатия */
+#btnRunScan:not(:disabled):active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 8px rgba(242, 124, 32, 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-live, .scan-live__node.is-entering { animation: none !important; opacity: 1; transform: none; }
+  .scan-live__dot { animation: none !important; }
+}

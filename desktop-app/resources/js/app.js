@@ -197,7 +197,7 @@
     "🌙 Тёмная тема": "🌙 Dark theme",
     "⌨ подсказки": "⌨ shortcuts",
     "ДЕМО-РЕЖИМ (браузер)": "DEMO MODE (browser)",
-    "Переключить светую/тёмную тему": "Toggle light/dark theme",
+    "Переключить светлую/тёмную тему": "Toggle light/dark theme",
     "Переключить тему": "Toggle theme",
     "Горячие клавиши (?)": "Keyboard shortcuts (?)",
     /* — пресеты — */
@@ -635,6 +635,24 @@
     "Тренд CSV сохранён: {path}": "Trend CSV saved: {path}",
     "Скан A": "Scan A",
     "Скан B": "Scan B",
+    /* — v1.8.0: шаринг пресетов + живая панель скана — */
+    "Экспортировать свои пресеты в JSON-файл (поделиться)": "Export your presets to a JSON file (share)",
+    "Импортировать пресеты из JSON-файла": "Import presets from a JSON file",
+    "Своих пресетов пока нет — сохраните хотя бы один (кнопка «＋ Свой»)": "No custom presets yet — save at least one (the '＋ Custom' button)",
+    "Файл не похож на набор пресетов WARPSCOUT GUI": "The file does not look like a WARPSCOUT GUI presets file",
+    "Пресеты экспортированы: {path}": "Presets exported: {path}",
+    "Пресеты скачаны: {path}": "Presets downloaded: {path}",
+    "Экспорт пресетов": "Export presets",
+    "Выберите файл пресетов": "Choose a presets file",
+    "Импорт пресетов: добавлено {n}, пропущено (дубли) {d}": "Preset import: {n} added, {d} duplicates skipped",
+    "Импорт пресетов: добавлено {n}": "Preset import: {n} added",
+    "В файле нет ни одного корректного пресета": "The file contains no valid presets",
+    "Ждём первый шаг прогресса…": "Waiting for the first progress step…",
+    "Прямой эфир": "Live",
+    "шагов": "steps",
+    "узлов": "nodes",
+    "сек": "s",
+    /* — v1.8.0: лендинг — */
   };
 
   let LANG = "ru";
@@ -661,7 +679,8 @@
     "#toasts,#stWs,#stAcc,#accFileState,#accFilePath,#accMainState,#accMasqueState," +
     "#accOuterState,#btnRunScanLabel,#scanPhase,#resCount,#cfgFileName,#cfgVerHint," +
     "#cfgKeysState,#socksAddr,#setWsVerHint,#foundCmdBadge,#qrBox,#cfgEndpointSel," +
-    "#btnHistory,#btnTheme,#kbdTable,#presetName";
+    "#btnHistory,#btnTheme,#kbdTable,#presetName," +
+    "#scanLivePhase,#scanLiveElapsed,#scanLiveMeta,#scanLiveNodes,#scanLiveDot";
 
   function i18nInitStatic() {
     if (i18nStaticReady) return;
@@ -1331,6 +1350,8 @@
 
   function setPhase(label, frac) {
     $("#scanPhase").textContent = label;
+    const livePhase = $("#scanLivePhase");
+    if (livePhase) livePhase.textContent = label;
     if (frac != null) $("#scanBarFill").style.width = Math.max(2, Math.min(100, frac)) + "%";
   }
 
@@ -1364,6 +1385,7 @@
     $("#scanLog").textContent = "";
     switchSubtab("log");
     setPhase(t("Запуск warpscout…"), 2);
+    startScanLive();
     // запоминаем эндпоинты прошлого скана для сравнения (diff)
     S.prevEndpoints = S.results.length ? new Set(S.results.map((r) => r.endpoint)) : null;
     S.results = [];
@@ -1378,6 +1400,7 @@
         if (d.type === "stdout" || d.type === "stderr") {
           const data = typeof d.data === "string" ? d.data : "";
           appendLog($("#scanLog"), data);
+          scanLiveFeed(data);
           buf += data;
           // прогресс
           const mPhase1 = /Phase 1: probing reachable WARP ports: (\d+)\.\.\./.exec(buf);
@@ -1402,6 +1425,7 @@
     } catch (e) {
       S.running.scan = false;
       setScanRunning(false);
+      stopScanLive();
       toast(tF("Не удалось запустить warpscout: {err}", { err: e && e.message ? e.message : e }), "err");
       switchSubtab("results");
     }
@@ -1441,6 +1465,7 @@
     S.selected = S.results.find((r) => !r.torn) ? S.results.find((r) => !r.torn).endpoint : "";
     pushHistory(S.scan.proto);
     S.staggerNext = true; // v1.7.0: строки таблицы появятся каскадом
+    stopScanLive(); // v1.8.0: прячем живую панель
     renderResults();
     fillEndpointSelect();
     switchSubtab("results");
@@ -1455,6 +1480,7 @@
 
   async function stopScan() {
     S.scanStopped = true;
+    stopScanLive(); // v1.8.0: прячем живую панель
     await killProc(S.procIds.scan);
     S.procIds.scan = null;
     setScanRunning(false);
@@ -1680,6 +1706,224 @@
     togglePresetSaveRow(false);
     persist();
     toast(tF("Пресет сохранён: {name}", { name: name }), "ok");
+  }
+
+  /* ───────── шаринг пресетов: экспорт/импорт JSON (v1.8.0) ───────── */
+  function exportPresets() {
+    if (!S.customPresets.length) {
+      toast(t("Своих пресетов пока нет — сохраните хотя бы один (кнопка «＋ Свой»)"), "warn");
+      return;
+    }
+    const json = JSON.stringify(
+      { app: "WARPSCOUT GUI presets", format: 1, exportedAt: new Date().toISOString(), presets: S.customPresets },
+      null,
+      2
+    );
+    const name = "warpscout-presets-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + ".json";
+    if (IS_MOCK) {
+      const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+      toast(tF("Пресеты скачаны: {path}", { path: name }), "ok");
+      return;
+    }
+    os()
+      .showSaveDialog(t("Экспорт пресетов"), { defaultPath: name })
+      .then(async (path) => {
+        if (!path) return;
+        await fs().writeFile(path, json);
+        toast(tF("Пресеты экспортированы: {path}", { path: path }), "ok");
+      })
+      .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
+  }
+
+  function applyImportedPresets(data) {
+    if (!data || typeof data !== "object" || data.app !== "WARPSCOUT GUI presets" || !Array.isArray(data.presets)) {
+      toast(t("Файл не похож на набор пресетов WARPSCOUT GUI"), "err");
+      return;
+    }
+    const valid = data.presets.filter((p) => p && typeof p.name === "string" && p.name.trim() && p.scan && typeof p.scan === "object");
+    if (!valid.length) {
+      toast(t("В файле нет ни одного корректного пресета"), "err");
+      return;
+    }
+    const have = new Set(S.customPresets.map((p) => p.name.toLowerCase()));
+    let added = 0, dup = 0;
+    valid.forEach((p) => {
+      if (have.has(p.name.toLowerCase())) { dup++; return; }
+      S.customPresets.push({ name: p.name.trim(), scan: Object.assign({}, DEFAULT_SCAN, p.scan) });
+      have.add(p.name.toLowerCase());
+      added++;
+    });
+    if (S.customPresets.length > 20) S.customPresets = S.customPresets.slice(-20);
+    renderCustomPresets();
+    persist();
+    toast(dup ? tF("Импорт пресетов: добавлено {n}, пропущено (дубли) {d}", { n: added, d: dup }) : tF("Импорт пресетов: добавлено {n}", { n: added }), "ok");
+  }
+
+  function importPresets() {
+    if (!IS_MOCK && HAS_NL) {
+      os()
+        .showOpenDialog(t("Выберите файл пресетов"), { multiSelections: false })
+        .then(async (p) => {
+          const picked = Array.isArray(p) ? p[0] : p;
+          if (!picked) return;
+          try {
+            const text = await fs().readFile(picked);
+            applyImportedPresets(JSON.parse(text));
+          } catch (e) {
+            toast(tF("Не удалось прочитать файл: {err}", { err: e && e.message ? e.message : e }), "err");
+          }
+        })
+        .catch(() => {});
+      return;
+    }
+    const inp = $("#importPresetsFile");
+    if (!inp) return;
+    inp.value = "";
+    inp.click();
+  }
+
+  function bindImportPresetsFile() {
+    const inp = $("#importPresetsFile");
+    if (!inp) return;
+    inp.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          applyImportedPresets(JSON.parse(String(reader.result)));
+        } catch (err) {
+          toast(tF("Некорректный JSON: {err}", { err: err && err.message ? err.message : err }), "err");
+        }
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  /* ───────── живая панель скана (v1.8.0) ───────── */
+  const live = { on: false, t0: 0, timer: 0, steps: [], nodes: [] };
+
+  function startScanLive() {
+    const panel = $("#scanLive");
+    if (!panel) return;
+    live.on = true;
+    live.t0 = Date.now();
+    live.steps = [];
+    live.nodes = [];
+    panel.classList.remove("hidden");
+    $("#scanLiveNodes").innerHTML = "";
+    $("#scanLiveMeta").textContent = "";
+    drawScanLive();
+    clearInterval(live.timer);
+    live.timer = setInterval(scanLiveClock, 1000);
+    scanLiveClock();
+  }
+
+  function scanLiveClock() {
+    if (!live.on) return;
+    const sec = Math.floor((Date.now() - live.t0) / 1000);
+    const mm = String(Math.floor(sec / 60)).padStart(2, "0");
+    const ss = String(sec % 60).padStart(2, "0");
+    const el = $("#scanLiveElapsed");
+    if (el) el.textContent = mm + ":" + ss;
+  }
+
+  function scanLiveFeed(data) {
+    if (!live.on) return;
+    // шаги N/M → тик на графике
+    let m = /(\d+)\/(\d+)\s*$/.exec(String(data).trim());
+    if (m) {
+      live.steps.push({ t: Date.now() - live.t0, done: +m[1], total: +m[2] });
+      drawScanLive();
+    }
+    // узлы "node: HK HKG (188.114.98.58:2408)"
+    m = /node:\s*([A-Z]{2})\s+([A-Z]{3})\s*\(([^)]+)\)/.exec(String(data));
+    if (m) {
+      const key = m[1] + " " + m[2];
+      if (!live.nodes.some((n) => n.key === key)) {
+        live.nodes.push({ key: key, ep: m[3] });
+        const box = $("#scanLiveNodes");
+        if (box) {
+          const chip = document.createElement("span");
+          chip.className = "scan-live__node is-entering";
+          chip.textContent = "🛰 " + key + " · " + m[3];
+          chip.title = m[1] + " / " + m[2] + " → " + m[3];
+          chip.addEventListener("animationend", () => chip.classList.remove("is-entering"), { once: true });
+          box.appendChild(chip);
+        }
+      }
+    }
+    const meta = $("#scanLiveMeta");
+    if (meta && live.steps.length) {
+      const last = live.steps[live.steps.length - 1];
+      meta.textContent = t("шагов") + " " + last.done + "/" + last.total + " · " + t("узлов") + " " + live.nodes.length;
+    }
+  }
+
+  function drawScanLive() {
+    const cv = $("#scanLiveCanvas");
+    if (!cv || !cv.getContext) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = cv.clientWidth || 300;
+    const h = 46;
+    if (cv.width !== w * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    // сетка-подложка
+    ctx.strokeStyle = "rgba(242,124,32,0.12)";
+    ctx.lineWidth = 1;
+    for (let gx = 0; gx <= w; gx += 28) {
+      ctx.beginPath(); ctx.moveTo(gx + 0.5, 0); ctx.lineTo(gx + 0.5, h); ctx.stroke();
+    }
+    if (live.steps.length < 1) {
+      ctx.fillStyle = "rgba(255,255,255,0.25)";
+      ctx.font = "11px " + (getComputedStyle(document.body).fontFamily || "sans-serif");
+      ctx.fillText(t("Ждём первый шаг прогресса…"), 8, h / 2 + 4);
+      return;
+    }
+    const T = Math.max(8000, live.steps[live.steps.length - 1].t);
+    const maxY = Math.max(1, live.steps[live.steps.length - 1].done);
+    const X = (t) => 4 + (t / T) * (w - 8);
+    const Y = (v) => h - 5 - (v / maxY) * (h - 14);
+    // заливка под линией
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, "rgba(246,139,49,0.35)");
+    grad.addColorStop(1, "rgba(246,139,49,0.02)");
+    ctx.beginPath();
+    ctx.moveTo(X(live.steps[0].t), h - 2);
+    live.steps.forEach((p) => ctx.lineTo(X(p.t), Y(p.done)));
+    ctx.lineTo(X(live.steps[live.steps.length - 1].t), h - 2);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+    // линия
+    ctx.beginPath();
+    live.steps.forEach((p, i) => (i ? ctx.lineTo(X(p.t), Y(p.done)) : ctx.moveTo(X(p.t), Y(p.done))));
+    ctx.strokeStyle = "#f68b31";
+    ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    // точки
+    live.steps.forEach((p) => {
+      ctx.beginPath();
+      ctx.arc(X(p.t), Y(p.done), 2.4, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffb06a";
+      ctx.fill();
+    });
+  }
+
+  function stopScanLive() {
+    live.on = false;
+    clearInterval(live.timer);
+    const panel = $("#scanLive");
+    if (panel) panel.classList.add("hidden");
   }
 
   /* ───────── Δ-сравнение с записью истории (v1.4.0) ───────── */
@@ -3105,6 +3349,9 @@
     $("#btnExportState").addEventListener("click", exportState);
     $("#btnImportState").addEventListener("click", importState);
     bindImportStateFile();
+    $("#btnPresetsExport").addEventListener("click", exportPresets);
+    $("#btnPresetsImport").addEventListener("click", importPresets);
+    bindImportPresetsFile();
     $("#btnPresetSave").addEventListener("click", () => togglePresetSaveRow(true));
     $("#btnPresetSaveCancel").addEventListener("click", () => togglePresetSaveRow(false));
     $("#btnPresetSaveOk").addEventListener("click", saveCurrentPreset);
