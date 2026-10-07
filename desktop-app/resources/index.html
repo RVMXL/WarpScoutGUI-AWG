@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=19v0" />
+  <link rel="stylesheet" href="css/app.css?v=20v0" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -54,7 +54,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светлую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v1.9.0 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v2.0.0 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -310,6 +310,8 @@
                   <button class="btn btn--ghost btn--sm" id="btnHistory" type="button" title="История сканов этого приложения">🕘 История</button>
                   <button class="btn btn--ghost btn--sm" id="btnExportCsv" type="button" title="Сохранить таблицу в CSV">⬇ CSV</button>
                   <button class="btn btn--ghost btn--sm" id="btnCopyEps" type="button" title="Скопировать рабочие эндпоинты (по одному в строке)">⧉ IP</button>
+                  <button class="btn btn--ghost btn--sm" id="btnSelectMode" type="button" title="Выбрать несколько эндпоинтов для пакетной проверки">☑ Выбрать</button>
+                  <button class="btn btn--ghost btn--sm" id="btnExportHtml" type="button" title="Автономный HTML-отчёт по текущей таблице">⬇ HTML</button>
                   <button class="btn btn--ghost btn--sm" id="btnSortPing" type="button" title="Переключить: порядок отчёта / сортировка по TUN PING">↕ пинг</button>
                   <button class="btn btn--ghost btn--sm" id="btnDensity" type="button" title="Компактная таблица (меньше отступы)">≡ плотность</button>
                   <button class="btn btn--ghost btn--sm" id="btnToConfig" type="button" title="Лучший результат → генератор конфига">→ Конфиг</button>
@@ -322,6 +324,12 @@
                   <button class="res-filter__clear hidden" id="resFilterClear" type="button" title="Очистить фильтр (Esc)" aria-label="Очистить фильтр">✕</button>
                 </div>
                 <span class="res-filter__meta" id="resFilterMeta" aria-live="polite"></span>
+              </div>
+              <!-- v2.0.0: панель пакетной проверки выбранных эндпоинтов -->
+              <div class="batch-bar hidden" id="batchBar" aria-label="Пакетная проверка выбранных">
+                <button class="btn btn--sm batch-bar__go" id="btnBatchCheck" type="button">⚡ Проверить выбранные (<span id="batchCount">0</span>)</button>
+                <button class="btn btn--ghost btn--sm" id="btnBatchCancel" type="button">Отмена</button>
+                <span class="batch-bar__meta" id="batchMeta" aria-live="polite"></span>
               </div>
               <div class="history hidden" id="historyPanel" aria-label="История сканов"></div>
               <div class="res-stats hidden" id="resStats" aria-label="Статистика результатов"></div>
@@ -751,7 +759,7 @@
         <div class="qc-cmd mono" id="qcCmd"></div>
         <div class="qc-log mono" id="qcLog" aria-live="polite"></div>
         <div class="qc-verdict hidden" id="qcVerdict"></div>
-        <p class="modal__note">Одна строка warpscout вместо целого скана: <code>-target IP -port PORT</code> — handshake на указанный порт и пинг внутри туннеля. Результат никуда не сохраняется — только эта модалка.</p>
+        <p class="modal__note">Одна строка warpscout вместо целого скана: <code>-target IP -port PORT</code> — handshake на указанный порт и пинг внутри туннеля. Вердикты сохраняются в журнал проверок (панель 🕘 История).</p>
       </div>
     </div>
   </div>
@@ -766,8 +774,8 @@
   </datalist>
 
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js?v=19v0"></script>
-  <script src="js/qrcode.js?v=19v0"></script>
-  <script src="js/app.js?v=19v0"></script>
+  <script src="js/mock.js?v=20v0"></script>
+  <script src="js/qrcode.js?v=20v0"></script>
+  <script src="js/app.js?v=20v0"></script>
 </body>
 </html>
