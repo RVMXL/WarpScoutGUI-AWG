@@ -102,6 +102,7 @@
     results: [],        // {endpoint, ping, tunPing, loss, seenAs, node, loc, torn}
     sortByPing: false,
     selected: "",
+    filter: "",         // подстрока фильтра результатов (ip, узел, страна, локация)
     history: [],        // последние 10 сканов {ts, label, results, withP, withSpeed}
     viewMeta: { withP: true, withSpeed: false }, // колонки текущей таблицы
     historyOpen: false,
@@ -360,6 +361,39 @@
     return '<span class="bad">' + esc(loss) + "</span>";
   }
 
+  function matchRow(r, q) {
+    return (r.endpoint + " " + r.node + " " + r.loc + " " + r.seenAs).toLowerCase().indexOf(q) !== -1;
+  }
+
+  function updateFilterMeta(shown, total) {
+    const meta = $("#resFilterMeta");
+    const clear = $("#resFilterClear");
+    if (!meta || !clear) return;
+    clear.classList.toggle("hidden", !S.filter);
+    meta.innerHTML = S.filter
+      ? "показано <b>" + shown + "</b> из " + total
+      : "";
+  }
+
+  function applyFilter(q) {
+    S.filter = (q || "").trim();
+    renderResults();
+  }
+
+  function clearFilter(focusBack) {
+    if (!S.filter) return;
+    S.filter = "";
+    $("#resFilter").value = "";
+    renderResults();
+    if (focusBack) $("#resFilter").focus();
+  }
+
+  function resetFilterSilently() {
+    S.filter = "";
+    const inp = $("#resFilter");
+    if (inp) inp.value = "";
+  }
+
   function renderResults() {
     const head = $("#resultsHead");
     const body = $("#resultsBody");
@@ -371,18 +405,31 @@
       rows.sort((a, b) => (a.torn - b.torn) || (pingMs(a.tunPing || a.ping) - pingMs(b.tunPing || b.ping)));
     } // иначе — порядок отчёта warpscout: потери → пинг
 
-    // лучший рабочий эндпоинт (мин. TUN PING, иначе PING)
+    // лучший рабочий эндпоинт (мин. TUN PING, иначе PING) — считаем по ПОЛНОЙ выборке,
+    // чтобы звезда не «прыгала» при фильтрации
     let bestEp = "";
-    const workingRows = rows.filter((r) => !r.torn);
-    if (workingRows.length) {
+    const workingAll = S.results.filter((r) => !r.torn);
+    if (workingAll.length) {
       let bestV = Infinity;
-      workingRows.forEach((r) => {
+      workingAll.forEach((r) => {
         const v = pingMs(r.tunPing || r.ping);
         if (v < bestV) { bestV = v; bestEp = r.endpoint; }
       });
     }
 
+    // фильтр результатов (v1.3.0)
+    const totalRows = rows.length;
+    let visible = rows;
+    if (S.filter) visible = rows.filter((r) => matchRow(r, S.filter.toLowerCase()));
+
     renderResStats();
+    const toolbar = $("#resToolbar");
+    if (toolbar) {
+      toolbar.hidden = !S.results.length;
+      toolbar.classList.toggle("hidden", !S.results.length);
+    }
+    updateFilterMeta(visible.length, totalRows);
+
     const cols = ["Эндпоинт", S.sortByPing ? "TUN PING ↑" : "PING"];
     if (withP) cols.push("LOSS");
     if (withSpeed) cols.push("SPEED");
@@ -390,17 +437,26 @@
 
     head.innerHTML = "<tr>" + cols.map((c) => "<th>" + esc(c) + "</th>").join("") + "</tr>";
 
-    if (!rows.length) {
+    if (!visible.length) {
       body.innerHTML = "";
       $("#resultsEmpty").classList.remove("hidden");
-      $("#resCount").hidden = true;
+      const emptyTitle = $("#resultsEmpty .empty__title");
+      const emptyHint = $("#resultsEmpty .empty__hint");
+      if (S.filter && totalRows) {
+        emptyTitle.textContent = "Нет совпадений с фильтром";
+        emptyHint.innerHTML = "В запросе: «" + esc(S.filter) + "». Попробуйте узел (HKG), страну или часть IP.";
+      } else {
+        emptyTitle.textContent = "Пока нет результатов";
+        emptyHint.innerHTML = "Настройте параметры слева и нажмите «Начать скан».<br/>Лучший эндпоинт окажется вверху таблицы.";
+      }
+      if (!totalRows) $("#resCount").hidden = true;
       return;
     }
     $("#resultsEmpty").classList.add("hidden");
     $("#resCount").hidden = false;
-    $("#resCount").textContent = String(rows.filter((r) => !r.torn).length);
+    $("#resCount").textContent = String(S.results.filter((r) => !r.torn).length);
 
-    body.innerHTML = rows
+    body.innerHTML = visible
       .map((r, idx) => {
         const ep = r.endpoint;
         const isNew = !!(S.diff && S.diff.newList && S.diff.newList.indexOf(ep) !== -1);
@@ -419,7 +475,8 @@
           '<td class="row-actions">' +
             '<button type="button" data-act="copy" title="Скопировать ip:порт">⧉</button>' +
             '<button type="button" data-act="cfg" title="Использовать в конфиге">⚙</button>' +
-            '<button type="button" data-act="socks" title="Проверить через SOCKS5">🧦</button>' +
+            '<button type="button" data-act="socks" title="Подставить в SOCKS-вкладку">🧦</button>' +
+            '<button type="button" data-act="socks-run" title="Сразу запустить SOCKS5-прокси для этого эндпоинта">⏵</button>' +
           "</td>",
         ];
         const sel = ep === S.selected ? " is-selected" : "";
@@ -453,6 +510,18 @@
             $("#socksProto").value = S.viewProto || "awg";
             switchTab("socks");
             toast("Эндпоинт готов к проверке во вкладке SOCKS", "ok");
+            return;
+          }
+          if (act === "socks-run") {
+            $("#socksEndpoint").value = ep;
+            $("#socksProto").value = S.viewProto || "awg";
+            switchTab("socks");
+            if (!S.running.socks) {
+              socksToggle();
+              toast("Прокси запускается: " + ep, "ok");
+            } else {
+              toast("Прокси уже запущен — сначала остановите текущий", "warn");
+            }
           }
         })
       );
@@ -485,6 +554,26 @@
     if (torn) chips.push('<span class="stat-chip stat-chip--err">✂ разорвано <b>' + torn + "</b></span>");
     if (best) chips.push('<span class="stat-chip stat-chip--best" title="Минимальный пинг среди рабочих">⚡ лучший <b>' + best + " ms</b></span>");
     if (median) chips.push('<span class="stat-chip" title="Медианный пинг рабочих">⚖ медиана <b>' + median + " ms</b></span>");
+    // спарклайн распределения пинга (v1.3.0)
+    if (sorted.length >= 2) {
+      const W = 84, H = 20;
+      const min = sorted[0], max = sorted[sorted.length - 1];
+      const span = Math.max(1, max - min);
+      const pts = sorted.map((v, i) => {
+        const x = (i / (sorted.length - 1)) * (W - 2) + 1;
+        const y = H - 2 - ((v - min) / span) * (H - 5);
+        return x.toFixed(1) + "," + y.toFixed(1);
+      });
+      const area = "1," + (H - 1) + " " + pts.join(" ") + " " + (W - 1) + "," + (H - 1);
+      chips.push(
+        '<span class="stat-chip spark" title="Распределение пинга рабочих эндпоинтов: мин ' + min + " / макс " + max + ' ms">' +
+          '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" aria-hidden="true">' +
+            '<polygon class="spark-area" points="' + area + '"></polygon>' +
+            '<polyline class="spark-line" points="' + pts.join(" ") + '"></polyline>' +
+          "</svg>📈 профиль" +
+        "</span>"
+      );
+    }
     if (nodeNames.length) {
       chips.push('<span class="stat-chip" title="Узлы: ' + esc(nodeNames.join(", ")) + '">🌍 узлов <b>' + nodeNames.length + "</b></span>");
     }
@@ -551,6 +640,7 @@
     await ensureDir(S.paths.reportsDir);
 
     const cmd = buildScanCmd(s);
+    resetFilterSilently();
     $("#scanLog").textContent = "";
     switchSubtab("log");
     setPhase("Запуск warpscout…", 2);
@@ -799,6 +889,22 @@
     if (m) m.classList.toggle("hidden", !open);
   }
 
+  /* ───────── тема (v1.3.0) ───────── */
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
+    const b = $("#btnTheme");
+    if (b) b.textContent = t === "light" ? "🌙 Тёмная тема" : "☀ Светлая тема";
+  }
+
+  function toggleTheme() {
+    const cur = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+    const next = cur === "light" ? "dark" : "light";
+    S.settings.theme = next;
+    applyTheme(next);
+    persist();
+    toast(next === "light" ? "Светлая тема включена" : "Тёмная тема включена", "ok");
+  }
+
   function toggleHistory(force) {
     S.historyOpen = force != null ? force : !S.historyOpen;
     const panel = $("#historyPanel");
@@ -809,7 +915,13 @@
       return;
     }
     panel.innerHTML =
-      '<div class="history__head">Последние сканы (хранятся локально, до 10)</div>' +
+      '<div class="history__head">' +
+        '<span class="history__head-title">Последние сканы (хранятся локально, до 10)</span>' +
+        '<span class="history__tools">' +
+          '<button type="button" id="btnHistExport" title="Выгрузить всю историю в JSON-файл">⬇ JSON</button>' +
+          '<button type="button" id="btnHistClear" class="history__clear" title="Удалить всю историю">🗑 Очистить</button>' +
+        "</span>" +
+      "</div>" +
       S.history
         .map(
           (h, i) =>
@@ -823,9 +935,49 @@
             "</button>"
         )
         .join("");
+    const bExp = $("#btnHistExport");
+    if (bExp) bExp.addEventListener("click", exportHistory);
+    const bClr = $("#btnHistClear");
+    if (bClr) bClr.addEventListener("click", clearHistory);
     $$(".history__item", panel).forEach((b) =>
       b.addEventListener("click", () => loadHistory(+b.getAttribute("data-hi")))
     );
+  }
+
+  function exportHistory() {
+    if (!S.history.length) { toast("История пуста — нечего выгружать", "err"); return; }
+    const payload = { app: "WARPSCOUT GUI", format: 1, exportedAt: new Date().toISOString(), scans: S.history };
+    const json = JSON.stringify(payload, null, 2);
+    const name = "warpscout-history-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + ".json";
+    if (IS_MOCK) {
+      const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+      toast("История выгружена: " + name, "ok");
+      return;
+    }
+    os()
+      .showSaveDialog("Выгрузить историю сканов (JSON)", { defaultPath: name })
+      .then(async (path) => {
+        if (!path) return;
+        await fs().writeFile(path, json);
+        toast("История сохранена: " + path, "ok");
+      })
+      .catch((e) => toast("Ошибка экспорта: " + (e && e.message ? e.message : e), "err"));
+  }
+
+  async function clearHistory() {
+    if (!S.history.length) { toast("История и так пуста", "ok"); return; }
+    if (!confirm("Удалить всю историю сканов (" + S.history.length + ")? Текущая таблица результатов останется.")) return;
+    S.history = [];
+    renderHistoryBtn();
+    toggleHistory(true); // перерисовать открытую панель
+    persist();
+    toast("История очищена", "ok");
   }
 
   function loadHistory(i) {
@@ -837,6 +989,7 @@
     S.viewMeta = { withP: h.withP, withSpeed: h.withSpeed };
     S.viewProto = h.proto;
     S.sortByPing = false;
+    resetFilterSilently();
     const firstOk = S.results.find((r) => !r.torn);
     S.selected = firstOk ? firstOk.endpoint : "";
     renderResults();
@@ -1447,6 +1600,15 @@
     $("#btnSortPing").addEventListener("click", () => { S.sortByPing = !S.sortByPing; renderResults(); });
     $("#btnHistory").addEventListener("click", () => toggleHistory());
     $("#btnExportCsv").addEventListener("click", exportCsv);
+
+    // фильтр результатов (v1.3.0)
+    $("#resFilter").addEventListener("input", debounce(() => applyFilter($("#resFilter").value), 140));
+    $("#resFilter").addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { e.stopPropagation(); clearFilter(true); }
+    });
+    $("#resFilterClear").addEventListener("click", () => clearFilter(true));
+
+    $("#btnTheme").addEventListener("click", toggleTheme);
     $("#btnToConfig").addEventListener("click", () => {
       const best = S.results.find((r) => !r.torn);
       if (!best) { toast("Сначала выполните скан", "err"); return; }
@@ -1586,6 +1748,7 @@
       S.sortByPing = false;
       S.prevEndpoints = null;
       S.diff = null;
+      resetFilterSilently();
       try { await store().setData("state", "{}"); } catch (e) {}
       syncInputsFromState();
       syncCfgInputsFromState();
@@ -1610,6 +1773,15 @@
         if (!S.running.scan) runScan();
         return;
       }
+      if (mod && (e.key === "f" || e.key === "F" || e.key === "а" || e.key === "А")) {
+        // Ctrl+F — фильтр по результатам (работает и в русской раскладке)
+        e.preventDefault();
+        switchTab("scan");
+        const f = $("#resFilter");
+        f.focus();
+        f.select();
+        return;
+      }
       if (mod && (e.key === "s" || e.key === "S" || e.key === "ы" || e.key === "Ы")) {
         const active = $(".nav__item.is-active");
         if (active && active.getAttribute("data-tab") === "config") {
@@ -1622,6 +1794,7 @@
         const modal = $("#kbdModal");
         if (modal && !modal.classList.contains("hidden")) { toggleKbd(false); return; }
         if (S.historyOpen) { toggleHistory(false); return; }
+        if (S.filter && document.activeElement === $("#resFilter")) { clearFilter(true); return; }
         if (S.running.scan) stopScan();
         return;
       }
@@ -1651,6 +1824,7 @@
     bindProcEvents();
 
     await restoreState();
+    applyTheme(S.settings.theme || "dark");
     await computePaths();
     syncInputsFromState();
     syncCfgInputsFromState();

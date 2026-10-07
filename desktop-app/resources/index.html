@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="css/app.css?v=13v2" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -52,8 +52,9 @@
           <div class="statusline__row" id="stWs" title="">● warpscout: проверка…</div>
           <div class="statusline__row" id="stAcc">● аккаунт: проверка…</div>
         </div>
+        <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v1.2.0 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v1.3.0 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -288,6 +289,14 @@
                   <button class="btn btn--ghost btn--sm" id="btnSortPing" type="button" title="Переключить: порядок отчёта / сортировка по TUN PING">↕ пинг</button>
                   <button class="btn btn--ghost btn--sm" id="btnToConfig" type="button" title="Лучший результат → генератор конфига">→ Конфиг</button>
                 </div>
+              </div>
+              <div class="res-toolbar hidden" id="resToolbar">
+                <div class="res-filter">
+                  <span class="res-filter__ico" aria-hidden="true">🔎</span>
+                  <input type="text" id="resFilter" placeholder="Фильтр: ip, узел, страна…" aria-label="Фильтр результатов" />
+                  <button class="res-filter__clear hidden" id="resFilterClear" type="button" title="Очистить фильтр (Esc)" aria-label="Очистить фильтр">✕</button>
+                </div>
+                <span class="res-filter__meta" id="resFilterMeta" aria-live="polite"></span>
               </div>
               <div class="history hidden" id="historyPanel" aria-label="История сканов"></div>
               <div class="res-stats hidden" id="resStats" aria-label="Статистика результатов"></div>
@@ -638,17 +647,18 @@
             <tr><td><kbd>Ctrl</kbd>+<kbd>1</kbd>…<kbd>6</kbd></td><td>переключение вкладок</td></tr>
             <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>начать скан</td></tr>
             <tr><td><kbd>Esc</kbd></td><td>остановить скан / закрыть панель или окно</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>фильтр по результатам</td></tr>
             <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>сохранить конфиг (на вкладке «Конфиг»)</td></tr>
             <tr><td><kbd>?</kbd></td><td>показать эту справку</td></tr>
           </tbody>
         </table>
-        <p class="modal__note">Подсказка: наведите курсор на строку результата — появятся быстрые действия (⧉ копировать, ⚙ в конфиг, 🧦 в SOCKS).</p>
+        <p class="modal__note">Подсказка: наведите курсор на строку результата — появятся быстрые действия (⧉ копировать, ⚙ в конфиг, 🧦 в SOCKS, ⏵ сразу запустить прокси).</p>
       </div>
     </div>
   </div>
 
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/mock.js?v=13final"></script>
+  <script src="js/app.js?v=13final"></script>
 </body>
 </html>

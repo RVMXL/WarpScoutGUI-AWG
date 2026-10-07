@@ -279,7 +279,6 @@
       },
       showSaveDialog(title, opts) {
         const name = (opts && opts.defaultPath) || "warp.conf";
-        const inp = document.createElement("input");
         return Promise.resolve(window.prompt("Демо: путь сохранения:", "C:\\Users\\Demo\\Downloads\\" + name) || "");
       },
       showOpenDialog() {
