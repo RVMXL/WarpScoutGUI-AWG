@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WARPSCOUT GUI</title>
+  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="icon" href="/icons/favicon.png" />
+</head>
+<body>
+  <div id="app" class="app">
+    <!-- ══════════ Sidebar ══════════ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <img src="/icons/appIcon.png" alt="Логотип WARPSCOUT GUI" class="brand__icon" />
+        <div class="brand__text">
+          <div class="brand__name">WARPSCOUT<span class="brand__gui">GUI</span></div>
+          <div class="brand__sub">поиск живых эндпоинтов WARP</div>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Разделы приложения">
+        <button class="nav__item is-active" data-tab="scan" type="button">
+          <svg viewBox="0 0 24 24" class="nav__ico"><path d="M12 3a9 9 0 1 0 9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 7a5 5 0 1 0 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M17 7l4-4M21 3h-4M21 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+          <span>Скан</span>
+        </button>
+        <button class="nav__item" data-tab="config" type="button">
+          <svg viewBox="0 0 24 24" class="nav__ico"><path d="M9 2h6v4l3 3v2l-3 3v8H9v-8l-3-3V9l3-3V2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="1.4" fill="currentColor"/></svg>
+          <span>Конфиг</span>
+        </button>
+        <button class="nav__item" data-tab="account" type="button">
+          <svg viewBox="0 0 24 24" class="nav__ico"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span>Аккаунт</span>
+        </button>
+        <button class="nav__item" data-tab="socks" type="button">
+          <svg viewBox="0 0 24 24" class="nav__ico"><path d="M4 6h16M4 12h10M4 18h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="19" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          <span>SOCKS-прокси</span>
+        </button>
+        <button class="nav__item" data-tab="tools" type="button">
+          <svg viewBox="0 0 24 24" class="nav__ico"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4.2-4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span>Поиск параметров</span>
+        </button>
+        <button class="nav__item" data-tab="settings" type="button">
+          <svg viewBox="0 0 24 24" class="nav__ico"><path d="M12 8.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5zm8.4 3.5a8.4 8.4 0 0 0-.15-1.5l2.05-1.6-2-3.46-2.42.98a8.4 8.4 0 0 0-2.6-1.5L14.9 2h-4l-.37 2.42a8.4 8.4 0 0 0-2.6 1.5l-2.42-.98-2 3.46L5.56 10.5a8.4 8.4 0 0 0 0 3L3.5 15.1l2 3.46 2.42-.98a8.4 8.4 0 0 0 2.6 1.5L10.9 21h4l.37-2.42a8.4 8.4 0 0 0 2.6-1.5l2.42.98 2-3.46-2.06-1.6c.1-.49.17-.99.17-1.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          <span>Настройки</span>
+        </button>
+      </nav>
+
+      <div class="sidebar__footer">
+        <div class="mode-badge" id="modeBadge" hidden>ДЕМО-РЕЖИМ (браузер)</div>
+        <div class="statusline" id="statusline">
+          <div class="statusline__row" id="stWs" title="">● warpscout: проверка…</div>
+          <div class="statusline__row" id="stAcc">● аккаунт: проверка…</div>
+        </div>
+        <div class="sidebar__ver">WARPSCOUT GUI v1.0.0 · warpscout v0.16.0</div>
+      </div>
+    </aside>
+
+    <!-- ══════════ Main ══════════ -->
+    <main class="main">
+      <!-- ───────── SCAN TAB ───────── -->
+      <section class="tab is-active" id="tab-scan" aria-label="Скан">
+        <div class="scan-grid">
+          <div class="scan-form">
+            <div class="card">
+              <div class="card__head">
+                <h2>Пресеты</h2>
+                <button class="btn btn--ghost btn--sm" id="btnResetPreset" type="button" title="Вернуть команду по умолчанию">⟲ Сброс</button>
+              </div>
+              <div class="chips" id="presetChips">
+                <button class="chip is-active" data-preset="default" type="button">⭐ По умолчанию</button>
+                <button class="chip" data-preset="fast" type="button">⚡ Быстрый</button>
+                <button class="chip" data-preset="hard" type="button">🧱 Жёсткая сеть</button>
+                <button class="chip" data-preset="full" type="button">🔬 Тщательный</button>
+              </div>
+              <p class="hint" id="presetHint">По умолчанию: <code>warpscout scan -p awg -P -n 10 -exclude-node DME</code></p>
+            </div>
+
+            <div class="card">
+              <div class="card__head"><h2>Протокол</h2></div>
+              <div class="seg" id="protoSeg" role="radiogroup" aria-label="Протокол туннеля">
+                <button class="seg__btn" data-proto="wg" type="button">WireGuard</button>
+                <button class="seg__btn is-active" data-proto="awg" type="button">AmneziaWG</button>
+                <button class="seg__btn" data-proto="masque" type="button">MASQUE</button>
+                <button class="seg__btn" data-proto="masque-h2" type="button">MASQUE H2</button>
+              </div>
+              <p class="hint" id="protoHint">Обфусцированный WireGuard — проходит там, где обычный WG фильтруется.</p>
+            </div>
+
+            <div class="card">
+              <div class="card__head"><h2>Проверка и выборка</h2></div>
+              <div class="form-grid">
+                <label class="switch-row" for="fTunPing">
+                  <div>
+                    <div class="switch-row__title">TUN PING и LOSS <code>-P</code></div>
+                    <div class="hint">RTT и потери внутри туннеля; ловит эндпоинты, которые DPI рвёт посреди передачи</div>
+                  </div>
+                  <span class="switch"><input type="checkbox" id="fTunPing" checked /><i></i></span>
+                </label>
+                <label class="switch-row" for="fFull">
+                  <div>
+                    <div class="switch-row__title">Все 256 адресов подсети <code>-f</code></div>
+                    <div class="hint">Медленно, но тщательно (перекрывает «Адресов на подсеть»)</div>
+                  </div>
+                  <span class="switch"><input type="checkbox" id="fFull" /><i></i></span>
+                </label>
+                <label class="field">
+                  <span class="field__label">Адресов на подсеть <code>-n</code></span>
+                  <input type="number" id="fSample" min="1" max="256" value="10" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Туннелей одновременно <code>-jt</code></span>
+                  <input type="number" id="fJt" min="1" max="100" value="10" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Таймаут, сек <code>-t</code></span>
+                  <input type="number" id="fTimeout" min="1" max="30" value="2" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Эхо-пакетов <code>-tun-ping-count</code></span>
+                  <input type="number" id="fTunPingCount" min="5" max="50" value="10" />
+                </label>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card__head">
+                <h2>Фильтры узлов</h2>
+                <span class="badge badge--accent" title="Задание по умолчанию">DME исключён</span>
+              </div>
+              <div class="form-grid form-grid--2">
+                <label class="field">
+                  <span class="field__label">Исключить узлы <code>-exclude-node</code></span>
+                  <input type="text" id="fExclNode" value="DME" list="colos" placeholder="DME, FRA" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Исключить страны <code>-exclude-country</code></span>
+                  <input type="text" id="fExclCountry" placeholder="RU, HK" list="isoCodes" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Только узлы <code>-node</code></span>
+                  <input type="text" id="fNode" placeholder="HEL, ARN" list="colos" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Только страны <code>-country</code></span>
+                  <input type="text" id="fCountry" placeholder="DE, NL" list="isoCodes" />
+                </label>
+              </div>
+              <datalist id="colos">
+                <option value="DME"></option><option value="LED"></option><option value="ARN"></option>
+                <option value="HEL"></option><option value="FRA"></option><option value="AMS"></option>
+                <option value="WAW"></option><option value="VIE"></option><option value="PRG"></option>
+                <option value="IST"></option><option value="HKG"></option><option value="SIN"></option>
+                <option value="NRT"></option><option value="LAX"></option><option value="JFK"></option>
+              </datalist>
+              <datalist id="isoCodes">
+                <option value="RU"></option><option value="DE"></option><option value="NL"></option>
+                <option value="SE"></option><option value="FI"></option><option value="PL"></option>
+                <option value="US"></option><option value="HK"></option><option value="SG"></option>
+                <option value="TR"></option><option value="AT"></option><option value="CZ"></option>
+              </datalist>
+            </div>
+
+            <div class="card" id="cardAwg">
+              <div class="card__head"><h2>Обфускация AmneziaWG</h2></div>
+              <div class="field">
+                <span class="field__label">Поддельный первый пакет <code>-gen-i1</code></span>
+                <div class="seg seg--wrap" id="i1Seg" role="radiogroup" aria-label="Генерация I1">
+                  <button class="seg__btn is-active" data-i1="" type="button">iCloud (базовый)</button>
+                  <button class="seg__btn" data-i1="quic" type="button">QUIC</button>
+                  <button class="seg__btn" data-i1="dns" type="button">DNS</button>
+                  <button class="seg__btn" data-i1="sip" type="button">SIP</button>
+                  <button class="seg__btn" data-i1="stun" type="button">STUN</button>
+                  <button class="seg__btn" data-i1="random" type="button">Random</button>
+                </div>
+              </div>
+              <div class="form-grid form-grid--2">
+                <label class="field">
+                  <span class="field__label">SNI для I1 <code>-i1-sni</code></span>
+                  <input type="text" id="fI1Sni" placeholder="случайный известный хост" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Mусорных пакетов <code>-jc</code></span>
+                  <input type="number" id="fJc" min="0" max="255" value="6" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Jmin <code>-jmin</code></span>
+                  <input type="number" id="fJmin" min="0" max="5000" value="10" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Jmax <code>-jmax</code></span>
+                  <input type="number" id="fJmax" min="0" max="5000" value="50" />
+                </label>
+              </div>
+              <label class="switch-row" for="fGenJunk">
+                <div>
+                  <div class="switch-row__title">Случайный junk <code>-gen-junk</code></div>
+                  <div class="hint">Случайные jc/jmin/jmax на этот запуск (перекрывает поля выше)</div>
+                </div>
+                <span class="switch"><input type="checkbox" id="fGenJunk" /><i></i></span>
+              </label>
+            </div>
+
+            <div class="card hidden" id="cardMasque">
+              <div class="card__head"><h2>MASQUE</h2></div>
+              <div class="form-grid form-grid--2">
+                <label class="field">
+                  <span class="field__label">SNI <code>-masque-sni</code></span>
+                  <input type="text" id="fMasqueSni" placeholder="consumer-masque.cloudflareclient.com" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Попыток на эндпоинт <code>-masque-attempts</code></span>
+                  <input type="number" id="fMasqueAttempts" min="1" max="10" value="3" />
+                </label>
+              </div>
+            </div>
+
+            <details class="card card--details" id="cardWiW">
+              <summary class="card__head"><h2>WARP-in-WARP и продвинутое</h2><span class="badge">опционально</span></summary>
+              <div class="form-grid form-grid--2">
+                <label class="field">
+                  <span class="field__label">Через эндпоинт <code>-through</code></span>
+                  <input type="text" id="fThrough" placeholder="188.114.97.177:2408" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Протокол внутри <code>-inner-proto</code></span>
+                  <select id="fInnerProto"><option value="">wg (по умолчанию)</option><option value="awg">awg</option><option value="wg">wg</option></select>
+                </label>
+                <label class="field field--wide">
+                  <span class="field__label">Свои адреса <code>-target</code> (IP или CIDR, через запятую)</span>
+                  <input type="text" id="fTarget" placeholder="188.114.98.58, 162.159.192.0/28" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Цель TUN PING <code>-ping-target</code></span>
+                  <input type="text" id="fPingTarget" placeholder="1.1.1.1" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Порт <code>-port</code></span>
+                  <input type="number" id="fPort" min="0" max="65535" placeholder="авто" />
+                </label>
+              </div>
+              <div class="switch-group">
+                <label class="switch-row" for="fIpv6">
+                  <div class="switch-row__title">IPv6-пулы <code>-6</code></div>
+                  <span class="switch"><input type="checkbox" id="fIpv6" /><i></i></span>
+                </label>
+                <label class="switch-row" for="fSpeed">
+                  <div class="switch-row__title">Замер скорости <code>-speed</code></div>
+                  <span class="switch"><input type="checkbox" id="fSpeed" /><i></i></span>
+                </label>
+                <label class="switch-row" for="fBestBySpeed">
+                  <div class="switch-row__title">Лучший по скорости <code>-best-by speed</code></div>
+                  <span class="switch"><input type="checkbox" id="fBestBySpeed" /><i></i></span>
+                </label>
+              </div>
+            </details>
+          </div>
+
+          <div class="scan-exec">
+            <div class="cmd-bar" id="cmdBar" title="Точная команда, которая будет запущена">
+              <span class="cmd-bar__label">команда</span>
+              <code class="cmd-bar__cmd" id="cmdPreview">warpscout scan -p awg -P -n 10 -exclude-node DME</code>
+              <button class="btn btn--ghost btn--sm" id="btnCopyCmd" type="button" title="Скопировать команду">⧉</button>
+            </div>
+            <div class="run-row">
+              <button class="btn btn--primary btn--xl" id="btnRunScan" type="button">
+                <span class="btn__ico">▶</span><span id="btnRunScanLabel">Начать скан</span>
+              </button>
+              <button class="btn btn--danger btn--xl" id="btnStopScan" type="button" hidden>
+                <span class="btn__ico">■</span> Остановить
+              </button>
+              <div class="scan-progress" id="scanProgress" hidden>
+                <div class="scan-progress__phase" id="scanPhase">Phase 1…</div>
+                <div class="scan-progress__bar"><i id="scanBarFill"></i></div>
+              </div>
+            </div>
+
+            <div class="card card--results">
+              <div class="card__head">
+                <div class="subtabs">
+                  <button class="subtab is-active" data-subtab="results" type="button">Результаты <span class="badge" id="resCount" hidden>0</span></button>
+                  <button class="subtab" data-subtab="log" type="button">Лог</button>
+                </div>
+                <div class="card__tools">
+                  <button class="btn btn--ghost btn--sm" id="btnSortPing" type="button" title="Сортировать по пингу">↕ пинг</button>
+                  <button class="btn btn--ghost btn--sm" id="btnToConfig" type="button" title="Лучший результат → генератор конфига">→ Конфиг</button>
+                </div>
+              </div>
+              <div class="table-wrap" id="resultsWrap">
+                <table class="rtable" id="resultsTable">
+                  <thead id="resultsHead"></thead>
+                  <tbody id="resultsBody"></tbody>
+                </table>
+                <div class="empty" id="resultsEmpty">
+                  <div class="empty__ico">🛰</div>
+                  <div class="empty__title">Пока нет результатов</div>
+                  <div class="empty__hint">Настройте параметры слева и нажмите «Начать скан».<br/>Лучший эндпоинт окажется вверху таблицы.</div>
+                </div>
+              </div>
+              <div class="log-wrap hidden" id="logWrap">
+                <pre class="log" id="scanLog"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── CONFIG TAB ───────── -->
+      <section class="tab" id="tab-config" aria-label="Генератор конфигов">
+        <div class="config-grid">
+          <div class="config-form">
+            <div class="card">
+              <div class="card__head"><h2>Эндпоинт</h2></div>
+              <div class="field">
+                <span class="field__label">Из последнего скана или вручную</span>
+                <select id="cfgEndpointSel"><option value="">— выберите из результатов скана —</option></select>
+                <input type="text" id="cfgEndpoint" placeholder="188.114.98.58:2408" style="margin-top:8px" />
+                <div class="hint" id="cfgEndpointInfo" hidden></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card__head"><h2>Версия конфига</h2></div>
+              <div class="seg seg--wrap" id="cfgVerSeg" role="radiogroup" aria-label="Версия AWG">
+                <button class="seg__btn" data-ver="wg" type="button">WireGuard</button>
+                <button class="seg__btn" data-ver="awg15" type="button">AWG 1.5</button>
+                <button class="seg__btn" data-ver="awg20" type="button">AWG 2.0</button>
+                <button class="seg__btn is-active" data-ver="awg31" type="button">AWG 3.1</button>
+              </div>
+              <p class="hint" id="cfgVerHint">3.1 — маскировка поведения соединения: случайные тайминги, паддинг, трейлеры. Как в примере.</p>
+            </div>
+
+            <div class="card">
+              <div class="card__head"><h2>DNS</h2></div>
+              <div class="seg seg--wrap" id="cfgDnsSeg" role="radiogroup" aria-label="DNS">
+                <button class="seg__btn is-active" data-dns="cloudflare" type="button">Cloudflare</button>
+                <button class="seg__btn" data-dns="quad9" type="button">Quad9</button>
+                <button class="seg__btn" data-dns="google" type="button">Google</button>
+                <button class="seg__btn" data-dns="adguard" type="button">AdGuard</button>
+                <button class="seg__btn" data-dns="yandex" type="button">Яндекс</button>
+                <button class="seg__btn" data-dns="custom" type="button">Свой</button>
+              </div>
+              <input type="text" id="cfgDnsCustom" placeholder="9.9.9.9, 149.112.112.112" class="hidden" style="margin-top:8px" />
+            </div>
+
+            <div class="card">
+              <div class="card__head"><h2>Интерфейс</h2></div>
+              <div class="form-grid form-grid--2">
+                <label class="field">
+                  <span class="field__label">MTU</span>
+                  <input type="number" id="cfgMtu" value="1280" min="576" max="1500" />
+                </label>
+                <label class="field">
+                  <span class="field__label">PersistentKeepalive</span>
+                  <input type="number" id="cfgKeepalive" value="25" min="0" max="120" />
+                </label>
+                <label class="field">
+                  <span class="field__label">AllowedIPs</span>
+                  <select id="cfgAllowed">
+                    <option value="both">0.0.0.0/0, ::/0 (весь трафик)</option>
+                    <option value="v4">0.0.0.0/0 (только IPv4)</option>
+                    <option value="v6">::/0 (только IPv6)</option>
+                    <option value="custom">Своё…</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="field__label">Table = off (маршруты не трогать)</span>
+                  <span class="switch"><input type="checkbox" id="cfgTableOff" /><i></i></span>
+                </label>
+              </div>
+              <input type="text" id="cfgAllowedCustom" placeholder="свои подсети через запятую" class="hidden" style="margin-top:8px" />
+            </div>
+
+            <div class="card" id="cfgObfCard">
+              <div class="card__head">
+                <h2>Параметры обфускации</h2>
+                <button class="btn btn--ghost btn--sm" id="btnCfgDefaults" type="button">⟲ из примера</button>
+              </div>
+              <div class="form-grid form-grid--3">
+                <label class="field"><span class="field__label">Jc</span><input type="number" id="cfgJc" value="4" /></label>
+                <label class="field"><span class="field__label">Jmin</span><input type="number" id="cfgJmin" value="40" /></label>
+                <label class="field"><span class="field__label">Jmax</span><input type="number" id="cfgJmax" value="70" /></label>
+                <label class="field"><span class="field__label">S1</span><input type="number" id="cfgS1" value="0" /></label>
+                <label class="field"><span class="field__label">S2</span><input type="number" id="cfgS2" value="0" /></label>
+                <label class="field"><span class="field__label">S3</span><input type="number" id="cfgS3" value="0" /></label>
+                <label class="field"><span class="field__label">S4</span><input type="number" id="cfgS4" value="0" /></label>
+                <label class="field"><span class="field__label">H1</span><input type="text" id="cfgH1" value="1" /></label>
+                <label class="field"><span class="field__label">H2</span><input type="text" id="cfgH2" value="2" /></label>
+                <label class="field"><span class="field__label">H3</span><input type="text" id="cfgH3" value="3" /></label>
+                <label class="field"><span class="field__label">H4</span><input type="text" id="cfgH4" value="4" /></label>
+              </div>
+              <details class="cfg-advanced">
+                <summary>Дополнительно (I1–I5, AWG 3.1 тайминги…)</summary>
+                <div class="form-grid">
+                  <label class="field field--wide">
+                    <span class="field__label">I1 (CPS-пакет, hex)</span>
+                    <textarea id="cfgI1" rows="3" spellcheck="false"></textarea>
+                  </label>
+                  <div class="row-buttons">
+                    <button class="btn btn--ghost btn--sm" id="btnImportI1" type="button">Импорт I1 из .conf</button>
+                    <button class="btn btn--ghost btn--sm" id="btnClearI1" type="button">Очистить I1</button>
+                  </div>
+                  <div class="form-grid form-grid--3" id="cfgAwg31Grid">
+                    <label class="field"><span class="field__label">ContentPaddingAddition</span><input type="text" id="cfgCpa" value="27-97" /></label>
+                    <label class="field"><span class="field__label">RekeyAfterTime</span><input type="text" id="cfgRekeyAfter" value="116-131" /></label>
+                    <label class="field"><span class="field__label">RekeyTimeout</span><input type="text" id="cfgRekeyTo" value="6-9" /></label>
+                    <label class="field"><span class="field__label">RejectAfterTime</span><input type="text" id="cfgRejectAfter" value="171-196" /></label>
+                    <label class="field"><span class="field__label">KeepaliveTimeout</span><input type="text" id="cfgKeepaliveTo" value="9-16" /></label>
+                    <label class="field"><span class="field__label">MaxHandshakeAttempts</span><input type="text" id="cfgMaxHs" value="18-26" /></label>
+                    <label class="field"><span class="field__label">RandomTrailers</span><select id="cfgTrailers"><option value="on">on</option><option value="off">off</option></select></label>
+                    <label class="field"><span class="field__label">DisableCookies</span><select id="cfgNoCookies"><option value="on">on</option><option value="off">off</option></select></label>
+                    <label class="field"><span class="field__label">HeaderProtectionKey (опц.)</span><input type="text" id="cfgHpk" placeholder="32-байтный ключ" /></label>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <div class="card">
+              <div class="card__head"><h2>Ключи аккаунта</h2><span class="badge" id="cfgKeysState">—</span></div>
+              <p class="hint">Приватный ключ и адреса берутся из файла аккаунта <code>warpscout-account.json</code>. Смотрите вкладку «Аккаунт».</p>
+            </div>
+          </div>
+
+          <div class="config-preview">
+            <div class="card card--preview">
+              <div class="card__head">
+                <h2>Предпросмотр <span class="mono-badge" id="cfgFileName">warp.conf</span></h2>
+                <div class="card__tools">
+                  <button class="btn btn--ghost btn--sm" id="btnCopyConf" type="button">⧉ Копировать</button>
+                  <button class="btn btn--primary btn--sm" id="btnSaveConf" type="button">💾 Сохранить как…</button>
+                </div>
+              </div>
+              <pre class="conf" id="confPreview"></pre>
+              <p class="hint">Конфиг готов к импорту в AmneziaVPN / AmneziaWG (для AWG) или в WireGuard (для WG).</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── ACCOUNT TAB ───────── -->
+      <section class="tab" id="tab-account" aria-label="Аккаунт WARP">
+        <div class="account-grid">
+          <div class="card">
+            <div class="card__head"><h2>Аккаунт WARP</h2></div>
+            <p class="hint">Скану нужен аккаунт WARP — это обычная регистрация устройства в Cloudflare, как у официального клиента. Приватный ключ остаётся на вашей машине.</p>
+            <div class="acc-status" id="accStatus">
+              <div class="acc-status__row"><span>Файл аккаунта</span><b id="accFileState">…</b></div>
+              <div class="acc-status__row"><span>Путь</span><code id="accFilePath" class="code-clip">…</code></div>
+              <div class="acc-status__row"><span>WG/AWG-устройство</span><b id="accMainState">…</b></div>
+              <div class="acc-status__row"><span>MASQUE-устройство</span><b id="accMasqueState">…</b></div>
+              <div class="acc-status__row"><span>Внешнее (WARP-in-WARP)</span><b id="accOuterState">…</b></div>
+            </div>
+            <div class="row-buttons">
+              <button class="btn btn--primary" id="btnRegister" type="button">⚙️ Зарегистрировать / обновить ключи</button>
+              <button class="btn btn--danger" id="btnRegisterFresh" type="button">🔥 Новый аккаунт (-fresh)</button>
+              <button class="btn btn--ghost" id="btnOpenAccFolder" type="button">📁 Открыть папку</button>
+            </div>
+            <p class="hint">«Обновить ключи» меняет ключи, не создавая новое устройство. «Новый аккаунт» регистрирует устройство с нуля.</p>
+          </div>
+          <div class="card card--results">
+            <div class="card__head"><h2>Лог регистрации</h2></div>
+            <pre class="log log--tall" id="accLog">Здесь появится вывод warpscout register…</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── SOCKS TAB ───────── -->
+      <section class="tab" id="tab-socks" aria-label="SOCKS-прокси">
+        <div class="socks-grid">
+          <div class="card">
+            <div class="card__head"><h2>Проверка одного эндпоинта</h2></div>
+            <p class="hint">Поднимает один туннель и раздаёт его как SOCKS5-прокси — чтобы проверить эндпоинт curl-ом или браузером. Не для постоянного использования.</p>
+            <div class="form-grid">
+              <label class="field field--wide">
+                <span class="field__label">Эндпоинт <code>-e</code> (как в результатах скана)</span>
+                <div style="display:flex; gap:8px">
+                  <input type="text" id="socksEndpoint" placeholder="188.114.98.58:2408" />
+                  <button class="btn btn--ghost" id="btnSocksBest" type="button" title="Взять лучший из последнего скана">★ Лучший</button>
+                </div>
+              </label>
+              <label class="field">
+                <span class="field__label">Протокол <code>-p</code></span>
+                <select id="socksProto"><option value="awg">awg</option><option value="wg">wg</option><option value="masque">masque</option><option value="masque-h2">masque-h2</option></select>
+              </label>
+              <label class="field">
+                <span class="field__label">Порт прокси <code>-P</code></span>
+                <input type="number" id="socksPort" value="1080" min="1024" max="65535" />
+              </label>
+            </div>
+            <div class="row-buttons">
+              <button class="btn btn--primary" id="btnSocksRun" type="button">▶ Запустить прокси</button>
+              <button class="btn btn--danger" id="btnSocksStop" type="button" hidden>■ Остановить</button>
+            </div>
+            <div class="socks-info" id="socksInfo" hidden>
+              <div class="socks-info__row">Прокси: <code id="socksAddr">socks5h://127.0.0.1:1080</code> <button class="btn btn--ghost btn--sm" id="btnCopySocks" type="button">⧉</button></div>
+              <div class="socks-info__row">Проверка: <code>curl -x socks5h://127.0.0.1:1080 https://ifconfig.co/json</code></div>
+            </div>
+          </div>
+          <div class="card card--results">
+            <div class="card__head"><h2>Лог прокси</h2></div>
+            <pre class="log log--tall" id="socksLog">Здесь появится вывод warpscout socks…</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── TOOLS TAB ───────── -->
+      <section class="tab" id="tab-tools" aria-label="Поиск параметров">
+        <div class="tools-grid">
+          <div class="card">
+            <div class="card__head"><h2>find-junk — подбор junk-параметров</h2></div>
+            <p class="hint">Если <code>scan -p awg</code> ничего не находит ни с одним I1 — запустите подбор junk-набора. Остановить можно в любой момент, лучший набор сохранится в логе.</p>
+            <div class="form-grid form-grid--2">
+              <label class="field">
+                <span class="field__label">Профиль I1 <code>-gen-i1</code></span>
+                <select id="fjGenI1"><option value="quic">quic</option><option value="random" selected>random</option><option value="dns">dns</option><option value="sip">sip</option><option value="stun">stun</option></select>
+              </label>
+              <label class="field">
+                <span class="field__label">Порог успеха <code>-threshold</code></span>
+                <input type="number" id="fjThreshold" value="95" min="10" max="100" />
+              </label>
+              <label class="field">
+                <span class="field__label">Адресов на подсеть <code>-n</code></span>
+                <input type="number" id="fjSample" value="5" min="1" max="256" />
+              </label>
+              <label class="field">
+                <span class="field__label">Туннелей <code>-jt</code></span>
+                <input type="number" id="fjJt" value="10" min="1" max="100" />
+              </label>
+            </div>
+            <div class="row-buttons">
+              <button class="btn btn--primary" id="btnFjRun" type="button">▶ Искать junk</button>
+              <button class="btn btn--danger" id="btnFjStop" type="button" hidden>■ Стоп</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card__head"><h2>find-sni — подбор SNI для MASQUE</h2></div>
+            <p class="hint">Перебирает известные SNI для MASQUE и печатает готовую команду скана с рабочим именем.</p>
+            <div class="form-grid form-grid--2">
+              <label class="field">
+                <span class="field__label">Транспорт <code>-p</code></span>
+                <select id="fsProto"><option value="masque">masque (QUIC)</option><option value="masque-h2">masque-h2 (TCP)</option></select>
+              </label>
+              <label class="field">
+                <span class="field__label">Порог успеха <code>-threshold</code></span>
+                <input type="number" id="fsThreshold" value="70" min="10" max="100" />
+              </label>
+            </div>
+            <div class="row-buttons">
+              <button class="btn btn--primary" id="btnFsRun" type="button">▶ Искать SNI</button>
+              <button class="btn btn--danger" id="btnFsStop" type="button" hidden>■ Стоп</button>
+            </div>
+          </div>
+          <div class="card card--results tools-log">
+            <div class="card__head">
+              <h2>Лог</h2>
+              <div class="card__tools">
+                <span class="badge badge--accent hidden" id="foundCmdBadge">команда найдена!</span>
+                <button class="btn btn--primary btn--sm" id="btnApplyFound" type="button">↧ Применить к скану</button>
+              </div>
+            </div>
+            <pre class="log log--tall" id="toolsLog">…</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── SETTINGS TAB ───────── -->
+      <section class="tab" id="tab-settings" aria-label="Настройки">
+        <div class="settings-grid">
+          <div class="card">
+            <div class="card__head"><h2>Пути</h2></div>
+            <div class="form-grid">
+              <label class="field field--wide">
+                <span class="field__label">Путь до warpscout.exe</span>
+                <div style="display:flex; gap:8px">
+                  <input type="text" id="setWsPath" placeholder="bin\warpscout.exe" />
+                  <button class="btn btn--ghost" id="btnBrowseWs" type="button">Обзор…</button>
+                  <button class="btn btn--ghost" id="btnCheckWs" type="button">Проверить</button>
+                </div>
+                <div class="hint" id="setWsVerHint">Проверка не выполнялась</div>
+              </label>
+              <label class="field field--wide">
+                <span class="field__label">Файл аккаунта <code>-a</code></span>
+                <div style="display:flex; gap:8px">
+                  <input type="text" id="setAccPath" readonly />
+                  <button class="btn btn--ghost" id="btnOpenAcc" type="button">Показать в папке</button>
+                </div>
+              </label>
+              <label class="field field--wide">
+                <span class="field__label">Отчёты сканов сохраняются в</span>
+                <div style="display:flex; gap:8px">
+                  <input type="text" id="setReportDir" readonly />
+                  <button class="btn btn--ghost" id="btnOpenReports" type="button">Открыть</button>
+                </div>
+              </label>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card__head"><h2>Данные приложения</h2></div>
+            <p class="hint">Настройки и последние результаты хранятся локально в хранилище приложения.</p>
+            <div class="row-buttons">
+              <button class="btn btn--danger" id="btnResetStorage" type="button">Сбросить настройки и данные</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card__head"><h2>О приложении</h2></div>
+            <p class="hint">
+              WARPSCOUT GUI — графическая оболочка для консольной утилиты
+              <a href="https://github.com/vernette/warpscout" data-ext>warpscout</a> (v0.16.0, MIT).
+              Ищет живые эндпоинты Cloudflare WARP из вашей сети, показывает узел и регион выхода и генерирует готовые конфиги WireGuard / AmneziaWG.<br/><br/>
+              Дефолтная команда: <code>warpscout scan -p awg -P -n 10 -exclude-node DME</code><br/><br/>
+              Скан запускается локально, без серверов-посредников: туннели поднимаются с вашей машины.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="/js/neutralino.js"></script>
+  <script src="/js/mock.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
