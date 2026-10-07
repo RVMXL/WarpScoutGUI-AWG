@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=14v1" />
+  <link rel="stylesheet" href="css/app.css?v=15v0" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -54,7 +54,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v1.4.0 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v1.5.0 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -293,6 +293,7 @@
                 <div class="card__tools">
                   <button class="btn btn--ghost btn--sm" id="btnHistory" type="button" title="История сканов этого приложения">🕘 История</button>
                   <button class="btn btn--ghost btn--sm" id="btnExportCsv" type="button" title="Сохранить таблицу в CSV">⬇ CSV</button>
+                  <button class="btn btn--ghost btn--sm" id="btnCopyEps" type="button" title="Скопировать рабочие эндпоинты (по одному в строке)">⧉ IP</button>
                   <button class="btn btn--ghost btn--sm" id="btnSortPing" type="button" title="Переключить: порядок отчёта / сортировка по TUN PING">↕ пинг</button>
                   <button class="btn btn--ghost btn--sm" id="btnDensity" type="button" title="Компактная таблица (меньше отступы)">≡ плотность</button>
                   <button class="btn btn--ghost btn--sm" id="btnToConfig" type="button" title="Лучший результат → генератор конфига">→ Конфиг</button>
@@ -420,8 +421,10 @@
                   </label>
                   <div class="row-buttons">
                     <button class="btn btn--ghost btn--sm" id="btnImportI1" type="button">Импорт I1 из .conf</button>
+                    <button class="btn btn--accent btn--sm" id="btnImportConf" type="button" title="Разобрать весь .conf-файл (WG / AWG 1.5–3.1) и подставить все поля">📥 Импорт .conf целиком</button>
                     <button class="btn btn--ghost btn--sm" id="btnClearI1" type="button">Очистить I1</button>
                   </div>
+                  <input type="file" id="importConfFile" accept=".conf,.txt,text/plain" class="hidden" aria-hidden="true" tabindex="-1" />
                   <div class="form-grid form-grid--3" id="cfgAwg31Grid">
                     <label class="field"><span class="field__label">ContentPaddingAddition</span><input type="text" id="cfgCpa" value="27-97" /></label>
                     <label class="field"><span class="field__label">RekeyAfterTime</span><input type="text" id="cfgRekeyAfter" value="116-131" /></label>
@@ -689,8 +692,8 @@
   </div>
 
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js?v=14v1"></script>
-  <script src="js/qrcode.js?v=14v1"></script>
-  <script src="js/app.js?v=14v1"></script>
+  <script src="js/mock.js?v=15v0"></script>
+  <script src="js/qrcode.js?v=15v0"></script>
+  <script src="js/app.js?v=15v0"></script>
 </body>
 </html>

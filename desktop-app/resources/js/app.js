@@ -886,6 +886,7 @@
     });
     S.history = S.history.slice(0, 10);
     renderHistoryBtn();
+    if (S.historyOpen) toggleHistory(true); // v1.5.0: обновить открытую панель (тренд/список)
     persist();
   }
 
@@ -1225,6 +1226,7 @@
           '<button type="button" id="btnHistClear" class="history__clear" title="Удалить всю историю">🗑 Очистить</button>' +
         "</span>" +
       "</div>" +
+      renderPingTrend() +
       S.history
         .map(
           (h, i) =>
@@ -1256,6 +1258,14 @@
         compareWithHistory(+c.getAttribute("data-cmp"));
       })
     );
+    $$("[data-trend]", panel).forEach((d) => {
+      const go = (e) => {
+        e.stopPropagation();
+        loadHistory(+d.getAttribute("data-trend"));
+      };
+      d.addEventListener("click", go);
+      d.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") go(e); });
+    });
   }
 
   function exportHistory() {
@@ -1394,6 +1404,248 @@
       }
     } catch (e) {
       toast("Не удалось прочитать файл", "err");
+    }
+  }
+
+  /* ───────── полный импорт .conf (v1.5.0) ───────── */
+  function parseConfText(text) {
+    const out = { interface: {}, peer: {}, other: {} };
+    let cur = null;
+    for (const rawLine of String(text).split(/\r?\n/)) {
+      let line = rawLine;
+      const hashAt = line.search(/(^|\s)#/);
+      if (hashAt >= 0) line = line.slice(0, hashAt);
+      line = line.trim();
+      if (!line) continue;
+      const sec = /^\[\s*([A-Za-z0-9_-]+)\s*\]$/.exec(line);
+      if (sec) {
+        const name = sec[1].toLowerCase();
+        cur = name === "interface" ? out.interface : name === "peer" ? out.peer : out.other;
+        continue;
+      }
+      const eq = line.indexOf("=");
+      if (eq < 1) continue;
+      const key = line.slice(0, eq).trim().toLowerCase();
+      let val = line.slice(eq + 1).trim();
+      if (/^".*"$/.test(val)) val = val.slice(1, -1);
+      if (cur) cur[key] = val;
+    }
+    return out;
+  }
+
+  function applyImportedConf(text) {
+    const c = parseConfText(text);
+    const all = Object.assign({}, c.other, c.interface, c.peer);
+    const has = (k) => all[k] != null && String(all[k]).trim() !== "";
+    if (!Object.keys(all).length) { toast("Не удалось разобрать файл: нет пар «ключ = значение»", "err"); return; }
+
+    const applied = [];
+    const skipped = [];
+    const num = (k) => { const v = +all[k]; return isFinite(v) ? v : null; };
+
+    // определение версии конфига
+    const has31 = ["contentpaddingaddition", "rekeyaftertime", "rekeytimeout", "rejectaftertime",
+      "keepalivetimeout", "maxhandshakeattempts", "randomtrailers", "disablecookies", "headerprotectionkey"].some(has);
+    const hasI2plus = has("i2") || has("i3") || has("i4") || has("i5");
+    const hasAwg = has31 || hasI2plus ||
+      ["jc", "jmin", "jmax", "s1", "s2", "s3", "s4", "h1", "h2", "h3", "h4", "i1"].some(has);
+    S.cfg.ver = has31 ? "awg31" : hasI2plus ? "awg20" : hasAwg ? "awg15" : "wg";
+    applied.push({ wg: "WireGuard", awg15: "AWG 1.5", awg20: "AWG 2.0", awg31: "AWG 3.1" }[S.cfg.ver]);
+
+    // Interface
+    if (has("dns")) {
+      const d = all.dns.replace(/\s+/g, " ").trim();
+      const preset = Object.keys(DNS_PRESETS).find((k) => DNS_PRESETS[k].replace(/\s+/g, " ") === d);
+      if (preset) { S.cfg.dns = preset; applied.push("DNS " + preset); }
+      else { S.cfg.dns = "custom"; S.cfg.dnsCustom = d; applied.push("DNS свои"); }
+    }
+    if (has("mtu")) { const m = num("mtu"); if (m && m > 0 && m <= 10000) { S.cfg.mtu = m; applied.push("MTU " + m); } }
+    if (has("table") && /off/i.test(all.table)) { S.cfg.tableOff = true; applied.push("Table off"); }
+
+    // Peer
+    if (has("endpoint") && /^[A-Za-z0-9.\[\]:-]+:\d+$/.test(all.endpoint.trim())) {
+      S.cfg.endpoint = all.endpoint.trim();
+      applied.push("эндпоинт");
+    }
+    if (has("persistentkeepalive")) { const k = num("persistentkeepalive"); if (k != null && k >= 0 && k <= 65535) { S.cfg.keepalive = k; applied.push("keepalive " + k); } }
+    if (has("allowedips")) {
+      const a = all.allowedips.replace(/\s+/g, "");
+      if (a === "0.0.0.0/0,::/0" || a === "::/0,0.0.0.0/0") { S.cfg.allowed = "both"; applied.push("AllowedIPs весь"); }
+      else if (a === "0.0.0.0/0") { S.cfg.allowed = "v4"; applied.push("AllowedIPs v4"); }
+      else if (a === "::/0") { S.cfg.allowed = "v6"; applied.push("AllowedIPs v6"); }
+      else { S.cfg.allowed = "custom"; S.cfg.allowedCustom = all.allowedips.trim(); applied.push("AllowedIPs свои"); }
+    }
+
+    // Обфускация AWG
+    if (hasAwg) {
+      const o = S.cfg.obf;
+      const junks = [];
+      if (has("jc")) { const v = num("jc"); if (v != null) { o.jc = v; junks.push("Jc"); } }
+      if (has("jmin")) { const v = num("jmin"); if (v != null) { o.jmin = v; junks.push("Jmin"); } }
+      if (has("jmax")) { const v = num("jmax"); if (v != null) { o.jmax = v; junks.push("Jmax"); } }
+      if (junks.length) applied.push("junk (" + junks.join("/") + ")");
+      const heads = [];
+      ["s1", "s2", "s3", "s4"].forEach((k, idx) => { if (has(k)) { const v = num(k); if (v != null) { o["s" + (idx + 1)] = v; heads.push("S" + (idx + 1)); } } });
+      ["h1", "h2", "h3", "h4"].forEach((k, idx) => { if (has(k)) { o["h" + (idx + 1)] = String(all[k]).trim(); heads.push("H" + (idx + 1)); } });
+      if (heads.length) applied.push("заголовки (" + heads.length + ")");
+      if (has("i1")) { o.i1 = String(all.i1).trim(); applied.push("I1"); }
+      if (has31) {
+        if (has("contentpaddingaddition")) { o.cpa = String(all.contentpaddingaddition).trim(); applied.push("CPA"); }
+        if (has("rekeyaftertime")) { o.rekeyAfter = String(all.rekeyaftertime).trim(); }
+        if (has("rekeytimeout")) { o.rekeyTo = String(all.rekeytimeout).trim(); }
+        if (has("rejectaftertime")) { o.rejectAfter = String(all.rejectaftertime).trim(); }
+        if (has("keepalivetimeout")) { o.keepaliveTo = String(all.keepalivetimeout).trim(); }
+        if (has("maxhandshakeattempts")) { o.maxHs = String(all.maxhandshakeattempts).trim(); }
+        if (has("randomtrailers")) { o.trailers = /on|true|1/i.test(all.randomtrailers) ? "on" : "off"; }
+        if (has("disablecookies")) { o.noCookies = /on|true|1/i.test(all.disablecookies) ? "on" : "off"; }
+        if (has("headerprotectionkey")) { o.hpk = String(all.headerprotectionkey).trim(); }
+        applied.push("тайминги 3.1");
+      }
+    }
+
+    // что не переносится
+    if (has("privatekey") || has("address")) skipped.push("PrivateKey/Address берутся из аккаунта");
+    if (has("publickey")) skipped.push("PublicKey берётся из аккаунта");
+    if (has("presharedkey")) skipped.push("PresharedKey не поддерживается");
+    if (hasI2plus) skipped.push("I2–I5 отсутствуют в полях GUI");
+
+    syncCfgInputsFromState();
+    renderConf();
+    persist();
+    toast("Импортирован конфиг: " + applied.join(" · "), "ok");
+    if (skipped.length) toast("Не перенесено: " + skipped.join("; "), "warn");
+  }
+
+  async function importConf() {
+    if (!IS_MOCK && HAS_NL) {
+      let p;
+      try {
+        p = await os().showOpenDialog("Выберите .conf для импорта", { multiSelections: false });
+      } catch (e) { p = null; }
+      const picked = Array.isArray(p) ? p[0] : typeof p === "string" ? p : null;
+      if (!picked) return;
+      try {
+        applyImportedConf(await fs().readFile(picked));
+      } catch (e) {
+        toast("Не удалось прочитать файл: " + (e && e.message ? e.message : e), "err");
+      }
+      return;
+    }
+    $("#importConfFile").value = "";
+    $("#importConfFile").click();
+  }
+
+  function bindImportConfFile() {
+    $("#importConfFile").addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try { applyImportedConf(String(reader.result)); }
+        catch (err) { toast("Ошибка разбора: " + (err && err.message ? err.message : err), "err"); }
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  /* ───────── копирование эндпоинтов (v1.5.0) ───────── */
+  function copyEndpoints() {
+    const list = S.results.filter((r) => !r.torn).map((r) => r.endpoint);
+    if (!list.length) { toast("Нет рабочих эндпоинтов для копирования", "err"); return; }
+    copyText(list.join("\n"), "Скопировано эндпоинтов: " + list.length);
+  }
+
+  /* ───────── тренд пинга по истории (v1.5.0) ───────── */
+  function histBestPing(h) {
+    let best = Infinity;
+    for (const r of h.results || []) {
+      if (r.torn) continue;
+      const v = pingMs(r.tunPing || r.ping);
+      if (v !== Infinity && v < best) best = v;
+    }
+    return best;
+  }
+
+  function renderPingTrend() {
+    const pts = [];
+    for (let i = S.history.length - 1; i >= 0; i--) {
+      const b = histBestPing(S.history[i]);
+      if (b !== Infinity) pts.push({ i, ping: b, ts: S.history[i].ts });
+    }
+    if (pts.length < 2) return "";
+    const W = 560, H = 64, PAD = 7;
+    const pings = pts.map((p) => p.ping);
+    const min = Math.min.apply(null, pings);
+    const max = Math.max.apply(null, pings);
+    const span = Math.max(1, max - min);
+    const xy = pts.map((p, idx) => ({
+      x: PAD + (idx / (pts.length - 1)) * (W - PAD * 2),
+      y: H - PAD - ((p.ping - min) / span) * (H - PAD * 2),
+      p,
+    }));
+    const line = xy.map((q) => q.x.toFixed(1) + "," + q.y.toFixed(1)).join(" ");
+    const area = PAD + "," + (H - 1) + " " + line + " " + (W - PAD) + "," + (H - 1);
+    const dots = xy
+      .map((q) =>
+        '<circle class="trend-dot" cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="3.5" data-trend="' + q.p.i +
+        '" role="button" tabindex="0" aria-label="Скан ' + fmtTime(q.p.ts) + ", " + q.p.ping + ' ms">' +
+        "<title>" + fmtTime(q.p.ts) + " — лучший пинг " + q.p.ping + " ms — клик загрузит скан</title></circle>"
+      )
+      .join("");
+    return (
+      '<div class="trend" role="img" aria-label="Динамика лучшего пинга по сканам">' +
+        '<div class="trend__head">' +
+          '<span class="trend__title">↘ динамика лучшего пинга</span>' +
+          '<span class="trend__range">min <b>' + min + "</b> · max <b>" + max + "</b> ms</span>" +
+        "</div>" +
+        '<svg class="trend__svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none">' +
+          '<polygon class="trend__area" points="' + area + '"></polygon>' +
+          '<polyline class="trend__line" points="' + line + '"></polyline>' +
+          dots +
+        "</svg>" +
+        '<div class="trend__hint">слева направо: старые сканы → новые · клик по точке загружает скан</div>' +
+      "</div>"
+    );
+  }
+
+  /* ───────── подсветка пресета, соответствующего форме (v1.5.0) ───────── */
+  function matchPresetName() {
+    const orig = JSON.stringify(S.scan);
+    let found = "";
+    for (const name of Object.keys(PRESETS)) {
+      PRESETS[name].apply();
+      if (JSON.stringify(S.scan) === orig) { found = name; break; }
+    }
+    S.scan = JSON.parse(orig);
+    if (!found) {
+      for (const cp of S.customPresets) {
+        if (JSON.stringify(Object.assign({}, DEFAULT_SCAN, cp.scan)) === orig) { found = "custom:" + cp.name; break; }
+      }
+    }
+    return found;
+  }
+
+  function highlightMatchingPreset() {
+    const name = matchPresetName();
+    $$("#presetChips .chip").forEach((c) => c.classList.remove("is-active"));
+    $$("#customPresetChips .chip--custom").forEach((c) => c.classList.remove("is-active"));
+    if (!name) return;
+    if (name.indexOf("custom:") === 0) {
+      const cname = name.slice(7);
+      const idx = S.customPresets.findIndex((p) => p.name === cname);
+      if (idx >= 0) {
+        const chip = $('#customPresetChips .chip--custom[data-pi="' + idx + '"]');
+        if (chip) {
+          chip.classList.add("is-active");
+          $("#presetHint").innerHTML = "Пресет «<b>" + esc(cname) + "</b>» применён. Команду можно посмотреть над кнопкой скана.";
+        }
+      }
+      return;
+    }
+    const chip = $('#presetChips .chip[data-preset="' + name + '"]');
+    if (chip) {
+      chip.classList.add("is-active");
+      $("#presetHint").innerHTML = PRESETS[name].hint;
     }
   }
 
@@ -1915,7 +2167,6 @@
     $("#btnCopyCmd").addEventListener("click", () => copyText(buildScanCmd(S.scan), "Команда скопирована"));
     $("#btnSortPing").addEventListener("click", () => { S.sortByPing = !S.sortByPing; renderResults(); });
     $("#btnHistory").addEventListener("click", () => toggleHistory());
-    $("#btnExportCsv").addEventListener("click", exportCsv);
 
     // фильтр результатов (v1.3.0)
     $("#resFilter").addEventListener("input", debounce(() => applyFilter($("#resFilter").value), 140));
@@ -1925,6 +2176,8 @@
     $("#resFilterClear").addEventListener("click", () => clearFilter(true));
 
     $("#btnDensity").addEventListener("click", toggleCompact);
+    $("#btnExportCsv").addEventListener("click", exportCsv);
+    $("#btnCopyEps").addEventListener("click", copyEndpoints); // v1.5.0
     $("#btnConfQr").addEventListener("click", showConfQr);
     $("#btnQrPng").addEventListener("click", saveQrPng);
     $("#btnQrCopy").addEventListener("click", () => copyText(buildConf(), "Конфиг скопирован"));
@@ -2007,6 +2260,8 @@
     });
     $("#btnClearI1").addEventListener("click", () => { $("#cfgI1").value = ""; syncCfgFromInputs(); renderConf(); });
     $("#btnImportI1").addEventListener("click", importI1);
+    $("#btnImportConf").addEventListener("click", importConf); // v1.5.0
+    bindImportConfFile(); // v1.5.0
     $("#btnCopyConf").addEventListener("click", () => copyText(buildConf(), "Конфиг скопирован"));
     $("#btnSaveConf").addEventListener("click", saveConf);
 
@@ -2175,6 +2430,7 @@
     syncInputsFromState();
     syncCfgInputsFromState();
     $("#presetHint").innerHTML = PRESETS.default.hint;
+    highlightMatchingPreset(); // v1.5.0: подсветить пресет, соответствующий сохранённой форме
     bindEvents();
     updateCmdPreview();
     renderResults();
@@ -2203,7 +2459,7 @@
   }
 
   // отладочный хук (безвредно): помогает диагностике через консоль
-  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab };
+  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {

@@ -914,3 +914,97 @@ html[data-theme="light"] .socks-info { border-color: rgba(30, 158, 86, 0.4); }
 }
 .qr-box svg { display: block; width: 240px; height: 240px; }
 .row-buttons--center { justify-content: center; }
+
+/* ═══════════ v1.5.0 — тренд пинга, импорт .conf, полировка деталей ═══════════ */
+
+/* — кнопка с акцентной рамкой (импорт .conf целиком) — */
+.btn--accent {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+  transition: background 0.13s, color 0.13s, box-shadow 0.13s, transform 0.13s;
+}
+.btn--accent:hover { background: var(--accent); color: #17100a; box-shadow: 0 3px 16px rgba(242, 124, 32, 0.35); }
+.btn--accent:active { transform: translateY(1px); }
+
+/* — тренд лучшего пинга (панель истории) — */
+.trend {
+  margin: 10px 12px 12px;
+  padding: 10px 12px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+}
+.trend__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.trend__title { font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-dim); }
+.trend__range { font-size: 11px; color: var(--text-dim); }
+.trend__range b { color: var(--accent); font-variant-numeric: tabular-nums; }
+.trend__svg { display: block; width: 100%; height: 56px; border-radius: 6px; }
+.trend__area { fill: rgba(242, 124, 32, 0.13); }
+.trend__line { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.trend-dot { fill: #ffd9b3; stroke: var(--accent); stroke-width: 1.4; cursor: pointer; transition: stroke-width 0.12s; }
+.trend-dot:hover, .trend-dot:focus-visible { stroke-width: 2.6; }
+.trend-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.trend__hint { margin-top: 5px; font-size: 10.5px; color: var(--text-dim); opacity: 0.75; }
+
+/* — заголовки карточек: акцентная планка — */
+.card__head h2::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  margin-right: 8px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--accent), #ffb06a);
+  vertical-align: -2px;
+}
+
+/* — чипы статистики: микро-взаимодействие — */
+.stat-chip { transition: transform 0.12s, box-shadow 0.12s; }
+.stat-chip:hover { transform: translateY(-1px); box-shadow: 0 2px 12px rgba(242, 124, 32, 0.18); }
+
+/* — строки результатов: акцентная планка при ховере — */
+.rtable tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* — кнопки тулбаров: единое «дыхание» — */
+.card__tools .btn { transition: background 0.12s, color 0.12s, border-color 0.12s, box-shadow 0.12s, transform 0.12s; }
+.card__tools .btn:active { transform: translateY(1px); }
+
+/* — история: элементы живее — */
+.history__item { transition: background 0.12s, transform 0.12s; }
+.history__item:hover { transform: translateX(2px); }
+.history__cmp-btn { transition: background 0.12s, color 0.12s, border-color 0.12s; }
+
+/* — тосты: полоска-таймер — */
+.toast { position: relative; overflow: hidden; }
+.toast::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--accent), #ffb06a);
+  opacity: 0.55;
+  animation: toastBar 3.2s linear forwards;
+  pointer-events: none;
+}
+@keyframes toastBar { from { width: 100%; } to { width: 0%; } }
+
+/* — пустое состояние: мягкое парение иконки — */
+.empty__ico { animation: floatIco 3.2s ease-in-out infinite; }
+@keyframes floatIco { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+
+/* — навигация: иконка чуть увеличивается при ховере — */
+.nav__item svg, .nav__item img { transition: transform 0.15s; }
+.nav__item:hover svg, .nav__item:hover img { transform: scale(1.08); }
+
+/* — поля ввода: отзывчивая рамка при ховере — */
+input:hover, select:hover, textarea:hover { border-color: var(--border); }
+
+/* — доступность: отключить новые анимации при reduced-motion — */
+@media (prefers-reduced-motion: reduce) {
+  .toast::after, .empty__ico { animation: none; }
+  .stat-chip, .history__item, .nav__item svg, .nav__item img, .trend-dot, .btn--accent { transition: none; }
+}
