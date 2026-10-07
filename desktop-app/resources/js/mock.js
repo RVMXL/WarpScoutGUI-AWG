@@ -156,8 +156,54 @@
     return lines.join("\n");
   }
 
+  // v1.9.0: быстрая проверка одного эндпоинта — отчёт из одной строки (формат report.go).
+  // Вердикт детерминирован по адресу: сумма кодов символов % 4 === 0 → «разорван»,
+  // иначе рабочий с TUN PING 6ms / 0%. Это демо-сценарий, реальный app парсит настоящий отчёт.
+  function checkScript(cmd) {
+    const ip = (cmd.match(/-target\s+(\S+)/) || [null, "188.114.98.58"])[1];
+    const port = (cmd.match(/-port\s+(\d+)/) || [null, "2408"])[1];
+    const proto = (cmd.match(/-p\s+(\S+)/) || [null, "awg"])[1];
+    const endpoint = /:\d+$/.test(ip) ? ip : ip + ":" + port;
+    let sum = 0;
+    for (let i = 0; i < ip.length; i++) sum += ip.charCodeAt(i);
+    const torn = sum % 4 === 0;
+    const pad = endpoint + " ".repeat(Math.max(1, 23 - endpoint.length));
+    const report = [
+      "# WARP endpoints: " + (torn ? "0 working / 1 probed" : "1 working / 1 probed"),
+      "# sorted by in-tunnel loss, then in-tunnel ping",
+      "# ENDPOINT PING = ICMP ping to the endpoint address from this host, no tunnel involved",
+      "# TUN PING / LOSS = RTT and packet loss measured inside the tunnel, to 1.1.1.1",
+      "# SEEN AS = region external services see through the tunnel",
+      "# NODE / NODE LOCATION = Cloudflare WARP edge node the tunnel landed on, and where it sits",
+      "",
+      "ENDPOINT               ENDPOINT PING TUN PING  LOSS   SEEN AS    NODE   NODE LOCATION",
+    ];
+    if (torn) {
+      report.push("# 1 torn down (handshake ok, data flowed, then cut and never recovered)");
+      report.push(pad + "?             8ms       100%   RU         DME    Moscow, RU");
+    } else {
+      report.push(pad + "?             6ms       0%     HK         HKG    Hong Kong, HK");
+    }
+    report.push("");
+    report.push("# Best endpoint per node (lowest in-tunnel loss, then in-tunnel ping)");
+    const out = report.join("\n");
+    window.NeutralinoMock.lastCheckReport = out;
+    const epLine = "  node: " + (torn ? "RU DME" : "HK HKG") + " (" + endpoint + ")\r\n";
+    return [
+      { delay: 250, data: "Using cached WARP account from warpscout-account.json\r\n" },
+      { delay: 350, data: "Phase 2: verifying tunnels (proto=" + proto + "): 1...\r\n" },
+      { delay: 650, data: epLine },
+      { delay: 400, data: "  1/1\r\n" },
+      { delay: 250, data: "Phase 2: verifying tunnels (proto=" + proto + "): done\r\n" },
+      { delay: 200, data: "\r\nFull report written to demo-check.txt\r\n" },
+      { delay: 100, type: "exit", data: "0" },
+    ];
+  }
+
   const scripts = {
     scan(cmd) {
+      // v1.9.0: быстрая проверка одного эндпоинта (scan -target IP -port PORT) — короткий сценарий
+      if (/(^|\s)-target\s+\S/.test(cmd) && /(^|\s)-port\s+\d+/.test(cmd)) return checkScript(cmd);
       const withP = /(^|\s)-P(\s|$)|tun-ping/.test(cmd);
       const chunks = [];
       const report = varyReport(withP ? MOCK_REPORT : MOCK_REPORT_NOP);

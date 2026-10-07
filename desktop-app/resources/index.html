@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=18v0" />
+  <link rel="stylesheet" href="css/app.css?v=19v0" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -54,7 +54,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светлую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v1.8.0 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v1.9.0 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -190,7 +190,7 @@
               <div class="form-grid form-grid--2">
                 <label class="field">
                   <span class="field__label">SNI для I1 <code>-i1-sni</code></span>
-                  <input type="text" id="fI1Sni" placeholder="случайный известный хост" />
+                  <input type="text" id="fI1Sni" placeholder="случайный известный хост" list="sniHints" />
                 </label>
                 <label class="field">
                   <span class="field__label">Мусорных пакетов <code>-jc</code></span>
@@ -219,7 +219,7 @@
               <div class="form-grid form-grid--2">
                 <label class="field">
                   <span class="field__label">SNI <code>-masque-sni</code></span>
-                  <input type="text" id="fMasqueSni" placeholder="consumer-masque.cloudflareclient.com" />
+                  <input type="text" id="fMasqueSni" placeholder="consumer-masque.cloudflareclient.com" list="sniHints" />
                 </label>
                 <label class="field">
                   <span class="field__label">Попыток на эндпоинт <code>-masque-attempts</code></span>
@@ -735,9 +735,39 @@
     </div>
   </div>
 
+  <!-- ══════════ Быстрая проверка эндпоинта (модалка, v1.9.0) ══════════ -->
+  <div class="modal hidden" id="qcModal" role="dialog" aria-modal="true" aria-label="Быстрая проверка эндпоинта">
+    <div class="modal__backdrop" data-close-qc></div>
+    <div class="modal__card modal__card--qc">
+      <div class="modal__head">
+        <h2>⚡ Быстрая проверка</h2>
+        <button class="modal__close" type="button" data-close-qc aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal__body">
+        <div class="qc-ep">
+          <span class="qc-ep__addr mono" id="qcEp"></span>
+          <span class="qc-ep__proto" id="qcProto"></span>
+        </div>
+        <div class="qc-cmd mono" id="qcCmd"></div>
+        <div class="qc-log mono" id="qcLog" aria-live="polite"></div>
+        <div class="qc-verdict hidden" id="qcVerdict"></div>
+        <p class="modal__note">Одна строка warpscout вместо целого скана: <code>-target IP -port PORT</code> — handshake на указанный порт и пинг внутри туннеля. Результат никуда не сохраняется — только эта модалка.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- подсказки SNI из исходников warpscout (i1Hosts + masque default) -->
+  <datalist id="sniHints">
+    <option value="consumer-masque.cloudflareclient.com"></option>
+    <option value="www.apple.com"></option>
+    <option value="www.google.com"></option>
+    <option value="www.microsoft.com"></option>
+    <option value="cdn.jsdelivr.net"></option>
+  </datalist>
+
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js?v=18v0"></script>
-  <script src="js/qrcode.js?v=18v0"></script>
-  <script src="js/app.js?v=18v0"></script>
+  <script src="js/mock.js?v=19v0"></script>
+  <script src="js/qrcode.js?v=19v0"></script>
+  <script src="js/app.js?v=19v0"></script>
 </body>
 </html>

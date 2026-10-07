@@ -143,7 +143,7 @@
     paths: { dataDir: "", accPath: "", reportsDir: "", wsPath: "" },
     wsVersion: "",
     account: null,
-    running: { scan: false, register: false, fj: false, fs: false, socks: false },
+    running: { scan: false, register: false, fj: false, fs: false, socks: false, check: false },
     procIds: {},
     demoScanned: false,
     prevEndpoints: null,  // Set эндпоинтов прошлого скана (для сравнения)
@@ -652,6 +652,35 @@
     "шагов": "steps",
     "узлов": "nodes",
     "сек": "s",
+    /* — v1.9.0: порты, быстрая проверка, PNG тренда — */
+    "Частота портов среди рабочих эндпоинтов — клик фильтрует таблицу": "Port frequency among working endpoints — click to filter the table",
+    "Показать только порт {port}": "Show only port {port}",
+    "Быстрая проверка эндпоинта": "Quick endpoint check",
+    "⚡ Быстрая проверка": "⚡ Quick check",
+    "Одна строка warpscout вместо целого скана:": "A single warpscout line instead of a full scan:",
+    "— handshake на указанный порт и пинг внутри туннеля. Результат никуда не сохраняется — только эта модалка.": "— handshake on the given port and in-tunnel ping. The result is not saved anywhere — this dialog only.",
+    "Быстрая проверка: handshake на указанный порт и пинг внутри туннеля": "Quick check: handshake on the given port and in-tunnel ping",
+    "Уже идёт проверка — подождите": "A check is already running — please wait",
+    "Проверка недоступна во время скана": "Check unavailable while a scan is running",
+    "Не удалось разобрать адрес": "Could not parse the address",
+    "Не удалось запустить проверку: {err}": "Failed to start the check: {err}",
+    "warpscout завершился с кодом {c}": "warpscout exited with code {c}",
+    "✅ Рабочий — TUN PING {ping} ms, потери {loss}": "✅ Working — TUN PING {ping} ms, loss {loss}",
+    "⛔ Разорван — потери {loss}": "⛔ Torn — loss {loss}",
+    "Эндпоинт не ответил (нет строки в отчёте)": "Endpoint did not respond (no row in the report)",
+    "Проверка {ep}: рабочий, TUN PING {ping} ms": "Check {ep}: working, TUN PING {ping} ms",
+    "Проверка {ep}: разорван": "Check {ep}: torn",
+    "Проверка {ep}: не ответил": "Check {ep}: no response",
+    "Проверка {ep}: ошибка {err}": "Check {ep}: error {err}",
+    "Результат никуда не сохраняется — только эта модалка": "The result is not saved anywhere — this dialog only",
+    "Узел": "Node",
+    "Нужно минимум 2 скана с пингами": "Need at least 2 scans with pings",
+    "Сохранить график тренда в PNG": "Save the trend chart as PNG",
+    "Сохранить динамику пинга (PNG)": "Save ping trend (PNG)",
+    "Тренд PNG сохранён: {path}": "Trend PNG saved: {path}",
+    "Тренд PNG скачан: {path}": "Trend PNG downloaded: {path}",
+    "Ошибка экспорта PNG: {err}": "PNG export error: {err}",
+    "сканов с пингами": "scans with pings",
     /* — v1.8.0: лендинг — */
   };
 
@@ -757,6 +786,7 @@
     try { renderStatusWs(); } catch (e) {}
     try { renderWsHints(); } catch (e) {}
     try { const cm = $("#cmpModal"); if (cm && !cm.classList.contains("hidden")) renderCmpBody(); } catch (e) {} // v1.7.0
+    try { qcRenderLast(); } catch (e) {} // v1.9.0: вердикт быстрой проверки на новом языке
     try { applyTheme(document.documentElement.getAttribute("data-theme") || "dark"); } catch (e) {}
     const hint = $("#setWsCheckHint");
     if (hint) hint.textContent = hint.textContent; // статичен
@@ -1203,6 +1233,7 @@
             '<button type="button" data-act="cfg" title="' + t("Использовать в конфиге") + '">⚙</button>' +
             '<button type="button" data-act="socks" title="' + t("Подставить в SOCKS-вкладку") + '">🧦</button>' +
             '<button type="button" data-act="socks-run" title="' + t("Сразу запустить SOCKS5-прокси для этого эндпоинта") + '">⏵</button>' +
+            '<button type="button" data-act="check" title="' + t("Быстрая проверка: handshake на указанный порт и пинг внутри туннеля") + '">⚡</button>' +
           "</td>",
         ];
         const sel = ep === S.selected ? " is-selected" : "";
@@ -1262,6 +1293,7 @@
               toast(t("Прокси уже запущен — сначала остановите текущий"), "warn");
             }
           }
+          if (act === "check") { checkOne(ep); return; }
         })
       );
     });
@@ -1316,6 +1348,24 @@
     if (nodeNames.length) {
       chips.push('<span class="stat-chip" title="' + tF("Узлы: {nodes}", { nodes: esc(nodeNames.join(", ")) }) + '">' + t("🌍 узлов") + " <b>" + nodeNames.length + "</b></span>");
     }
+    // v1.9.0: частота портов среди рабочих — кликабельные чипы-фильтры
+    const ports = {};
+    working.forEach((r) => {
+      const m = /:(\d+)$/.exec(r.endpoint);
+      if (m) ports[m[1]] = (ports[m[1]] || 0) + 1;
+    });
+    const topPorts = Object.keys(ports)
+      .sort((a, b) => ports[b] - ports[a] || +a - +b)
+      .slice(0, 4);
+    if (topPorts.length && (topPorts.length > 1 || working.length > 1)) {
+      topPorts.forEach((p) => {
+        chips.push(
+          '<button type="button" class="stat-chip stat-chip--port" data-port="' + esc(p) +
+          '" title="' + tF("Показать только порт {port}", { port: p }) + '">' +
+            "🚪 " + esc(p) + " <b>×" + ports[p] + "</b></button>"
+        );
+      });
+    }
     if (S.diff) {
       if (S.diff.newCount) {
         chips.push('<span class="stat-chip stat-chip--new" title="' + t("Эндпоинтов, которых не было в прошлом скане") + '">' + t("➕ новых") + " <b>" + S.diff.newCount + "</b></span>");
@@ -1336,6 +1386,17 @@
         toast(tF("Пропали с прошлого скана ({n}): {list}", { n: S.diff.gone.length, list: S.diff.gone.join(", ") }), "warn");
       });
     }
+    // v1.9.0: клик по чипу порта → фильтр таблицы по «:порт»
+    $$("#resStats .stat-chip--port").forEach((b) =>
+      b.addEventListener("click", () => {
+        const p = b.getAttribute("data-port");
+        if (!p) return;
+        switchTab("scan");
+        const inp = $("#resFilter");
+        inp.value = ":" + p;
+        applyFilter(":" + p);
+      })
+    );
   }
 
   /* ───────── прогон скана ───────── */
@@ -2206,6 +2267,8 @@
     if (bCmp) bCmp.addEventListener("click", openCompare);
     const bTrCsv = $("#btnTrendCsv");
     if (bTrCsv) bTrCsv.addEventListener("click", (e) => { e.stopPropagation(); exportTrendCsv(); });
+    const bTrPng = $("#btnTrendPng");
+    if (bTrPng) bTrPng.addEventListener("click", (e) => { e.stopPropagation(); exportTrendPng(); });
     const bClr = $("#btnHistClear");
     if (bClr) bClr.addEventListener("click", clearHistory);
     $$(".history__item", panel).forEach((b) =>
@@ -2334,6 +2397,162 @@
         toast(tF("Тренд CSV сохранён: {path}", { path: path }), "ok");
       })
       .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
+  }
+
+  /* ───────── PNG графика тренда (v1.9.0) ───────── */
+  function trendPoints() {
+    const pts = [];
+    for (let i = S.history.length - 1; i >= 0; i--) {
+      const b = histBestPing(S.history[i]);
+      if (b !== Infinity) pts.push({ ts: S.history[i].ts, ping: b });
+    }
+    return pts;
+  }
+
+  function drawTrendChart(pts) {
+    const W = 960, H = 380;
+    const PADL = 78, PADR = 30, PADT = 104, PADB = 64;
+    const scale = 2; // ретина-качество
+    const canvas = document.createElement("canvas");
+    canvas.width = W * scale;
+    canvas.height = H * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+    const light = document.documentElement.getAttribute("data-theme") === "light";
+    const bg = light ? "#f2eee6" : "#141416";
+    const card = light ? "#fffdf8" : "#1d1d21";
+    const ink = light ? "#26221c" : "#f0ede6";
+    const sub = light ? "#6e675c" : "#9d968c";
+    const grid = light ? "rgba(38,34,28,.12)" : "rgba(240,237,230,.12)";
+    const accent = "#ff7a1a";
+    const accentSoft = light ? "rgba(255,122,26,.22)" : "rgba(255,122,26,.28)";
+    // фон + карточка
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = card;
+    ctx.beginPath();
+    const rx = 14;
+    ctx.moveTo(rx, 22);
+    ctx.arcTo(W - 22, 22, W - 22, H - 22, rx);
+    ctx.arcTo(W - 22, H - 22, 22, H - 22, rx);
+    ctx.arcTo(22, H - 22, 22, 22, rx);
+    ctx.arcTo(22, 22, W - 22, 22, rx);
+    ctx.fill();
+    // шапка: заголовок слева, min/max справа на той же строке
+    const pings0 = pts.map((p) => p.ping);
+    const min0 = Math.min.apply(null, pings0);
+    const max0 = Math.max.apply(null, pings0);
+    ctx.fillStyle = ink;
+    ctx.font = "600 21px 'Segoe UI', system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("WARPSCOUT GUI — " + t("↘ динамика лучшего пинга"), 44, 58);
+    ctx.textAlign = "right";
+    ctx.fillStyle = accent;
+    ctx.font = "600 14px 'Segoe UI', system-ui, sans-serif";
+    ctx.fillText("min " + min0 + " · max " + max0 + " ms", W - 44, 58);
+    ctx.textAlign = "left";
+    ctx.fillStyle = sub;
+    ctx.font = "13px 'Segoe UI', system-ui, sans-serif";
+    ctx.fillText(pts.length + " " + t("сканов с пингами"), 44, 82);
+    // данные
+    const pings = pts.map((p) => p.ping);
+    const min = Math.min.apply(null, pings);
+    const max = Math.max.apply(null, pings);
+    const span = Math.max(1, max - min);
+    const lo = Math.max(0, min - span * 0.15);
+    const hi = max + span * 0.15;
+    const fmtV = (v) => (hi - lo < 8 ? (Math.round(v * 10) / 10).toFixed(1) : String(Math.round(v)));
+    const xAt = (i) => PADL + (i / Math.max(1, pts.length - 1)) * (W - PADL - PADR);
+    const yAt = (v) => H - PADB - ((v - lo) / Math.max(1, hi - lo)) * (H - PADT - PADB);
+    // сетка + подписи оси Y
+    ctx.font = "12px 'Segoe UI', system-ui, sans-serif";
+    ctx.textAlign = "right";
+    for (let g = 0; g <= 4; g++) {
+      const v = lo + ((hi - lo) * g) / 4;
+      const y = yAt(v);
+      ctx.strokeStyle = grid;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(PADL, y);
+      ctx.lineTo(W - PADR, y);
+      ctx.stroke();
+      ctx.fillStyle = sub;
+      ctx.fillText(fmtV(v) + " ms", PADL - 10, y + 4);
+    }
+    ctx.textAlign = "left";
+    // area
+    const grad = ctx.createLinearGradient(0, PADT, 0, H - PADB);
+    grad.addColorStop(0, accentSoft);
+    grad.addColorStop(1, "rgba(255,122,26,0)");
+    ctx.beginPath();
+    ctx.moveTo(xAt(0), H - PADB);
+    pts.forEach((p, i) => ctx.lineTo(xAt(i), yAt(p.ping)));
+    ctx.lineTo(xAt(pts.length - 1), H - PADB);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+    // линия
+    ctx.beginPath();
+    pts.forEach((p, i) => (i ? ctx.lineTo(xAt(i), yAt(p.ping)) : ctx.moveTo(xAt(i), yAt(p.ping))));
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 3;
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    // точки
+    pts.forEach((p, i) => {
+      ctx.beginPath();
+      ctx.arc(xAt(i), yAt(p.ping), 5, 0, Math.PI * 2);
+      ctx.fillStyle = p.ping === min ? accent : card;
+      ctx.fill();
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    });
+    // подписи дат (первая/последняя) — над футером, без пересечений
+    ctx.fillStyle = sub;
+    ctx.font = "12px 'Segoe UI', system-ui, sans-serif";
+    const stamp = (iso) => new Date(iso).toISOString().slice(0, 16).replace("T", " ");
+    ctx.textAlign = "left";
+    ctx.fillText(stamp(pts[0].ts), PADL, H - PADB + 24);
+    ctx.textAlign = "right";
+    ctx.fillText(stamp(pts[pts.length - 1].ts), W - PADR, H - PADB + 24);
+    ctx.textAlign = "left";
+    // футер
+    ctx.fillStyle = sub;
+    ctx.font = "11px 'Segoe UI', system-ui, sans-serif";
+    ctx.fillText("WARPSCOUT GUI · " + new Date().toISOString().slice(0, 19).replace("T", " "), 44, H - 20);
+    return canvas;
+  }
+
+  async function exportTrendPng() {
+    const pts = trendPoints();
+    if (pts.length < 2) { toast(t("Нужно минимум 2 скана с пингами"), "warn"); return; }
+    try {
+      const canvas = drawTrendChart(pts);
+      const dataUrl = canvas.toDataURL("image/png");
+      const name = "warpscout-ping-trend-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + ".png";
+      if (IS_MOCK) {
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        toast(tF("Тренд PNG скачан: {path}", { path: name }), "ok");
+        return;
+      }
+      const path = await os().showSaveDialog(t("Сохранить динамику пинга (PNG)"), { defaultPath: name });
+      if (!path) return;
+      const base64 = dataUrl.split(",")[1];
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      if (fs().writeBinaryFile) await fs().writeBinaryFile(path, bytes.buffer);
+      else await fs().writeFile(path, dataUrl);
+      toast(tF("Тренд PNG сохранён: {path}", { path: path }), "ok");
+    } catch (e) {
+      toast(tF("Ошибка экспорта PNG: {err}", { err: e && e.message ? e.message : e }), "err");
+    }
   }
 
   /* ───────── модалка ⇅-сравнения двух сканов (v1.7.0) ───────── */
@@ -2710,6 +2929,143 @@
     copyText(list.join("\n"), tF("Скопировано эндпоинтов: {n}", { n: list.length }));
   }
 
+  /* ───────── быстрая проверка одного эндпоинта (v1.9.0) ───────── */
+  // Честный маппинг на warpscout: scan -p PROTO -target IP -port PORT -P
+  // (-port пропускает фазу 1 и проверяет только указанный порт, -target снимает пулы)
+  function splitEpPort(ep) {
+    const m = /^(.+):(\d+)$/.exec(ep || "");
+    return m ? { ip: m[1], port: m[2] } : null;
+  }
+
+  function buildCheckCmd(ip, port, proto) {
+    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const report = (S.paths.reportsDir || ".") + "/warpscout-check-" + ts + ".txt";
+    const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
+    const cmd =
+      quoteExe() + " scan -p " + proto +
+      " -target " + ip +
+      " -port " + port +
+      " -P -plain" +
+      ' -o "' + report + '"' + acc;
+    return { cmd: cmd, report: report };
+  }
+
+  function toggleQc(open) {
+    const m = $("#qcModal");
+    if (m) m.classList.toggle("hidden", !open);
+  }
+
+  function qcLogData(data) {
+    const el = $("#qcLog");
+    if (!el) return;
+    el.textContent += data;
+    if (el.textContent.length > 20000) el.textContent = el.textContent.slice(-12000);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function qcVerdict(kind, text) {
+    const v = $("#qcVerdict");
+    if (!v) return;
+    v.className = "qc-verdict is-" + kind;
+    v.textContent = text;
+  }
+
+  // вердикт с запоминанием (для смены языка без перезапуска проверки)
+  function qcSetVerdict(kind, key, vars, node) {
+    S.qcLast = { kind: kind, key: key, vars: vars || {}, node: node || "" };
+    qcRenderLast();
+  }
+
+  function qcRenderLast() {
+    if (!S.qcLast) return;
+    const q = S.qcLast;
+    const nodePart = q.node ? " · " + t("Узел") + " " + q.node : "";
+    qcVerdict(q.kind, tF(q.key, q.vars) + nodePart);
+  }
+
+  async function checkOne(ep) {
+    if (S.running.check) { toast(t("Уже идёт проверка — подождите"), "warn"); return; }
+    if (S.running.scan) { toast(t("Проверка недоступна во время скана"), "warn"); return; }
+    const parts = splitEpPort(ep);
+    if (!parts) { toast(t("Не удалось разобрать адрес"), "err"); return; }
+    if (!S.account && !IS_MOCK) {
+      toast(t("Сначала создайте аккаунт WARP — вкладка «Аккаунт»"), "err");
+      switchTab("account");
+      return;
+    }
+    S.running.check = true;
+    const proto = S.viewProto || S.scan.proto || "awg";
+    const built = buildCheckCmd(parts.ip, parts.port, proto);
+    const m = $("#qcModal");
+    if (m) {
+      $("#qcEp").textContent = ep;
+      $("#qcProto").textContent = String(proto).toUpperCase();
+      $("#qcCmd").textContent = built.cmd;
+      $("#qcLog").textContent = "";
+      qcVerdict("run", "…");
+      m.classList.remove("hidden");
+    }
+    qcLogData("$ " + built.cmd + "\r\n");
+    S.qcBuf = "";
+    try {
+      const proc = await os().execCommand(built.cmd, { stream: true });
+      S.procIds.check = proc.id;
+      registerProc(proc.id, (d) => {
+        if (d.type === "stdout" || d.type === "stderr") {
+          const data = typeof d.data === "string" ? d.data : "";
+          S.qcBuf += data;
+          qcLogData(data);
+        } else if (d.type === "exit") {
+          unregisterProc(proc.id);
+          S.running.check = false;
+          finishCheck(ep, exitCodeOf(d.data), built.report);
+        }
+      });
+    } catch (e) {
+      S.running.check = false;
+      const msg = tF("Не удалось запустить проверку: {err}", { err: e && e.message ? e.message : e });
+      qcVerdict("err", msg);
+      toast(msg, "err");
+    }
+  }
+
+  async function finishCheck(ep, exitCode, reportPath) {
+    const modalOpen = (() => {
+      const m = $("#qcModal");
+      return !!(m && !m.classList.contains("hidden"));
+    })();
+    let row = null;
+    try {
+      let text = "";
+      if (IS_MOCK) text = (window.NeutralinoMock && window.NeutralinoMock.lastCheckReport) || "";
+      else text = await fs().readFile(reportPath);
+      const rows = parseReport(text, true, false);
+      row = rows.find((r) => r.endpoint === ep) || rows[0] || null;
+    } catch (e) {
+      row = null;
+    }
+    const nm = /node:\s*([A-Z]{2})\s+([A-Z]{3})/.exec(S.qcBuf || "");
+    if (exitCode !== 0) {
+      const msg = tF("warpscout завершился с кодом {c}", { c: exitCode });
+      if (modalOpen) qcSetVerdict("err", "warpscout завершился с кодом {c}", { c: exitCode }, "");
+      toast(tF("Проверка {ep}: ошибка {err}", { ep: ep, err: exitCode }), "err");
+      return;
+    }
+    if (!row) {
+      if (modalOpen) qcSetVerdict("warn", "Эндпоинт не ответил (нет строки в отчёте)", {}, "");
+      toast(tF("Проверка {ep}: не ответил", { ep: ep }), "warn");
+      return;
+    }
+    if (row.torn) {
+      if (modalOpen) qcSetVerdict("err", "⛔ Разорван — потери {loss}", { loss: String(row.loss || "100%").replace(/\s*ms/i, "") }, nm ? nm[2] : "");
+      toast(tF("Проверка {ep}: разорван", { ep: ep }), "err");
+    } else {
+      const ping = String(row.tunPing || "?").replace(/\s*ms/i, "");
+      if (modalOpen) qcSetVerdict("ok", "✅ Рабочий — TUN PING {ping} ms, потери {loss}", { ping: ping, loss: String(row.loss || "0%").replace(/\s*ms/i, "") }, nm ? nm[2] : "");
+      toast(tF("Проверка {ep}: рабочий, TUN PING {ping} ms", { ep: ep, ping: ping }), "ok");
+    }
+  }
+
   /* ───────── тренд пинга по истории (v1.5.0) ───────── */
   function histBestPing(h) {
     let best = Infinity;
@@ -2754,6 +3110,7 @@
           '<span class="trend__tools">' +
             '<span class="trend__range">min <b>' + min + "</b> · max <b>" + max + "</b> ms</span>" +
             '<button type="button" class="trend__csv" id="btnTrendCsv" title="' + t("Сохранить динамику пинга в CSV") + '">⬇ CSV</button>' +
+            '<button type="button" class="trend__csv trend__png" id="btnTrendPng" title="' + t("Сохранить график тренда в PNG") + '">⬇ PNG</button>' +
           "</span>" +
         "</div>" +
         '<svg class="trend__svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none">' +
@@ -3553,6 +3910,8 @@
         return;
       }
       if (e.key === "Escape") {
+        const qc = $("#qcModal");
+        if (qc && !qc.classList.contains("hidden")) { toggleQc(false); return; }
         const modal = $("#kbdModal");
         if (modal && !modal.classList.contains("hidden")) { toggleKbd(false); return; }
         const qr = $("#qrModal");
@@ -3579,6 +3938,9 @@
 
     // модалка QR
     $$("[data-close-qr]").forEach((el) => el.addEventListener("click", () => toggleQr(false)));
+
+    // модалка быстрой проверки (v1.9.0)
+    $$("[data-close-qc]").forEach((el) => el.addEventListener("click", () => toggleQc(false)));
 
     // модалка сравнения сканов (v1.7.0)
     $$("[data-close-cmp]").forEach((el) => el.addEventListener("click", () => toggleCmp(false)));
