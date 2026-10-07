@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=16v0" />
+  <link rel="stylesheet" href="css/app.css?v=17v0" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -54,7 +54,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v1.6.0 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v1.7.0 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -668,6 +668,33 @@
           </tbody>
         </table>
         <p class="modal__note">Подсказка: наведите курсор на строку результата — появятся быстрые действия (⧉ копировать, ⚙ в конфиг, 🧦 в SOCKS, ⏵ сразу запустить прокси).</p>
+        <div class="kbd-lang-row" id="kbdLangRow"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ Сравнение двух сканов (модалка, v1.7.0) ══════════ -->
+  <div class="modal hidden" id="cmpModal" role="dialog" aria-modal="true" aria-label="Сравнение двух сканов">
+    <div class="modal__backdrop" data-close-cmp></div>
+    <div class="modal__card modal__card--cmp">
+      <div class="modal__head">
+        <h2>⇅ Сравнение сканов</h2>
+        <button class="modal__close" type="button" data-close-cmp aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal__body">
+        <div class="cmp-pickers">
+          <label class="cmp-pick">
+            <span>Скан A</span>
+            <select id="cmpSelA"></select>
+          </label>
+          <span class="cmp-vs">⇄</span>
+          <label class="cmp-pick">
+            <span>Скан B</span>
+            <select id="cmpSelB"></select>
+          </label>
+        </div>
+        <div id="cmpBody" class="cmp-body" aria-live="polite"></div>
+        <p class="modal__note">Δ-пинг считается по общим эндпоинтам (A → B: зелёный — стало быстрее, красный — медленнее). Наборы берутся из сохранённой истории.</p>
       </div>
     </div>
   </div>
@@ -692,8 +719,8 @@
   </div>
 
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js?v=16v0"></script>
-  <script src="js/qrcode.js?v=16v0"></script>
-  <script src="js/app.js?v=16v0"></script>
+  <script src="js/mock.js?v=17v0"></script>
+  <script src="js/qrcode.js?v=17v0"></script>
+  <script src="js/app.js?v=17v0"></script>
 </body>
 </html>

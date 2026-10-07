@@ -611,6 +611,30 @@
     "Плотность таблицы": "Table density",
     "Открыть демо в браузере": "Open the demo in a browser",
     "Откройте приложение через WARPScoutGUI.exe": "Open the app via WARPScoutGUI.exe",
+    /* — v1.7.0: ⇅-сравнение, тренд CSV, kbd-язык — */
+    "⇅ сравнить": "⇅ compare",
+    "Сравнить два скана из истории (модалка)": "Compare two scans from history (modal)",
+    "Для сравнения нужно минимум два скана — выполните ещё один.": "You need at least two scans to compare — run one more.",
+    "Нужно как минимум два скана в истории.": "At least two scans are required in history.",
+    "лучший пинг A": "best ping A",
+    "лучший пинг B": "best ping B",
+    "нет данных": "no data",
+    "без изменений": "unchanged",
+    "−{n} ms быстрее": "−{n} ms faster",
+    "только в B:": "only in B:",
+    "только в A:": "only in A:",
+    "общих эндпоинтов:": "common endpoints:",
+    "Нет общих живых эндпоинтов с пингом.": "No common live endpoints with ping.",
+    "разорван → разорван": "torn → torn",
+    "статус изменился": "status changed",
+    "Сортировать": "Sort",
+    "Сохранить динамику пинга в CSV": "Save ping trend as CSV",
+    "Сохранить динамику пинга (CSV)": "Save ping trend (CSV)",
+    "Нет сканов с пингами — тренд пуст": "No scans with ping — trend is empty",
+    "Тренд CSV выгружен: {path}": "Trend CSV downloaded: {path}",
+    "Тренд CSV сохранён: {path}": "Trend CSV saved: {path}",
+    "Скан A": "Scan A",
+    "Скан B": "Scan B",
   };
 
   let LANG = "ru";
@@ -713,6 +737,7 @@
     try { setScanRunning(S.running.scan); } catch (e) {}
     try { renderStatusWs(); } catch (e) {}
     try { renderWsHints(); } catch (e) {}
+    try { const cm = $("#cmpModal"); if (cm && !cm.classList.contains("hidden")) renderCmpBody(); } catch (e) {} // v1.7.0
     try { applyTheme(document.documentElement.getAttribute("data-theme") || "dark"); } catch (e) {}
     const hint = $("#setWsCheckHint");
     if (hint) hint.textContent = hint.textContent; // статичен
@@ -752,7 +777,7 @@
     i18nInitStatic();
     i18nApplyStatic();
     rerenderI18nDynamic();
-    $$("#langSwitch .lang-switch__btn").forEach((b) =>
+    $$(".lang-switch .lang-switch__btn").forEach((b) =>
       b.classList.toggle("is-active", b.getAttribute("data-lang") === LANG)
     );
     if (!(opts && opts.skipPersist)) persist();
@@ -784,6 +809,19 @@
     foot.insertBefore(wrap, $("#btnTheme"));
     ru.addEventListener("click", () => { if (LANG !== "ru") { applyLang("ru"); toast("Язык: русский", "ok"); } });
     en.addEventListener("click", () => { if (LANG !== "en") { applyLang("en"); toast("Language: English", "ok"); } });
+    // v1.7.0: копия переключателя в модалке горячих клавиш
+    const kbdRow = $("#kbdLangRow");
+    if (kbdRow && !kbdRow.childElementCount) {
+      const copy = wrap.cloneNode(true);
+      copy.removeAttribute("id"); // id должен быть один
+      Array.from(copy.querySelectorAll(".lang-switch__btn")).forEach((b) => {
+        b.addEventListener("click", () => {
+          const lang = b.getAttribute("data-lang");
+          if (LANG !== lang) { applyLang(lang); toast(lang === "ru" ? "Язык: русский" : "Language: English", "ok"); }
+        });
+      });
+      kbdRow.appendChild(copy);
+    }
   }
 
   /* ───────── Neutralino-мост ───────── */
@@ -1121,6 +1159,9 @@
     $("#resultsEmpty").classList.add("hidden");
     $("#resCount").hidden = false;
     $("#resCount").textContent = String(S.results.filter((r) => !r.torn).length);
+    // v1.7.0: каскадное появление строк после завершения скана
+    const stagger = S.staggerNext;
+    S.staggerNext = false;
 
     body.innerHTML = visible
       .map((r, idx) => {
@@ -1153,6 +1194,18 @@
         return '<tr data-ep="' + esc(ep) + '" class="' + (sel + torn + best + nw).trim() + '">' + cells.join("") + "</tr>";
       })
       .join("");
+
+    // v1.7.0: каскадное появление строк (только сразу после скана)
+    if (stagger) {
+      $$("#resultsBody tr").forEach((tr, i) => {
+        tr.classList.add("is-entering");
+        tr.style.animationDelay = Math.min(i * 40, 600) + "ms";
+        tr.addEventListener("animationend", () => {
+          tr.classList.remove("is-entering");
+          tr.style.animationDelay = "";
+        }, { once: true });
+      });
+    }
 
     $$("#resultsBody tr").forEach((tr) => {
       tr.addEventListener("click", () => {
@@ -1387,6 +1440,7 @@
     }
     S.selected = S.results.find((r) => !r.torn) ? S.results.find((r) => !r.torn).endpoint : "";
     pushHistory(S.scan.proto);
+    S.staggerNext = true; // v1.7.0: строки таблицы появятся каскадом
     renderResults();
     fillEndpointSelect();
     switchSubtab("results");
@@ -1878,6 +1932,7 @@
       '<div class="history__head">' +
         '<span class="history__head-title">' + t("Последние сканы (хранятся локально, до 10)") + "</span>" +
         '<span class="history__tools">' +
+          '<button type="button" id="btnHistCmp" title="' + t("Сравнить два скана из истории (модалка)") + '">' + t("⇅ сравнить") + "</button>" +
           '<button type="button" id="btnHistCsv" title="' + t("Сохранить итоги истории (CSV)") + '">' + t("⬇ CSV (итоги)") + "</button>" +
           '<button type="button" id="btnHistExport" title="' + t("Выгрузить всю историю в JSON-файл") + '">⬇ JSON</button>' +
           '<button type="button" id="btnHistClear" class="history__clear" title="' + t("Удалить всю историю") + '">' + t("🗑 Очистить") + "</button>" +
@@ -1903,6 +1958,10 @@
     if (bExp) bExp.addEventListener("click", exportHistory);
     const bCsv = $("#btnHistCsv");
     if (bCsv) bCsv.addEventListener("click", exportHistoryCsv);
+    const bCmp = $("#btnHistCmp");
+    if (bCmp) bCmp.addEventListener("click", openCompare);
+    const bTrCsv = $("#btnTrendCsv");
+    if (bTrCsv) bTrCsv.addEventListener("click", (e) => { e.stopPropagation(); exportTrendCsv(); });
     const bClr = $("#btnHistClear");
     if (bClr) bClr.addEventListener("click", clearHistory);
     $$(".history__item", panel).forEach((b) =>
@@ -1997,6 +2056,161 @@
     toggleHistory(true); // перерисовать открытую панель
     persist();
     toast(t("История очищена"), "ok");
+  }
+
+  /* ───────── CSV динамики пинга (v1.7.0) ───────── */
+  function exportTrendCsv() {
+    const pts = [];
+    for (let i = S.history.length - 1; i >= 0; i--) {
+      const b = histBestPing(S.history[i]);
+      if (b !== Infinity) pts.push({ ts: S.history[i].ts, ping: b });
+    }
+    if (pts.length < 1) { toast(t("Нет сканов с пингами — тренд пуст"), "err"); return; }
+    const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+    const rows = ["datetime,best_ping_ms"];
+    pts.forEach((p) => rows.push([new Date(p.ts).toISOString(), p.ping].map(q).join(",")));
+    const csv = "\ufeff" + rows.join("\r\n");
+    const name = "warpscout-ping-trend-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + ".csv";
+    if (IS_MOCK) {
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+      toast(tF("Тренд CSV выгружен: {path}", { path: name }), "ok");
+      return;
+    }
+    os()
+      .showSaveDialog(t("Сохранить динамику пинга (CSV)"), { defaultPath: name })
+      .then(async (path) => {
+        if (!path) return;
+        await fs().writeFile(path, csv);
+        toast(tF("Тренд CSV сохранён: {path}", { path: path }), "ok");
+      })
+      .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
+  }
+
+  /* ───────── модалка ⇅-сравнения двух сканов (v1.7.0) ───────── */
+  function toggleCmp(open) {
+    const m = $("#cmpModal");
+    if (m) m.classList.toggle("hidden", !open);
+  }
+
+  function histOptionLabel(h) {
+    return fmtTime(h.ts) + " · " + h.proto.toUpperCase() + " · " + h.working + " " + t("рабочих") + (h.torn ? " / " + h.torn + " " + t("разорвано") : "");
+  }
+
+  function fillCmpSelectors(aIdx, bIdx) {
+    const selA = $("#cmpSelA");
+    const selB = $("#cmpSelB");
+    if (!selA || !selB) return;
+    const opts = S.history
+      .map((h, i) => '<option value="' + i + '">' + esc(histOptionLabel(h)) + "</option>")
+      .join("");
+    selA.innerHTML = opts;
+    selB.innerHTML = opts;
+    // по умолчанию: A — более старый скан, B — более новый (или соседние записи)
+    const n = S.history.length;
+    selA.value = String(Math.min(aIdx != null ? aIdx : n - 1, n - 1));
+    selB.value = String(Math.min(bIdx != null ? bIdx : n - 2, n - 1));
+  }
+
+  function renderCmpBody() {
+    const box = $("#cmpBody");
+    const selA = $("#cmpSelA");
+    const selB = $("#cmpSelB");
+    if (!box || !selA || !selB) return;
+    const hA = S.history[+selA.value];
+    const hB = S.history[+selB.value];
+    if (!hA || !hB) { box.innerHTML = '<div class="cmp-empty">' + t("Нужно как минимум два скана в истории.") + "</div>"; return; }
+
+    const mapA = {};
+    hA.results.forEach((r) => { mapA[r.endpoint] = r; });
+    const mapB = {};
+    hB.results.forEach((r) => { mapB[r.endpoint] = r; });
+
+    const epsA = new Set(hA.results.map((r) => r.endpoint));
+    const epsB = new Set(hB.results.map((r) => r.endpoint));
+    const common = Array.from(epsA).filter((ep) => epsB.has(ep));
+    const onlyA = Array.from(epsA).filter((ep) => !epsB.has(ep));
+    const onlyB = Array.from(epsB).filter((ep) => !epsA.has(ep));
+
+    const bestA = histBestPing(hA);
+    const bestB = histBestPing(hB);
+    const deltaBest = bestA !== Infinity && bestB !== Infinity ? bestA - bestB : null;
+
+    // строки по общим эндпоинтам с Δ-пингом
+    const deltaRows = common
+      .map((ep) => {
+        const a = mapA[ep];
+        const b = mapB[ep];
+        if (a.torn || b.torn) return { ep, cls: "is-torn", text: a.torn && b.torn ? t("разорван → разорван") : t("статус изменился") };
+        const pa = pingMs(a.tunPing || a.ping);
+        const pb = pingMs(b.tunPing || b.ping);
+        if (pa === Infinity || pb === Infinity) return null;
+        const d = pa - pb;
+        return { ep, pa, pb, d, cls: d < 0 ? "is-better" : d > 0 ? "is-worse" : "is-same" };
+      })
+      .filter(Boolean)
+      .sort((x, y) => (x.d != null && y.d != null ? x.d - y.d : 0));
+
+    const dAbs = deltaBest == null ? "" : Math.abs(deltaBest);
+    const bestBlock =
+      '<div class="cmp-best">' +
+        '<div class="cmp-best__card">' +
+          '<span class="cmp-best__label">' + t("лучший пинг A") + "</span>" +
+          '<span class="cmp-best__val">' + (bestA === Infinity ? "—" : bestA + " ms") + "</span>" +
+        "</div>" +
+        '<div class="cmp-best__delta ' + (deltaBest == null ? "" : deltaBest > 0 ? "is-better" : deltaBest < 0 ? "is-worse" : "is-same") + '">' +
+          (deltaBest == null ? t("нет данных") : deltaBest === 0 ? t("без изменений") : deltaBest > 0 ? "▼ " + tF("−{n} ms быстрее", { n: dAbs }) : "▲ +" + dAbs + " ms") +
+        "</div>" +
+        '<div class="cmp-best__card">' +
+          '<span class="cmp-best__label">' + t("лучший пинг B") + "</span>" +
+          '<span class="cmp-best__val">' + (bestB === Infinity ? "—" : bestB + " ms") + "</span>" +
+        "</div>" +
+      "</div>";
+
+    const deltaTable = deltaRows.length
+      ? '<table class="cmp-table"><thead><tr><th>' + t("Эндпоинт") + "</th><th>A</th><th>B</th><th>Δ</th></tr></thead><tbody>" +
+        deltaRows
+          .map((r) => {
+            if (r.d == null) {
+              return '<tr class="' + r.cls + '"><td class="cmp-ep">' + esc(r.ep) + '</td><td colspan="3">' + esc(r.text) + "</td></tr>";
+            }
+            const sign = r.d < 0 ? "▼" : r.d > 0 ? "▲" : "=";
+            const txt = r.d === 0 ? "=" : sign + " " + Math.abs(r.d) + " ms";
+            return (
+              '<tr class="' + r.cls + '"><td class="cmp-ep">' + esc(r.ep) + "</td>" +
+              "<td>" + r.pa + "</td><td>" + r.pb + "</td>" +
+              '<td class="cmp-delta">' + txt + "</td></tr>"
+            );
+          })
+          .join("") +
+        "</tbody></table>"
+      : '<div class="cmp-empty">' + t("Нет общих живых эндпоинтов с пингом.") + "</div>";
+
+    const setBlock =
+      '<div class="cmp-sets">' +
+        '<div class="cmp-set cmp-set--b"><span>➕ ' + t("только в B:") + " <b>" + onlyB.length + "</b></span>" +
+          (onlyB.length ? '<span class="cmp-set__list">' + esc(onlyB.slice(0, 5).join(", ")) + (onlyB.length > 5 ? " … +" + (onlyB.length - 5) : "") + "</span>" : "") + "</div>" +
+        '<div class="cmp-set cmp-set--a"><span>➖ ' + t("только в A:") + " <b>" + onlyA.length + "</b></span>" +
+          (onlyA.length ? '<span class="cmp-set__list">' + esc(onlyA.slice(0, 5).join(", ")) + (onlyA.length > 5 ? " … +" + (onlyA.length - 5) : "") + "</span>" : "") + "</div>" +
+        '<div class="cmp-set"><span>⇄ ' + t("общих эндпоинтов:") + " <b>" + common.length + "</b></span></div>" +
+      "</div>";
+
+    box.innerHTML = bestBlock + setBlock + '<div class="cmp-table-wrap">' + deltaTable + "</div>";
+  }
+
+  function openCompare() {
+    if (S.history.length < 2) {
+      toast(t("Для сравнения нужно минимум два скана — выполните ещё один."), "warn");
+      return;
+    }
+    fillCmpSelectors(S.history.length - 1, S.history.length - 2);
+    renderCmpBody();
+    toggleCmp(true);
   }
 
   function loadHistory(i) {
@@ -2293,7 +2507,10 @@
       '<div class="trend" role="img" aria-label="' + t("Динамика лучшего пинга по сканам") + '">' +
         '<div class="trend__head">' +
           '<span class="trend__title">' + t("↘ динамика лучшего пинга") + "</span>" +
-          '<span class="trend__range">min <b>' + min + "</b> · max <b>" + max + "</b> ms</span>" +
+          '<span class="trend__tools">' +
+            '<span class="trend__range">min <b>' + min + "</b> · max <b>" + max + "</b> ms</span>" +
+            '<button type="button" class="trend__csv" id="btnTrendCsv" title="' + t("Сохранить динамику пинга в CSV") + '">⬇ CSV</button>' +
+          "</span>" +
         "</div>" +
         '<svg class="trend__svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none">' +
           '<polygon class="trend__area" points="' + area + '"></polygon>' +
@@ -3093,6 +3310,8 @@
         if (modal && !modal.classList.contains("hidden")) { toggleKbd(false); return; }
         const qr = $("#qrModal");
         if (qr && !qr.classList.contains("hidden")) { toggleQr(false); return; }
+        const cmp = $("#cmpModal");
+        if (cmp && !cmp.classList.contains("hidden")) { toggleCmp(false); return; }
         const saveRow = $("#presetSaveRow");
         if (saveRow && !saveRow.classList.contains("hidden")) { togglePresetSaveRow(false); return; }
         if (S.historyOpen) { toggleHistory(false); return; }
@@ -3113,6 +3332,13 @@
 
     // модалка QR
     $$("[data-close-qr]").forEach((el) => el.addEventListener("click", () => toggleQr(false)));
+
+    // модалка сравнения сканов (v1.7.0)
+    $$("[data-close-cmp]").forEach((el) => el.addEventListener("click", () => toggleCmp(false)));
+    const selA = $("#cmpSelA");
+    const selB = $("#cmpSelB");
+    if (selA) selA.addEventListener("change", renderCmpBody);
+    if (selB) selB.addEventListener("change", renderCmpBody);
 
     // внешние ссылки — системный браузер
     $$("a[data-ext]").forEach((a) =>
@@ -3167,7 +3393,7 @@
   }
 
   // отладочный хук (безвредно): помогает диагностике через консоль
-  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing };
+  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {
