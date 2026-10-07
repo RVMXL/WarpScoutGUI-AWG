@@ -102,10 +102,12 @@
         t += chunk.delay;
         setTimeout(() => {
           if (!processes[id] || processes[id].killed) return;
-          (chunk.type === "exit" ? ["stdout"] : [chunk.type || "stdout"]).forEach((tt) =>
-            emitEvent("spawnedProcess", { id, pid: 4000 + id, type: tt, data: chunk.data })
-          );
-          if (chunk.type === "exit") delete processes[id];
+          if (chunk.type === "exit") {
+            delete processes[id];
+            emitEvent("spawnedProcess", { id, pid: 4000 + id, type: "exit", data: chunk.data });
+          } else {
+            emitEvent("spawnedProcess", { id, pid: 4000 + id, type: chunk.type || "stdout", data: chunk.data });
+          }
         }, t);
       });
     };
