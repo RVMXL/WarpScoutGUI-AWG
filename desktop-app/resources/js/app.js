@@ -44,8 +44,9 @@
 
   function fmtTime(ts) {
     const d = new Date(ts);
-    return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) + ", " +
-      d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+    const loc = LANG === "en" ? "en-GB" : "ru-RU";
+    return d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" }) + ", " +
+      d.toLocaleDateString(loc, { day: "2-digit", month: "2-digit" });
   }
 
   function debounce(fn, ms) {
@@ -60,13 +61,13 @@
   async function copyText(text, okMsg) {
     try {
       await navigator.clipboard.writeText(text);
-      toast(okMsg || "Скопировано", "ok");
+      toast(okMsg || t("Скопировано"), "ok");
     } catch (e) {
       const ta = document.createElement("textarea");
       ta.value = text;
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand("copy"); toast(okMsg || "Скопировано", "ok"); } catch (e2) { toast("Не удалось скопировать", "err"); }
+      try { document.execCommand("copy"); toast(okMsg || t("Скопировано"), "ok"); } catch (e2) { toast(t("Не удалось скопировать"), "err"); }
       ta.remove();
     }
   }
@@ -110,6 +111,8 @@
     scan: Object.assign({}, DEFAULT_SCAN),
     results: [],        // {endpoint, ping, tunPing, loss, seenAs, node, loc, torn}
     sortByPing: false,
+    sortKey: "report",  // v1.6.0: report|ping|endpoint|loss|node|loc
+    sortDir: 1,         // v1.6.0: 1 = asc, -1 = desc
     selected: "",
     filter: "",         // подстрока фильтра результатов (ip, узел, страна, локация)
     history: [],        // последние 10 сканов {ts, label, results, withP, withSpeed}
@@ -173,6 +176,615 @@
       },
     },
   };
+
+  /* ───────── i18n: RU/EN (v1.6.0) ───────── */
+  // Словарь: ключ — канонический русский текст, значение — английский.
+  // LANG хранится в S.settings.lang (по умолчанию "ru").
+  const I18N_EN = {
+    /* — бренд/навигация — */
+    "поиск живых эндпоинтов WARP": "find live WARP endpoints",
+    "Скан": "Scan",
+    "Конфиг": "Config",
+    "Аккаунт": "Account",
+    "SOCKS-прокси": "SOCKS proxy",
+    "Поиск параметров": "Param finder",
+    "Настройки": "Settings",
+    "Разделы приложения": "App sections",
+    /* — статус-строка/сайдбар — */
+    "● warpscout: проверка…": "● warpscout: checking…",
+    "● аккаунт: проверка…": "● account: checking…",
+    "☀ Светлая тема": "☀ Light theme",
+    "🌙 Тёмная тема": "🌙 Dark theme",
+    "⌨ подсказки": "⌨ shortcuts",
+    "ДЕМО-РЕЖИМ (браузер)": "DEMO MODE (browser)",
+    "Переключить светую/тёмную тему": "Toggle light/dark theme",
+    "Переключить тему": "Toggle theme",
+    "Горячие клавиши (?)": "Keyboard shortcuts (?)",
+    /* — пресеты — */
+    "Пресеты": "Presets",
+    "⟲ Сброс": "⟲ Reset",
+    "⭐ По умолчанию": "⭐ Default",
+    "⚡ Быстрый": "⚡ Fast",
+    "🧱 Жёсткая сеть": "🧱 Hard network",
+    "🔬 Тщательный": "🔬 Thorough",
+    "＋ Свой": "＋ Custom",
+    "Сохранить": "Save",
+    "Отмена": "Cancel",
+    "Название пресета": "Preset name",
+    "Вернуть команду по умолчанию": "Restore the default command",
+    "Сохранить текущие параметры как пресет": "Save current parameters as a preset",
+    "Быстрый: обычный WireGuard без проверки внутри туннеля — годится там, где WARP не фильтруется.":
+      "Fast: plain WireGuard without in-tunnel checks — fine where WARP is not filtered.",
+    "Жёсткая сеть: AmneziaWG + QUIC-маскировка первого пакета + проверка на разрыв. Если не найдёт — вкладка «Поиск параметров».":
+      "Hard network: AmneziaWG + QUIC disguise of the first packet + break-check. If nothing is found — see the 'Param finder' tab.",
+    "Тщательный: все 256 адресов каждой подсети, в туннеле и замер скорости. Долго!":
+      "Thorough: all 256 addresses per subnet, in-tunnel checks and speed test. Slow!",
+    "По умолчанию: <code>warpscout scan -p awg -P -n 10 -exclude-node DME</code>":
+      "Default: <code>warpscout scan -p awg -P -n 10 -exclude-node DME</code>",
+    "Пресет «<b>{name}</b>» применён. Команду можно посмотреть над кнопкой скана.":
+      "Preset '<b>{name}</b>' applied. The command is shown above the scan button.",
+    /* — скан: протокол — */
+    "Протокол": "Protocol",
+    "Обфусцированный WireGuard — проходит там, где обычный WG фильтруется.":
+      "Obfuscated WireGuard — gets through where plain WG is filtered.",
+    "Обычный WireGuard — работает там, где трафик не фильтруется.":
+      "Plain WireGuard — works where traffic is not filtered.",
+    "CONNECT-IP поверх QUIC, второй транспорт Cloudflare. Узел один на всю сеть.":
+      "CONNECT-IP over QUIC, Cloudflare's second transport. One node for the whole network.",
+    "MASQUE поверх TCP — те же проверки, но транспорт HTTP/2.":
+      "MASQUE over TCP — same checks, but HTTP/2 transport.",
+    /* — скан: проверка и выборка — */
+    "Проверка и выборка": "Verification & sampling",
+    "TUN PING и LOSS": "TUN PING & LOSS",
+    "RTT и потери внутри туннеля; ловит эндпоинты, которые DPI рвёт посреди передачи":
+      "In-tunnel RTT & loss; catches endpoints that DPI tears mid-transfer",
+    "Все 256 адресов подсети": "All 256 subnet addresses",
+    "Медленно, но тщательно (перекрывает «Адресов на подсеть»)":
+      "Slow but thorough (overrides 'Addresses per subnet')",
+    "Адресов на подсеть": "Addresses per subnet",
+    "Туннелей одновременно": "Parallel tunnels",
+    "Таймаут, сек": "Timeout, sec",
+    "Эхо-пакетов": "Echo packets",
+    /* — скан: фильтры — */
+    "Фильтры узлов": "Node filters",
+    "DME исключён": "DME excluded",
+    "Исключить узлы": "Exclude nodes",
+    "Исключить страны": "Exclude countries",
+    "Только узлы": "Only nodes",
+    "Только страны": "Only countries",
+    /* — скан: обфускация — */
+    "Обфускация AmneziaWG": "AmneziaWG obfuscation",
+    "Поддельный первый пакет": "Fake first packet",
+    "iCloud (базовый)": "iCloud (basic)",
+    "SNI для I1": "SNI for I1",
+    "Мусорных пакетов": "Junk packets",
+    "Случайный junk": "Random junk",
+    "Случайные jc/jmin/jmax на этот запуск (перекрывает поля выше)":
+      "Random jc/jmin/jmax for this run (overrides the fields above)",
+    "Попыток на эндпоинт": "Attempts per endpoint",
+    /* — скан: продвинутое — */
+    "WARP-in-WARP и продвинутое": "WARP-in-WARP & advanced",
+    "опционально": "optional",
+    "Через эндпоинт": "Via endpoint",
+    "Протокол внутри": "Inner protocol",
+    "wg (по умолчанию)": "wg (default)",
+    "Свои адреса": "Custom addresses",
+    "(IP или CIDR, через запятую)": "(IP or CIDR, comma-separated)",
+    "Цель TUN PING": "TUN PING target",
+    "Порт": "Port",
+    "IPv6-пулы": "IPv6 pools",
+    "Замер скорости": "Speed test",
+    "Лучший по скорости": "Best by speed",
+    /* — скан: запуск — */
+    "команда": "command",
+    "Начать скан": "Start scan",
+    "Сканирую…": "Scanning…",
+    "Остановить": "Stop",
+    "Phase 1…": "Phase 1…",
+    /* — результаты — */
+    "Результаты": "Results",
+    "Лог": "Log",
+    "🕘 История": "🕘 History",
+    "↕ пинг": "↕ ping",
+    "≡ плотность": "≡ density",
+    "→ Конфиг": "→ Config",
+    "Фильтр: ip, узел, страна…": "Filter: ip, node, country…",
+    "Фильтр результатов": "Results filter",
+    "Очистить фильтр (Esc)": "Clear filter (Esc)",
+    "Пока нет результатов": "No results yet",
+    "Настройте параметры слева и нажмите «Начать скан».":
+      "Set the parameters on the left and press 'Start scan'.",
+    "Лучший эндпоинт окажется вверху таблицы.": "The best endpoint will be at the top of the table.",
+    "Нет совпадений с фильтром": "No filter matches",
+    "В запросе: «{q}». Попробуйте узел (HKG), страну или часть IP.":
+      "Query: '{q}'. Try a node (HKG), a country, or part of an IP.",
+    "Лучший пинг": "Best ping",
+    "Появился в этом скане": "New in this scan",
+    "Скопировать ip:порт": "Copy ip:port",
+    "Использовать в конфиге": "Use in config",
+    "Подставить в SOCKS-вкладку": "Fill into the SOCKS tab",
+    "Сразу запустить SOCKS5-прокси для этого эндпоинта": "Start a SOCKS5 proxy for this endpoint right away",
+    "разорван": "torn",
+    /* — конфиг — */
+    "Эндпоинт": "Endpoint",
+    "Локация узла": "Node location",
+    "Из последнего скана или вручную": "From the last scan, or manual",
+    "— выберите из результатов скана —": "— pick from scan results —",
+    "Версия конфига": "Config version",
+    "3.1 — маскировка поведения соединения: случайные тайминги, паддинг, трейлеры. Как в примере.":
+      "3.1 — connection behavior masking: random timings, padding, trailers. As in the example.",
+    "Свой": "Custom",
+    "Интерфейс": "Interface",
+    "PersistentKeepalive (0 — не писать строку)": "PersistentKeepalive (0 — omit the line)",
+    "0.0.0.0/0, ::/0 (весь трафик)": "0.0.0.0/0, ::/0 (all traffic)",
+    "0.0.0.0/0 (только IPv4)": "0.0.0.0/0 (IPv4 only)",
+    "::/0 (только IPv6)": "::/0 (IPv6 only)",
+    "Своё…": "Custom…",
+    "Table = off (маршруты не трогать)": "Table = off (don't touch routes)",
+    "Параметры обфускации": "Obfuscation parameters",
+    "⟲ из примера": "⟲ from example",
+    "Дополнительно (I1–I5, AWG 3.1 тайминги…)": "Advanced (I1–I5, AWG 3.1 timings…)",
+    "I1 (CPS-пакет, hex)": "I1 (CPS packet, hex)",
+    "Импорт I1 из .conf": "Import I1 from .conf",
+    "📥 Импорт .conf целиком": "📥 Import full .conf",
+    "Очистить I1": "Clear I1",
+    "HeaderProtectionKey (опц.)": "HeaderProtectionKey (opt.)",
+    "Ключи аккаунта": "Account keys",
+    "Приватный ключ и адреса берутся из файла аккаунта": "The private key and addresses come from the account file",
+    ". Смотрите вкладку «Аккаунт».": ". See the 'Account' tab.",
+    "Предпросмотр": "Preview",
+    "⧉ Копировать": "⧉ Copy",
+    "💾 Сохранить как…": "💾 Save as…",
+    "Конфиг готов к импорту в AmneziaVPN / AmneziaWG (для AWG) или в WireGuard (для WG).":
+      "The config imports into AmneziaVPN / AmneziaWG (for AWG) or WireGuard (for WG).",
+    "аккаунт загружен": "account loaded",
+    "нет аккаунта": "no account",
+    "Чистый WireGuard без обфускации — для сетей, где WARP не режут.":
+      "Clean WireGuard without obfuscation — for networks where WARP is not blocked.",
+    "AWG 1.5: junk-пакеты (Jc/Jmin/Jmax), префиксы S1–S4 и свои заголовки H1–H4 + I1.":
+      "AWG 1.5: junk packets (Jc/Jmin/Jmax), S1–S4 prefixes and custom headers H1–H4 + I1.",
+    "AWG 2.0: то же + CPS-пакеты I1–I5 и диапазоны заголовков (можно писать «a-b»).":
+      "AWG 2.0: same + CPS packets I1–I5 and header ranges ('a-b' allowed).",
+    "AWG 3.1: маскировка поведения соединения — случайные тайминги, паддинг, трейлеры. Как в конфиге-примере.":
+      "AWG 3.1: connection behavior masking — random timings, padding, trailers. As in the example config.",
+    /* — аккаунт — */
+    "Аккаунт WARP": "WARP account",
+    "Файл аккаунта": "Account file",
+    "Путь": "Path",
+    "WG/AWG-устройство": "WG/AWG device",
+    "MASQUE-устройство": "MASQUE device",
+    "Внешнее (WARP-in-WARP)": "Outer (WARP-in-WARP)",
+    "⚙️ Зарегистрировать / обновить ключи": "⚙️ Register / renew keys",
+    "🔥 Новый аккаунт (-fresh)": "🔥 New account (-fresh)",
+    "📁 Открыть папку": "📁 Open folder",
+    "«Обновить ключи» меняет ключи, не создавая новое устройство. «Новый аккаунт» регистрирует устройство с нуля.":
+      "'Renew keys' rotates keys without creating a new device. 'New account' registers a device from scratch.",
+    "Лог регистрации": "Registration log",
+    "Здесь появится вывод warpscout register…": "warpscout register output will appear here…",
+    "найден": "found",
+    "не найден — нужен для скана": "not found — required for scanning",
+    "✓ есть": "✓ present",
+    "нет (нужен только для masque)": "absent (needed only for masque)",
+    "нет (нужен только для -through)": "absent (needed only for -through)",
+    "● аккаунт: есть": "● account: present",
+    "● аккаунт: нет — вкладка «Аккаунт»": "● account: missing — see the 'Account' tab",
+    "Аккаунт готов": "Account ready",
+    "Регистрация не удалась — смотрите лог": "Registration failed — see the log",
+    "Демо: аккаунт уже есть": "Demo: account already exists",
+    "Создать новый аккаунт WARP с нуля? Текущие ключи будут заменены.":
+      "Create a brand-new WARP account? Current keys will be replaced.",
+    /* — socks — */
+    "Проверка одного эндпоинта": "Single endpoint check",
+    "(как в результатах скана)": "(as in scan results)",
+    "★ Лучший": "★ Best",
+    "Порт прокси": "Proxy port",
+    "▶ Запустить прокси": "▶ Start proxy",
+    "Прокси:": "Proxy:",
+    "Проверка:": "Check:",
+    "Лог прокси": "Proxy log",
+    "Здесь появится вывод warpscout socks…": "warpscout socks output will appear here…",
+    "Укажите эндпоинт в формате ip:порт (например 188.114.98.58:2408)":
+      "Enter the endpoint as ip:port (e.g. 188.114.98.58:2408)",
+    "Прокси запускается: ": "Starting proxy: ",
+    "{ep}: запускаю прокси": "{ep}: starting proxy",
+    "Прокси уже запущен — сначала остановите текущий": "A proxy is already running — stop it first",
+    /* — инструменты — */
+    "find-junk — подбор junk-параметров": "find-junk — junk parameter finder",
+    "Профиль I1": "I1 profile",
+    "Порог успеха": "Success threshold",
+    "Туннелей": "Tunnels",
+    "▶ Искать junk": "▶ Find junk",
+    "■ Стоп": "■ Stop",
+    "find-sni — подбор SNI для MASQUE": "find-sni — SNI finder for MASQUE",
+    "Перебирает известные SNI для MASQUE и печатает готовую команду скана с рабочим именем.":
+      "Iterates known MASQUE SNIs and prints a ready-to-use scan command with a working name.",
+    "Транспорт": "Transport",
+    "▶ Искать SNI": "▶ Find SNI",
+    "команда найдена!": "command found!",
+    "↧ Применить к скану": "↧ Apply to scan",
+    "Если <code>scan -p awg</code> ничего не находит ни с одним I1 — запустите подбор junk-набора. Остановить можно в любой момент, лучший набор сохранится в логе.":
+      "If <code>scan -p awg</code> finds nothing with any I1 — run the junk-set search. You can stop anytime; the best set stays in the log.",
+    "Нажмите «Применить к скану».": "Press 'Apply to scan'.",
+    "Параметры применены к скану": "Parameters applied to the scan",
+    "Сначала найдите команду": "Find a command first",
+    /* — настройки — */
+    "Пути": "Paths",
+    "Путь до warpscout.exe": "Path to warpscout.exe",
+    "Обзор…": "Browse…",
+    "Проверить": "Check",
+    "Проверка не выполнялась": "Not checked yet",
+    "Показать в папке": "Show in folder",
+    "Отчёты сканов сохраняются в": "Scan reports are saved to",
+    "Открыть": "Open",
+    "Данные приложения": "App data",
+    "⬇ Резервная копия": "⬇ Backup",
+    "⬆ Восстановить": "⬆ Restore",
+    "Сбросить настройки и данные": "Reset settings & data",
+    "О приложении": "About",
+    "WARPSCOUT GUI — графическая оболочка для консольной утилиты":
+      "WARPSCOUT GUI is a graphical front-end for the console utility",
+    "Дефолтная команда:": "Default command:",
+    "Скан запускается локально, без серверов-посредников: туннели поднимаются с вашей машины.":
+      "Scanning runs locally, no middleman servers: tunnels are raised from your machine.",
+    "⌨ Горячие клавиши": "⌨ Keyboard shortcuts",
+    "● warpscout: не найден — укажите путь в «Настройках»": "● warpscout: not found — set the path in 'Settings'",
+    "warpscout не найден. Скачайте warpscout.exe и укажите путь.": "warpscout not found. Download warpscout.exe and set the path.",
+    "● warpscout v0.16.0 — готов (демо)": "● warpscout v0.16.0 — ready (demo)",
+    /* — горячие клавиши — */
+    "переключение вкладок": "switch tabs",
+    "начать скан": "start scan",
+    "остановить скан / закрыть панель или окно": "stop scan / close panel or window",
+    "фильтр по результатам": "filter results",
+    "сохранить конфиг (на вкладке «Конфиг»)": "save config (on the 'Config' tab)",
+    "показать эту справку": "show this help",
+    /* — qr-модалка — */
+    "▣ QR-код конфига": "▣ Config QR code",
+    "⬇ Сохранить PNG": "⬇ Save PNG",
+    "⧉ Скопировать конфиг": "⧉ Copy config",
+    "Сохранить QR-код": "Save QR code",
+    /* — динамика/история — */
+    "↘ динамика лучшего пинга": "↘ best-ping trend",
+    "слева направо: старые сканы → новые · клик по точке загружает скан":
+      "left to right: older scans → newer · click a dot to load that scan",
+    "Динамика лучшего пинга по сканам": "Best-ping trend across scans",
+    "Скан {ts}, {ping} ms": "Scan {ts}, {ping} ms",
+    "{ts} — лучший пинг {ping} ms — клик загрузит скан": "{ts} — best ping {ping} ms — click to load this scan",
+    "Последние сканы (хранятся локально, до 10)": "Recent scans (stored locally, up to 10)",
+    "История пуста — выполните первый скан.": "History is empty — run your first scan.",
+    "рабочих": "working",
+    "разорвано": "torn",
+    "Δ сравнить с текущей таблицей (без загрузки)": "Δ compare with the current table (without loading)",
+    "Удалить всю историю": "Clear all history",
+    "🗑 Очистить": "🗑 Clear",
+    "Выгрузить всю историю в JSON-файл": "Export all history to a JSON file",
+    "Δ сравнение с текущей таблицей:": "Δ comparison with the current table:",
+    "➕ новых: ": "➕ new: ",
+    "➖ пропали: ": "➖ gone: ",
+    "Различий нет — наборы эндпоинтов совпадают": "No differences — the endpoint sets match",
+    "Δ: новых {n}, пропали {g}": "Δ: {n} new, {g} gone",
+    "Загружен скан от {ts} — {n} рабочих": "Loaded scan from {ts} — {n} working",
+    "Удалить всю историю сканов ({n})? Текущая таблица результатов останется.":
+      "Delete the entire scan history ({n})? The current results table stays.",
+    "История очищена": "History cleared",
+    "История и так пуста": "History is already empty",
+    "История пуста — нечего выгружать": "History is empty — nothing to export",
+    "История выгружена: ": "History exported: ",
+    "История сохранена: ": "History saved: ",
+    "Выгрузить историю сканов (JSON)": "Export scan history (JSON)",
+    "История CSV выгружена: ": "History CSV exported: ",
+    "История CSV сохранена: ": "History CSV saved: ",
+    "⬇ CSV (итоги)": "⬇ CSV (summary)",
+    "Сохранить итоги истории (CSV)": "Save history summary (CSV)",
+    /* — статистика — */
+    "📡 всего": "📡 total",
+    "✅ рабочих": "✅ working",
+    "✂ разорвано": "✂ torn",
+    "⚡ лучший": "⚡ best",
+    "⚖ медиана": "⚖ median",
+    "📈 профиль": "📈 profile",
+    "🌍 узлов": "🌍 nodes",
+    "➕ новых": "➕ new",
+    "➖ пропали": "➖ gone",
+    "Минимальный пинг среди рабочих": "Lowest ping among working endpoints",
+    "Медианный пинг рабочих": "Median ping of working endpoints",
+    "Распределение пинга рабочих эндпоинтов: мин {min} / макс {max} ms":
+      "Ping distribution of working endpoints: min {min} / max {max} ms",
+    "Узлы: {nodes}": "Nodes: {nodes}",
+    "Эндпоинтов, которых не было в прошлом скане": "Endpoints not present in the previous scan",
+    "Пропали с прошлого скана ({n}): {list}": "Gone since the previous scan ({n}): {list}",
+    "показано <b>{n}</b> из {m}": "showing <b>{n}</b> of {m}",
+    /* — скан-процесс — */
+    "Запуск warpscout…": "Launching warpscout…",
+    "Фаза 1: ищем проходимые порты": "Phase 1: probing passable ports",
+    "Фаза 2: проверяем туннели": "Phase 2: verifying tunnels",
+    "Замер скорости (медленно, ждите)…": "Speed test (slow, please wait)…",
+    "Остановлено": "Stopped",
+    "Читаем отчёт…": "Reading the report…",
+    "Скан остановлен": "Scan stopped",
+    "[GUI] Отчёт не найден — смотрим конец лога.": "[GUI] Report not found — see the end of the log.",
+    "warpscout завершился с ошибкой (код {code}). Смотрите лог — часто не хватает аккаунта или фильтры слишком строгие.":
+      "warpscout exited with an error (code {code}). Check the log — often an account is missing or filters are too strict.",
+    "Скан завершён, но отчёт пуст. Смотрите лог.": "Scan finished, but the report is empty. Check the log.",
+    "Скан завершён: рабочих эндпоинтов — {n}": "Scan finished: {n} working endpoints",
+    "Скан завершён: рабочих эндпоинтов — {n}, разорванных — {t}": "Scan finished: {n} working, {t} torn",
+    "Рабочих эндпоинтов не найдено": "No working endpoints found",
+    "Рабочих эндпоинтов не найдено ({t} разорвано)": "No working endpoints found ({t} torn)",
+    "Попробуйте «Жёсткая сеть» или find-junk.": "Try 'Hard network' or find-junk.",
+    "Рабочих эндпоинтов не найдено ({t} разорвано). Попробуйте «Жёсткая сеть» или find-junk.":
+      "No working endpoints found ({t} torn). Try 'Hard network' or find-junk.",
+    "Сначала создайте аккаунт WARP — вкладка «Аккаунт»": "Create a WARP account first — the 'Account' tab",
+    "Не удалось запустить warpscout: ": "Failed to launch warpscout: ",
+    /* — тосты/действия — */
+    "Скопировано": "Copied",
+    "Не удалось скопировать": "Copy failed",
+    "Эндпоинт скопирован": "Endpoint copied",
+    "Скопировано эндпоинтов: {n}": "Endpoints copied: {n}",
+    "Нет рабочих эндпоинтов для копирования": "No working endpoints to copy",
+    "Эндпоинт подставлен в конфиг: {ep}": "Endpoint put into the config: {ep}",
+    "Эндпоинт готов к проверке во вкладке SOCKS": "Endpoint ready for a check in the SOCKS tab",
+    "Команда скопирована": "Command copied",
+    "Конфиг скопирован": "Config copied",
+    "Сначала выполните скан": "Run a scan first",
+    "Лучший эндпоинт из скана: {ep}": "Best endpoint from the scan: {ep}",
+    "Светлая тема включена": "Light theme enabled",
+    "Тёмная тема включена": "Dark theme enabled",
+    "Язык переключён на английский": "Language switched to Russian",
+    /* — конфиг: сохранение/импорт — */
+    "Сохранить конфиг": "Save config",
+    "Сохранение работает только в приложении Windows": "Saving works only in the Windows app",
+    "Конфиг сохранён: ": "Config saved: ",
+    "Ошибка записи: ": "Write error: ",
+    "Выберите .conf с I1": "Choose a .conf with I1",
+    "Импорт работает только в приложении": "Import works only in the app",
+    "I1 импортирован": "I1 imported",
+    "В файле нет строки I1 — это не AWG-конфиг?": "No I1 line in the file — is it not an AWG config?",
+    "Не удалось прочитать файл": "Could not read the file",
+    "Не удалось прочитать файл: ": "Could not read the file: ",
+    "Выберите .conf для импорта": "Choose a .conf to import",
+    "Не удалось разобрать файл: нет пар «ключ = значение»": "Could not parse the file: no 'key = value' pairs",
+    "Импортирован конфиг: {what}": "Config imported: {what}",
+    "Не перенесено: {what}": "Not carried over: {what}",
+    "Ошибка разбора: ": "Parse error: ",
+    "DNS свои": "custom DNS",
+    "эндпоинт": "endpoint",
+    "AllowedIPs весь": "all AllowedIPs",
+    "AllowedIPs свои": "custom AllowedIPs",
+    "заголовки ({n})": "headers ({n})",
+    "тайминги 3.1": "3.1 timings",
+    "PrivateKey/Address берутся из аккаунта": "PrivateKey/Address come from the account",
+    "PublicKey берётся из аккаунта": "PublicKey comes from the account",
+    "PresharedKey не поддерживается": "PresharedKey is not supported",
+    "I2–I5 отсутствуют в полях GUI": "I2–I5 have no fields in the GUI",
+    /* — qr — */
+    "QR-модуль не загружен": "QR module not loaded",
+    "Конфиг {n} симв. — не помещается в QR (лимит 2953). Обычно виноват длинный I1: уберите его или сохраните конфиг файлом.":
+      "The config is {n} chars — too big for QR (limit 2953). Usually a long I1 is to blame: drop it or save the config as a file.",
+    "PNG скачан: ": "PNG downloaded: ",
+    "QR сохранён: ": "QR saved: ",
+    "Не удалось построить QR: ": "Failed to build the QR: ",
+    /* — бэкап состояния — */
+    "Резервная копия WARPSCOUT GUI": "WARPSCOUT GUI backup",
+    "Резервная копия скачана: ": "Backup downloaded: ",
+    "Копия сохранена: ": "Backup saved: ",
+    "Ошибка экспорта: ": "Export error: ",
+    "Файл не похож на резервную копию WARPSCOUT GUI": "The file does not look like a WARPSCOUT GUI backup",
+    "Настройки восстановлены из копии": "Settings restored from the backup",
+    "Выберите файл резервной копии": "Choose a backup file",
+    "Некорректный JSON: ": "Invalid JSON: ",
+    /* — сброс — */
+    "Сбросить все настройки и данные приложения?": "Reset all app settings and data?",
+    "Настройки сброшены": "Settings reset",
+    /* — пресеты: тосты — */
+    "Введите название пресета": "Enter a preset name",
+    "Пресет \"{name}\" уже есть — перезаписать?": "Preset \"{name}\" already exists — overwrite?",
+    "Пресет сохранён: {name}": "Preset saved: {name}",
+    "Пресет применён: {name}": "Preset applied: {name}",
+    "Пресет удалён": "Preset deleted",
+    "Удалить пресет \"{name}\"?": "Delete the preset \"{name}\"?",
+    "Удалить пресет": "Delete preset",
+    "Пресет: применить. ✕ — удалить": "Preset: apply. ✕ — delete",
+    /* — прочее — */
+    "Не удалось запустить": "Failed to start",
+    "[GUI] Прокси остановлен.": "[GUI] Proxy stopped.",
+    "Выбор файла работает только в приложении": "File picking works only in the app",
+    "Выберите warpscout.exe": "Choose warpscout.exe",
+    "Найден warpscout v": "Found warpscout v",
+    "Не удалось открыть папку": "Could not open the folder",
+    "Только в приложении Windows": "Only in the Windows app",
+    "[демо] Используется демо-аккаунт. В приложении здесь выполняется настоящая регистрация.":
+      "[demo] Using the demo account. In the real app, actual registration runs here.",
+    "[GUI] Готово.": "[GUI] Done.",
+    "Готово.": "Done.",
+    "Сортировать": "Sort",
+    "Узел": "Node",
+    "пинг": "ping",
+    "потери": "loss",
+    "Адрес прокси скопирован": "Proxy address copied",
+    "Нет результатов скана": "No scan results",
+    "Взят лучший эндпоинт: {ep}": "Took the best endpoint: {ep}",
+    "<запустите регистрацию на вкладке «Аккаунт»>": "<run the registration on the 'Account' tab>",
+    "[GUI] Регистрация завершилась с ошибкой (код {code}).": "[GUI] Registration exited with an error (code {code}).",
+    "[GUI] Не удалось запустить warpscout: ": "[GUI] Failed to launch warpscout: ",
+    "Ошибка запуска warpscout": "Error launching warpscout",
+    "Обычная таблица": "Regular table",
+    "Компактная таблица включена": "Compact table enabled",
+    "Плотность таблицы": "Table density",
+    "Открыть демо в браузере": "Open the demo in a browser",
+    "Откройте приложение через WARPScoutGUI.exe": "Open the app via WARPScoutGUI.exe",
+  };
+
+  let LANG = "ru";
+  let i18nStaticReady = false;
+  let i18nTextNodes = [];   // статические текстовые узлы, собранные один раз
+  let i18nAttrEls = [];     // элементы с переводимыми атрибутами
+
+  function t(ru) {
+    if (LANG !== "en") return ru;
+    const v = I18N_EN[ru];
+    return v === undefined ? ru : v;
+  }
+  function tF(ru, vars) {
+    let s = t(ru);
+    if (vars) {
+      for (const k of Object.keys(vars)) s = s.split("{" + k + "}").join(String(vars[k]));
+    }
+    return s;
+  }
+
+  const I18N_SKIP_SEL =
+    "#resultsBody,#resultsHead,#resultsEmpty,#historyPanel,#resStats,#resFilterMeta," +
+    "#presetHint,#customPresetChips,#confPreview,#scanLog,#accLog,#socksLog,#toolsLog," +
+    "#toasts,#stWs,#stAcc,#accFileState,#accFilePath,#accMainState,#accMasqueState," +
+    "#accOuterState,#btnRunScanLabel,#scanPhase,#resCount,#cfgFileName,#cfgVerHint," +
+    "#cfgKeysState,#socksAddr,#setWsVerHint,#foundCmdBadge,#qrBox,#cfgEndpointSel," +
+    "#btnHistory,#btnTheme,#kbdTable,#presetName";
+
+  function i18nInitStatic() {
+    if (i18nStaticReady) return;
+    i18nStaticReady = true;
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode(n) {
+        if (!n.nodeValue || !n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        const p = n.parentElement;
+        if (!p) return NodeFilter.FILTER_REJECT;
+        if (p.closest("script,style")) return NodeFilter.FILTER_REJECT;
+        if (p.closest(I18N_SKIP_SEL)) return NodeFilter.FILTER_REJECT;
+        // переводим только узлы, где есть кириллица (латиница-команды не трогаем)
+        if (!/[а-яё]/i.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    let node;
+    while ((node = walker.nextNode())) {
+      node.__ru = node.nodeValue;
+      i18nTextNodes.push(node);
+    }
+    // атрибуты: placeholder / title / aria-label с кириллицей
+    $$("input[placeholder], button[title], [aria-label], [title], select[title]").forEach((el) => {
+      if (el.closest("script,style") || el.closest(I18N_SKIP_SEL)) return;
+      const orig = {};
+      let hasRu = false;
+      ["placeholder", "title", "aria-label"].forEach((a) => {
+        const v = el.getAttribute(a);
+        if (v && /[а-яё]/i.test(v)) { orig[a] = v; hasRu = true; }
+      });
+      if (hasRu) { el.__i18nAttrs = orig; i18nAttrEls.push(el); }
+    });
+  }
+
+  function i18nApplyStatic() {
+    i18nTextNodes.forEach((node) => {
+      const orig = node.__ru != null ? node.__ru : node.nodeValue;
+      let out;
+      if (LANG === "en") {
+        const key = orig.trim();
+        const v = I18N_EN[key];
+        out = v === undefined ? orig : orig.replace(key, v);
+      } else {
+        out = orig;
+      }
+      if (node.nodeValue !== out) node.nodeValue = out;
+    });
+    i18nAttrEls.forEach((el) => {
+      const orig = el.__i18nAttrs || {};
+      Object.keys(orig).forEach((a) => {
+        if (LANG === "en") {
+          const v = I18N_EN[orig[a].trim()];
+          el.setAttribute(a, v === undefined ? orig[a] : v);
+        } else {
+          el.setAttribute(a, orig[a]);
+        }
+      });
+    });
+    document.documentElement.setAttribute("lang", LANG === "en" ? "en" : "ru");
+  }
+
+  // перерисовать всё динамическое (JS-генерируемый русский текст)
+  function rerenderI18nDynamic() {
+    try { renderResults(); } catch (e) {}
+    try { fillEndpointSelect(); } catch (e) {}
+    try { renderConf(); } catch (e) {}
+    try { renderCustomPresets(); } catch (e) {}
+    try { renderHistoryBtn(); } catch (e) {}
+    try { if (S.historyOpen) toggleHistory(true); } catch (e) {}
+    try { updateCmdPreview(); } catch (e) {}
+    try { renderAccount(); } catch (e) {}
+    try { highlightMatchingPreset(); } catch (e) {}
+    try { setScanRunning(S.running.scan); } catch (e) {}
+    try { renderStatusWs(); } catch (e) {}
+    try { renderWsHints(); } catch (e) {}
+    try { applyTheme(document.documentElement.getAttribute("data-theme") || "dark"); } catch (e) {}
+    const hint = $("#setWsCheckHint");
+    if (hint) hint.textContent = hint.textContent; // статичен
+  }
+
+  // статус-строка warpscout (вынесена, чтобы вызывать и из init, и из i18n)
+  function renderStatusWs() {
+    const el = $("#stWs");
+    if (!el) return;
+    if (IS_MOCK) {
+      el.textContent = t("● warpscout v0.16.0 — готов (демо)");
+      el.className = "statusline__row is-ok";
+    } else if (S.wsVersion) {
+      el.textContent = tF("● warpscout v{v} — готов", { v: S.wsVersion });
+      el.className = "statusline__row is-ok";
+    } else if (S.wsChecked) {
+      el.textContent = t("● warpscout: не найден — укажите путь в «Настройках»");
+      el.className = "statusline__row is-err";
+    } else {
+      el.textContent = t("● warpscout: проверка…");
+      el.className = "statusline__row";
+    }
+  }
+
+  // подсказка в «Настройках» о статусе warpscout (v1.6.0 — с учётом языка)
+  function renderWsHints() {
+    const hint = $("#setWsVerHint");
+    if (!hint) return;
+    if (S.wsVersion) hint.textContent = t("Найден warpscout v") + S.wsVersion + " · " + S.paths.wsPath;
+    else if (S.wsChecked) hint.textContent = t("warpscout не найден. Скачайте warpscout.exe и укажите путь.");
+    else hint.textContent = t("Проверка не выполнялась");
+  }
+
+  function applyLang(lang, opts) {
+    LANG = lang === "en" ? "en" : "ru";
+    S.settings.lang = LANG;
+    i18nInitStatic();
+    i18nApplyStatic();
+    rerenderI18nDynamic();
+    $$("#langSwitch .lang-switch__btn").forEach((b) =>
+      b.classList.toggle("is-active", b.getAttribute("data-lang") === LANG)
+    );
+    if (!(opts && opts.skipPersist)) persist();
+  }
+
+  function ensureLangSwitch() {
+    if ($("#langSwitch")) return;
+    const foot = $("#sidebar .sidebar__footer") || $("#sidebar");
+    if (!foot) return;
+    const wrap = document.createElement("div");
+    wrap.className = "lang-switch";
+    wrap.id = "langSwitch";
+    wrap.setAttribute("role", "group");
+    wrap.setAttribute("aria-label", "Язык / Language");
+    const ru = document.createElement("button");
+    ru.type = "button";
+    ru.className = "lang-switch__btn is-active";
+    ru.setAttribute("data-lang", "ru");
+    ru.textContent = "RU";
+    ru.title = "Русский";
+    const en = document.createElement("button");
+    en.type = "button";
+    en.className = "lang-switch__btn";
+    en.setAttribute("data-lang", "en");
+    en.textContent = "EN";
+    en.title = "English";
+    wrap.appendChild(ru);
+    wrap.appendChild(en);
+    foot.insertBefore(wrap, $("#btnTheme"));
+    ru.addEventListener("click", () => { if (LANG !== "ru") { applyLang("ru"); toast("Язык: русский", "ok"); } });
+    en.addEventListener("click", () => { if (LANG !== "en") { applyLang("en"); toast("Language: English", "ok"); } });
+  }
 
   /* ───────── Neutralino-мост ───────── */
   const os = () => window.Neutralino.os;
@@ -382,7 +994,7 @@
     if (!meta || !clear) return;
     clear.classList.toggle("hidden", !S.filter);
     meta.innerHTML = S.filter
-      ? "показано <b>" + shown + "</b> из " + total
+      ? tF("показано <b>{n}</b> из {m}", { n: shown, m: total })
       : "";
   }
 
@@ -412,8 +1024,18 @@
     const withSpeed = S.viewMeta.withSpeed;
 
     const rows = S.results.slice();
-    if (S.sortByPing) {
-      rows.sort((a, b) => (a.torn - b.torn) || (pingMs(a.tunPing || a.ping) - pingMs(b.tunPing || b.ping)));
+    if (S.sortByPing) { S.sortKey = "ping"; S.sortDir = 1; }
+    const sortKey = S.sortKey || "report";
+    const sortDir = S.sortDir || 1;
+    if (sortKey !== "report") {
+      const cmp = {
+        ping: (a, b) => pingMs(a.tunPing || a.ping) - pingMs(b.tunPing || b.ping),
+        loss: (a, b) => (parseFloat(a.loss) || 0) - (parseFloat(b.loss) || 0),
+        endpoint: (a, b) => String(a.endpoint).localeCompare(String(b.endpoint), undefined, { numeric: true }),
+        node: (a, b) => String(a.node || "").localeCompare(String(b.node || "")),
+        loc: (a, b) => String(a.loc || "").localeCompare(String(b.loc || "")),
+      }[sortKey];
+      if (cmp) rows.sort((a, b) => (a.torn - b.torn) || sortDir * cmp(a, b));
     } // иначе — порядок отчёта warpscout: потери → пинг
 
     // лучший рабочий эндпоинт (мин. TUN PING, иначе PING) — считаем по ПОЛНОЙ выборке,
@@ -441,12 +1063,45 @@
     }
     updateFilterMeta(visible.length, totalRows);
 
-    const cols = ["Эндпоинт", S.sortByPing ? "TUN PING ↑" : "PING"];
-    if (withP) cols.push("LOSS");
-    if (withSpeed) cols.push("SPEED");
-    cols.push("SEEN AS", "NODE", "Локация узла", "");
+    // v1.6.0: кликабельная сортировка. Каждый столбец: {label, key}
+    const cols = [
+      { label: t("Эндпоинт"), key: "endpoint" },
+      { label: S.sortKey === "ping" ? "TUN PING" : "PING", key: "ping" },
+    ];
+    if (withP) cols.push({ label: "LOSS", key: "loss" });
+    if (withSpeed) cols.push({ label: "SPEED", key: "" });
+    cols.push({ label: "SEEN AS", key: "" }, { label: "NODE", key: "node" }, { label: t("Локация узла"), key: "loc" }, { label: "", key: "" });
 
-    head.innerHTML = "<tr>" + cols.map((c) => "<th>" + esc(c) + "</th>").join("") + "</tr>";
+    head.innerHTML =
+      "<tr>" +
+      cols
+        .map((c) => {
+          const active = c.key && c.key === sortKey && sortKey !== "report";
+          const arrow = active ? (sortDir === 1 ? ' <span class="th-arrow">▲</span>' : ' <span class="th-arrow">▼</span>') : "";
+          const pingArrow = c.key === "ping" && sortKey === "report" && S.sortByPing ? ' <span class="th-arrow">▲</span>' : "";
+          return (
+            '<th' + (c.key ? ' class="th-sort" data-sort="' + c.key + '" title="' + t("Сортировать") + '"' : "") + ">" +
+            esc(c.label) + arrow + pingArrow + "</th>"
+          );
+        })
+        .join("") +
+      "</tr>";
+    // v1.6.0: клик по заголовку — сортировка (повторный клик меняет направление)
+    $$("#resultsHead .th-sort").forEach((th) => {
+      th.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const key = th.getAttribute("data-sort");
+        if (!key) return;
+        if (S.sortKey === key) {
+          S.sortDir = -S.sortDir;
+        } else {
+          S.sortKey = key;
+          S.sortDir = 1;
+        }
+        S.sortByPing = S.sortKey === "ping" && S.sortDir === 1;
+        renderResults();
+      });
+    });
 
     if (!visible.length) {
       body.innerHTML = "";
@@ -454,11 +1109,11 @@
       const emptyTitle = $("#resultsEmpty .empty__title");
       const emptyHint = $("#resultsEmpty .empty__hint");
       if (S.filter && totalRows) {
-        emptyTitle.textContent = "Нет совпадений с фильтром";
-        emptyHint.innerHTML = "В запросе: «" + esc(S.filter) + "». Попробуйте узел (HKG), страну или часть IP.";
+        emptyTitle.textContent = t("Нет совпадений с фильтром");
+        emptyHint.innerHTML = tF("В запросе: «{q}». Попробуйте узел (HKG), страну или часть IP.", { q: esc(S.filter) });
       } else {
-        emptyTitle.textContent = "Пока нет результатов";
-        emptyHint.innerHTML = "Настройте параметры слева и нажмите «Начать скан».<br/>Лучший эндпоинт окажется вверху таблицы.";
+        emptyTitle.textContent = t("Пока нет результатов");
+        emptyHint.innerHTML = t("Настройте параметры слева и нажмите «Начать скан».") + "<br/>" + t("Лучший эндпоинт окажется вверху таблицы.");
       }
       if (!totalRows) $("#resCount").hidden = true;
       return;
@@ -473,25 +1128,26 @@
         const isNew = !!(S.diff && S.diff.newList && S.diff.newList.indexOf(ep) !== -1);
         const cells = [
           "<td>" +
-            (ep === bestEp ? '<span class="best-star" title="Лучший пинг">★</span>' : "") +
+            (ep === bestEp ? '<span class="best-star" title="' + t("Лучший пинг") + '">★</span>' : "") +
             esc(ep) +
-            (isNew ? '<span class="new-badge" title="Появился в этом скане">new</span>' : "") +
+            (isNew ? '<span class="new-badge" title="' + t("Появился в этом скане") + '">new</span>' : "") +
           "</td>",
-          "<td>" + pingCell(S.sortByPing ? (r.tunPing || r.ping) : r.ping) + "</td>",
+          "<td>" + pingCell(S.sortKey === "ping" ? (r.tunPing || r.ping) : r.ping) + "</td>",
           withP ? "<td>" + pingCell(r.tunPing) + "</td><td>" + lossCell(r.loss) + "</td>" : "",
           withSpeed ? "<td>" + esc(r.speed || "—") + "</td>" : "",
           '<td class="seen">' + flagEmoji(r.seenAs) + " " + esc(r.seenAs || "—") + "</td>",
           "<td>" + esc(r.node || "—") + "</td>",
           "<td>" + esc(r.loc || "—") + "</td>",
           '<td class="row-actions">' +
-            '<button type="button" data-act="copy" title="Скопировать ip:порт">⧉</button>' +
-            '<button type="button" data-act="cfg" title="Использовать в конфиге">⚙</button>' +
-            '<button type="button" data-act="socks" title="Подставить в SOCKS-вкладку">🧦</button>' +
-            '<button type="button" data-act="socks-run" title="Сразу запустить SOCKS5-прокси для этого эндпоинта">⏵</button>' +
+            '<button type="button" data-act="copy" title="' + t("Скопировать ip:порт") + '">⧉</button>' +
+            '<button type="button" data-act="cfg" title="' + t("Использовать в конфиге") + '">⚙</button>' +
+            '<button type="button" data-act="socks" title="' + t("Подставить в SOCKS-вкладку") + '">🧦</button>' +
+            '<button type="button" data-act="socks-run" title="' + t("Сразу запустить SOCKS5-прокси для этого эндпоинта") + '">⏵</button>' +
           "</td>",
         ];
         const sel = ep === S.selected ? " is-selected" : "";
         const torn = r.torn ? " is-torn" : "";
+        if (r.torn) cells[0] = cells[0].replace("<td>", '<td data-torn="' + t("разорван") + '">');
         const best = ep === bestEp ? " is-best" : "";
         const nw = isNew ? " is-new" : "";
         return '<tr data-ep="' + esc(ep) + '" class="' + (sel + torn + best + nw).trim() + '">' + cells.join("") + "</tr>";
@@ -508,19 +1164,19 @@
           e.stopPropagation();
           const ep = tr.getAttribute("data-ep");
           const act = b.getAttribute("data-act");
-          if (act === "copy") { copyText(ep, "Эндпоинт скопирован"); return; }
+          if (act === "copy") { copyText(ep, t("Эндпоинт скопирован")); return; }
           if (act === "cfg") {
             S.cfg.endpoint = ep;
             syncCfgInputsFromState();
             switchTab("config");
-            toast("Эндпоинт подставлен в конфиг: " + ep, "ok");
+            toast(tF("Эндпоинт подставлен в конфиг: {ep}", { ep: ep }), "ok");
             return;
           }
           if (act === "socks") {
             $("#socksEndpoint").value = ep;
             $("#socksProto").value = S.viewProto || "awg";
             switchTab("socks");
-            toast("Эндпоинт готов к проверке во вкладке SOCKS", "ok");
+            toast(t("Эндпоинт готов к проверке во вкладке SOCKS"), "ok");
             return;
           }
           if (act === "socks-run") {
@@ -529,9 +1185,9 @@
             switchTab("socks");
             if (!S.running.socks) {
               socksToggle();
-              toast("Прокси запускается: " + ep, "ok");
+              toast(tF("{ep}: запускаю прокси", { ep: ep }), "ok");
             } else {
-              toast("Прокси уже запущен — сначала остановите текущий", "warn");
+              toast(t("Прокси уже запущен — сначала остановите текущий"), "warn");
             }
           }
         })
@@ -559,12 +1215,12 @@
     const nodeNames = Object.keys(nodes);
 
     const chips = [
-      '<span class="stat-chip">📡 всего <b>' + S.results.length + "</b></span>",
-      '<span class="stat-chip stat-chip--ok">✅ рабочих <b>' + working.length + "</b></span>",
+      '<span class="stat-chip">' + t("📡 всего") + " <b>" + S.results.length + "</b></span>",
+      '<span class="stat-chip stat-chip--ok">' + t("✅ рабочих") + " <b>" + working.length + "</b></span>",
     ];
-    if (torn) chips.push('<span class="stat-chip stat-chip--err">✂ разорвано <b>' + torn + "</b></span>");
-    if (best) chips.push('<span class="stat-chip stat-chip--best" title="Минимальный пинг среди рабочих">⚡ лучший <b>' + best + " ms</b></span>");
-    if (median) chips.push('<span class="stat-chip" title="Медианный пинг рабочих">⚖ медиана <b>' + median + " ms</b></span>");
+    if (torn) chips.push('<span class="stat-chip stat-chip--err">' + t("✂ разорвано") + " <b>" + torn + "</b></span>");
+    if (best) chips.push('<span class="stat-chip stat-chip--best" title="' + t("Минимальный пинг среди рабочих") + '">' + t("⚡ лучший") + " <b>" + best + " ms</b></span>");
+    if (median) chips.push('<span class="stat-chip" title="' + t("Медианный пинг рабочих") + '">' + t("⚖ медиана") + " <b>" + median + " ms</b></span>");
     // спарклайн распределения пинга (v1.3.0)
     if (sorted.length >= 2) {
       const W = 84, H = 20;
@@ -577,26 +1233,26 @@
       });
       const area = "1," + (H - 1) + " " + pts.join(" ") + " " + (W - 1) + "," + (H - 1);
       chips.push(
-        '<span class="stat-chip spark" title="Распределение пинга рабочих эндпоинтов: мин ' + min + " / макс " + max + ' ms">' +
+        '<span class="stat-chip spark" title="' + tF("Распределение пинга рабочих эндпоинтов: мин {min} / макс {max} ms", { min: min, max: max }) + '">' +
           '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" aria-hidden="true">' +
             '<polygon class="spark-area" points="' + area + '"></polygon>' +
             '<polyline class="spark-line" points="' + pts.join(" ") + '"></polyline>' +
-          "</svg>📈 профиль" +
+          "</svg>" + t("📈 профиль") +
         "</span>"
       );
     }
     if (nodeNames.length) {
-      chips.push('<span class="stat-chip" title="Узлы: ' + esc(nodeNames.join(", ")) + '">🌍 узлов <b>' + nodeNames.length + "</b></span>");
+      chips.push('<span class="stat-chip" title="' + tF("Узлы: {nodes}", { nodes: esc(nodeNames.join(", ")) }) + '">' + t("🌍 узлов") + " <b>" + nodeNames.length + "</b></span>");
     }
     if (S.diff) {
       if (S.diff.newCount) {
-        chips.push('<span class="stat-chip stat-chip--new" title="Эндпоинтов, которых не было в прошлом скане">➕ новых <b>' + S.diff.newCount + "</b></span>");
+        chips.push('<span class="stat-chip stat-chip--new" title="' + t("Эндпоинтов, которых не было в прошлом скане") + '">' + t("➕ новых") + " <b>" + S.diff.newCount + "</b></span>");
       }
       if (S.diff.gone.length) {
         chips.push(
           '<button type="button" class="stat-chip stat-chip--gone" id="chipGone" title="' +
             esc(S.diff.gone.join(", ")) +
-            '">➖ пропали <b>' + S.diff.gone.length + "</b></button>"
+            '">' + t("➖ пропали") + " <b>" + S.diff.gone.length + "</b></button>"
         );
       }
     }
@@ -605,7 +1261,7 @@
     const goneBtn = $("#chipGone");
     if (goneBtn) {
       goneBtn.addEventListener("click", () => {
-        toast("Пропали с прошлого скана (" + S.diff.gone.length + "): " + S.diff.gone.join(", "), "warn");
+        toast(tF("Пропали с прошлого скана ({n}): {list}", { n: S.diff.gone.length, list: S.diff.gone.join(", ") }), "warn");
       });
     }
   }
@@ -615,7 +1271,7 @@
     S.running.scan = run;
     $("#btnRunScan").hidden = run;
     $("#btnStopScan").hidden = !run;
-    $("#btnRunScanLabel").textContent = run ? "Сканирую…" : "Начать скан";
+    $("#btnRunScanLabel").textContent = run ? t("Сканирую…") : t("Начать скан");
     $("#scanProgress").hidden = !run;
     if (!run) { $("#scanBarFill").style.width = "0%"; }
   }
@@ -640,7 +1296,7 @@
     if (!S.account && !IS_MOCK) {
       S.running.scan = false;
       setScanRunning(false);
-      toast("Сначала создайте аккаунт WARP — вкладка «Аккаунт»", "err");
+      toast(t("Сначала создайте аккаунт WARP — вкладка «Аккаунт»"), "err");
       switchTab("account");
       return;
     }
@@ -654,7 +1310,7 @@
     resetFilterSilently();
     $("#scanLog").textContent = "";
     switchSubtab("log");
-    setPhase("Запуск warpscout…", 2);
+    setPhase(t("Запуск warpscout…"), 2);
     // запоминаем эндпоинты прошлого скана для сравнения (diff)
     S.prevEndpoints = S.results.length ? new Set(S.results.map((r) => r.endpoint)) : null;
     S.results = [];
@@ -675,25 +1331,25 @@
           const mPhase2 = /Phase 2: verifying tunnels \(proto=(\w+)\): (\d+)\.\.\./.exec(buf);
           const mSpeed = /Speedtest|speed test|Measuring speed/i.test(buf);
           const mStep = /(\d+)\/(\d+)\s*$/.exec(buf.trim());
-          if (mPhase1) setPhase("Фаза 1: ищем проходимые порты", null);
-          if (mPhase2) setPhase("Фаза 2: проверяем туннели", null);
-          if (mSpeed && !mStep) setPhase("Замер скорости (медленно, ждите)…", null);
+          if (mPhase1) setPhase(t("Фаза 1: ищем проходимые порты"), null);
+          if (mPhase2) setPhase(t("Фаза 2: проверяем туннели"), null);
+          if (mSpeed && !mStep) setPhase(t("Замер скорости (медленно, ждите)…"), null);
           if (mStep) {
             const frac = (+mStep[1] / Math.max(1, +mStep[2])) * 100;
-            setPhase(mPhase2 ? "Фаза 2: проверяем туннели" : "Фаза 1: ищем проходимые порты", frac);
+            setPhase(mPhase2 ? t("Фаза 2: проверяем туннели") : t("Фаза 1: ищем проходимые порты"), frac);
           }
         } else if (d.type === "exit") {
           unregisterProc(proc.id);
           setScanRunning(false);
-          setPhase(S.scanStopped ? "Остановлено" : "Читаем отчёт…", 100);
+          setPhase(S.scanStopped ? t("Остановлено") : t("Читаем отчёт…"), 100);
           if (!S.scanStopped) finishScan(withP, withSpeed, exitCodeOf(d.data));
-          else toast("Скан остановлен", "ok");
+          else toast(t("Скан остановлен"), "ok");
         }
       });
     } catch (e) {
       S.running.scan = false;
       setScanRunning(false);
-      toast("Не удалось запустить warpscout: " + (e && e.message ? e.message : e), "err");
+      toast(tF("Не удалось запустить warpscout: {err}", { err: e && e.message ? e.message : e }), "err");
       switchSubtab("results");
     }
   }
@@ -707,12 +1363,12 @@
       if (IS_MOCK && window.NeutralinoMock) text = window.NeutralinoMock.lastReport || window.NeutralinoMock.report;
     }
     if (!text) {
-      appendLog($("#scanLog"), "\n[GUI] Отчёт не найден — смотрим конец лога.\n");
+      appendLog($("#scanLog"), "\n[GUI] " + t("Отчёт не найден — смотрим конец лога.") + "\n");
       if (exitCode !== 0) {
-        toast("warpscout завершился с ошибкой (код " + exitCode + "). Смотрите лог — часто не хватает аккаунта или фильтры слишком строгие.", "err");
+        toast(tF("warpscout завершился с ошибкой (код {code}). Смотрите лог — часто не хватает аккаунта или фильтры слишком строгие.", { code: exitCode }), "err");
         switchSubtab("log");
       } else {
-        toast("Скан завершён, но отчёт пуст. Смотрите лог.", "err");
+        toast(t("Скан завершён, но отчёт пуст. Смотрите лог."), "err");
         switchSubtab("results");
       }
       return;
@@ -737,9 +1393,9 @@
     const working = S.results.filter((r) => !r.torn).length;
     const torn = S.results.length - working;
     if (working > 0) {
-      toast("Скан завершён: рабочих эндпоинтов — " + working + (torn ? ", разорванных — " + torn : ""), "ok");
+      toast(torn ? tF("Скан завершён: рабочих эндпоинтов — {n}, разорванных — {t}", { n: working, t: torn }) : tF("Скан завершён: рабочих эндпоинтов — {n}", { n: working }), "ok");
     } else {
-      toast("Рабочих эндпоинтов не найдено" + (torn ? " (" + torn + " разорвано)" : "") + ". Попробуйте «Жёсткая сеть» или find-junk.", "err");
+      toast(torn ? tF("Рабочих эндпоинтов не найдено ({t} разорвано). Попробуйте «Жёсткая сеть» или find-junk.", { t: torn }) : t("Рабочих эндпоинтов не найдено"), "err");
     }
   }
 
@@ -748,7 +1404,7 @@
     await killProc(S.procIds.scan);
     S.procIds.scan = null;
     setScanRunning(false);
-    toast("Скан остановлен", "ok");
+    toast(t("Скан остановлен"), "ok");
   }
 
   /* ───────── конфиг-генератор ───────── */
@@ -786,7 +1442,7 @@
     const kv = (k, v) => lines.push(k + " = " + v);
 
     sec("Interface");
-    kv("PrivateKey", acc ? acc.private_key : "<запустите регистрацию на вкладке «Аккаунт»>");
+    kv("PrivateKey", acc ? acc.private_key : t("<запустите регистрацию на вкладке «Аккаунт»>"));
     if (acc) {
       const addr = [acc.ipv4, acc.ipv6].filter(Boolean).join(", ");
       kv("Address", addr || "172.16.0.2");
@@ -843,16 +1499,16 @@
     $("#cfgFileName").textContent = names[ver] || "warp.conf";
     $("#cfgObfCard").classList.toggle("hidden", ver === "wg");
     $("#cfgAwg31Grid").style.display = ver === "awg31" ? "" : "none";
-    $("#cfgVerHint").textContent = VER_HINTS[ver];
+    $("#cfgVerHint").textContent = t(VER_HINTS[ver]);
     const keys = $("#cfgKeysState");
-    if (S.account) { keys.textContent = "аккаунт загружен"; keys.className = "badge badge--accent"; }
-    else { keys.textContent = "нет аккаунта"; keys.className = "badge"; }
+    if (S.account) { keys.textContent = t("аккаунт загружен"); keys.className = "badge badge--accent"; }
+    else { keys.textContent = t("нет аккаунта"); keys.className = "badge"; }
   }
 
   function fillEndpointSelect() {
     const sel = $("#cfgEndpointSel");
     const cur = sel.value;
-    const options = ['<option value="">— выберите из результатов скана —</option>'];
+    const options = ['<option value="">' + t("— выберите из результатов скана —") + "</option>"];
     S.results.filter((r) => !r.torn).forEach((r) => {
       options.push(
         '<option value="' + esc(r.endpoint) + '">' +
@@ -893,7 +1549,7 @@
   function renderHistoryBtn() {
     const btn = $("#btnHistory");
     if (!btn) return;
-    btn.textContent = "🕘 История" + (S.history.length ? " (" + S.history.length + ")" : "");
+    btn.textContent = t("🕘 История") + (S.history.length ? " (" + S.history.length + ")" : "");
   }
 
   /* ───────── пользовательские пресеты (v1.4.0) ───────── */
@@ -904,9 +1560,9 @@
       .map(
         (p, i) =>
           '<span class="chip chip--custom" role="button" tabindex="0" data-pi="' + i +
-          '" title="Пресет: применить. ✕ — удалить">' +
+          '" title="' + t("Пресет: применить. ✕ — удалить") + '">' +
             '<span class="chip__custom-name">' + esc(p.name) + "</span>" +
-            '<button type="button" class="chip__del" data-del-preset="' + i + '" title="Удалить пресет" aria-label="Удалить пресет ' + esc(p.name) + '">✕</button>' +
+            '<button type="button" class="chip__del" data-del-preset="' + i + '" title="' + t("Удалить пресет") + '" aria-label="' + t("Удалить пресет") + ' ' + esc(p.name) + '">✕</button>' +
           "</span>"
       )
       .join("");
@@ -919,9 +1575,9 @@
         updateCmdPreview();
         $$("#presetChips .chip").forEach((c) => c.classList.remove("is-active"));
         el.classList.add("is-active");
-        $("#presetHint").innerHTML = "Пресет «<b>" + esc(p.name) + "</b>» применён. Команду можно посмотреть над кнопкой скана.";
+        $("#presetHint").innerHTML = tF("Пресет «<b>{name}</b>» применён. Команду можно посмотреть над кнопкой скана.", { name: esc(p.name) });
         persist();
-        toast("Пресет применён: " + p.name, "ok");
+        toast(tF("Пресет применён: {name}", { name: p.name }), "ok");
       };
       el.addEventListener("click", (e) => {
         if (e.target.closest("[data-del-preset]")) return;
@@ -937,11 +1593,11 @@
         const i = +b.getAttribute("data-del-preset");
         const p = S.customPresets[i];
         if (!p) return;
-        if (!confirm('Удалить пресет "' + p.name + '"?')) return;
+        if (!confirm(tF('Удалить пресет "{name}"?', { name: p.name }))) return;
         S.customPresets.splice(i, 1);
         renderCustomPresets();
         persist();
-        toast("Пресет удалён", "ok");
+        toast(t("Пресет удалён"), "ok");
       })
     );
   }
@@ -958,9 +1614,9 @@
 
   function saveCurrentPreset() {
     const name = ($("#presetName").value || "").trim();
-    if (!name) { toast("Введите название пресета", "warn"); $("#presetName").focus(); return; }
+    if (!name) { toast(t("Введите название пресета"), "warn"); $("#presetName").focus(); return; }
     if (S.customPresets.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
-      if (!confirm('Пресет "' + name + '" уже есть — перезаписать?')) return;
+      if (!confirm(tF('Пресет "{name}" уже есть — перезаписать?', { name: name }))) return;
       S.customPresets = S.customPresets.filter((p) => p.name.toLowerCase() !== name.toLowerCase());
     }
     syncStateFromInputs();
@@ -969,7 +1625,7 @@
     renderCustomPresets();
     togglePresetSaveRow(false);
     persist();
-    toast('Пресет сохранён: ' + name, "ok");
+    toast(tF("Пресет сохранён: {name}", { name: name }), "ok");
   }
 
   /* ───────── Δ-сравнение с записью истории (v1.4.0) ───────── */
@@ -983,13 +1639,13 @@
     const fmt = (list) => list.slice(0, 6).join(", ") + (list.length > 6 ? " … +" + (list.length - 6) : "");
     const panel =
       '<div class="history__cmp">' +
-        '<div class="history__cmp-title">Δ сравнение с текущей таблицей:</div>' +
+        '<div class="history__cmp-title">' + t("Δ сравнение с текущей таблицей:") + "</div>" +
         '<div class="history__cmp-row">' +
-          '<span class="is-ok">➕ новых: <b>' + newList.length + "</b></span>" +
+          '<span class="is-ok">' + t("➕ новых: ") + "<b>" + newList.length + "</b></span>" +
           (newList.length ? '<span class="history__cmp-list">' + esc(fmt(newList)) + "</span>" : "") +
         "</div>" +
         '<div class="history__cmp-row">' +
-          '<span class="is-err">➖ пропали: <b>' + goneList.length + "</b></span>" +
+          '<span class="is-err">' + t("➖ пропали: ") + "<b>" + goneList.length + "</b></span>" +
           (goneList.length ? '<span class="history__cmp-list">' + esc(fmt(goneList)) + "</span>" : "") +
         "</div>" +
       "</div>";
@@ -1000,9 +1656,9 @@
     if (oldPanel) oldPanel.remove();
     item.insertAdjacentHTML("afterend", panel);
     if (!newList.length && !goneList.length) {
-      toast("Различий нет — наборы эндпоинтов совпадают", "ok");
+      toast(t("Различий нет — наборы эндпоинтов совпадают"), "ok");
     } else {
-      toast("Δ: новых " + newList.length + ", пропали " + goneList.length, "info");
+      toast(tF("Δ: новых {n}, пропали {g}", { n: newList.length, g: goneList.length }), "info");
     }
   }
 
@@ -1029,7 +1685,7 @@
   }
 
   function showConfQr() {
-    if (typeof window.qrcode !== "function") { toast("QR-модуль не загружен", "err"); return; }
+    if (typeof window.qrcode !== "function") { toast(t("QR-модуль не загружен"), "err"); return; }
     const conf = buildConf();
     try {
       const qr = window.qrcode(0, "L"); // L — максимальная ёмкость (2953 байта)
@@ -1038,7 +1694,7 @@
       $("#qrBox").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 3, scalable: true });
       toggleQr(true);
     } catch (e) {
-      toast("Конфиг " + conf.length + " симв. — не помещается в QR (лимит 2953). Обычно виноват длинный I1: уберите его или сохраните конфиг файлом.", "err");
+      toast(tF("Конфиг {n} симв. — не помещается в QR (лимит 2953). Обычно виноват длинный I1: уберите его или сохраните конфиг файлом.", { n: conf.length }), "err");
     }
   }
 
@@ -1071,10 +1727,10 @@
         document.body.appendChild(a);
         a.click();
         a.remove();
-        toast("PNG скачан: " + name, "ok");
+        toast(tF("PNG скачан: {path}", { path: name }), "ok");
         return;
       }
-      const path = await os().showSaveDialog("Сохранить QR-код", { defaultPath: name });
+      const path = await os().showSaveDialog(t("Сохранить QR-код"), { defaultPath: name });
       if (!path) return;
       const base64 = dataUrl.split(",")[1];
       const bin = atob(base64);
@@ -1082,9 +1738,9 @@
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       if (fs().writeBinaryFile) await fs().writeBinaryFile(path, bytes.buffer);
       else await fs().writeFile(path, dataUrl);
-      toast("QR сохранён: " + path, "ok");
+      toast(tF("QR сохранён: {path}", { path: path }), "ok");
     } catch (e) {
-      toast("Не удалось построить QR: " + (e && e.message ? e.message : e), "err");
+      toast(tF("Не удалось построить QR: {err}", { err: e && e.message ? e.message : e }), "err");
     }
   }
 
@@ -1114,22 +1770,22 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-      toast("Резервная копия скачана: " + name, "ok");
+      toast(tF("Резервная копия скачана: {path}", { path: name }), "ok");
       return;
     }
     os()
-      .showSaveDialog("Резервная копия WARPSCOUT GUI", { defaultPath: name })
+      .showSaveDialog(t("Резервная копия WARPSCOUT GUI"), { defaultPath: name })
       .then(async (path) => {
         if (!path) return;
         await fs().writeFile(path, json);
-        toast("Копия сохранена: " + path, "ok");
+        toast(tF("Копия сохранена: {path}", { path: path }), "ok");
       })
-      .catch((e) => toast("Ошибка экспорта: " + (e && e.message ? e.message : e), "err"));
+      .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
   }
 
   function applyImportedState(st) {
     if (!st || typeof st !== "object" || (!st.scan && !st.cfg)) {
-      toast("Файл не похож на резервную копию WARPSCOUT GUI", "err");
+      toast(t("Файл не похож на резервную копию WARPSCOUT GUI"), "err");
       return;
     }
     if (st.scan) S.scan = Object.assign({}, DEFAULT_SCAN, st.scan);
@@ -1148,13 +1804,13 @@
     renderCustomPresets();
     renderHistoryBtn();
     persist();
-    toast("Настройки восстановлены из копии", "ok");
+    toast(t("Настройки восстановлены из копии"), "ok");
   }
 
   function importState() {
     if (!IS_MOCK && HAS_NL) {
       os()
-        .showOpenDialog("Выберите файл резервной копии", { multiSelections: false })
+        .showOpenDialog(t("Выберите файл резервной копии"), { multiSelections: false })
         .then(async (p) => {
           let picked = Array.isArray(p) ? p[0] : p;
           if (!picked) return;
@@ -1162,7 +1818,7 @@
             const text = await fs().readFile(picked);
             applyImportedState(JSON.parse(text));
           } catch (e) {
-            toast("Не удалось прочитать файл: " + (e && e.message ? e.message : e), "err");
+            toast(tF("Не удалось прочитать файл: {err}", { err: e && e.message ? e.message : e }), "err");
           }
         })
         .catch(() => {});
@@ -1181,7 +1837,7 @@
         try {
           applyImportedState(JSON.parse(String(reader.result)));
         } catch (err) {
-          toast("Некорректный JSON: " + (err && err.message ? err.message : err), "err");
+          toast(tF("Некорректный JSON: {err}", { err: err && err.message ? err.message : err }), "err");
         }
       };
       reader.readAsText(file);
@@ -1215,15 +1871,16 @@
     panel.classList.toggle("hidden", !S.historyOpen);
     if (!S.historyOpen) return;
     if (!S.history.length) {
-      panel.innerHTML = '<div class="history__empty">История пуста — выполните первый скан.</div>';
+      panel.innerHTML = '<div class="history__empty">' + t("История пуста — выполните первый скан.") + "</div>";
       return;
     }
     panel.innerHTML =
       '<div class="history__head">' +
-        '<span class="history__head-title">Последние сканы (хранятся локально, до 10)</span>' +
+        '<span class="history__head-title">' + t("Последние сканы (хранятся локально, до 10)") + "</span>" +
         '<span class="history__tools">' +
-          '<button type="button" id="btnHistExport" title="Выгрузить всю историю в JSON-файл">⬇ JSON</button>' +
-          '<button type="button" id="btnHistClear" class="history__clear" title="Удалить всю историю">🗑 Очистить</button>' +
+          '<button type="button" id="btnHistCsv" title="' + t("Сохранить итоги истории (CSV)") + '">' + t("⬇ CSV (итоги)") + "</button>" +
+          '<button type="button" id="btnHistExport" title="' + t("Выгрузить всю историю в JSON-файл") + '">⬇ JSON</button>' +
+          '<button type="button" id="btnHistClear" class="history__clear" title="' + t("Удалить всю историю") + '">' + t("🗑 Очистить") + "</button>" +
         "</span>" +
       "</div>" +
       renderPingTrend() +
@@ -1235,15 +1892,17 @@
               "<span class=\"history__proto\">" + esc(h.proto.toUpperCase()) + "</span>" +
               "<span class=\"history__label\">" + esc(h.label) + "</span>" +
               '<span class="history__cnt ' + (h.working ? "is-ok" : "is-err") + '">' +
-                h.working + " рабочих" + (h.torn ? " / " + h.torn + " разорвано" : "") +
+                h.working + " " + t("рабочих") + (h.torn ? " / " + h.torn + " " + t("разорвано") : "") +
               "</span>" +
               '<span class="history__cmp-btn" role="button" tabindex="0" data-cmp="' + i +
-              '" title="Δ сравнить с текущей таблицей (без загрузки)">Δ</span>' +
+              '" title="' + t("Δ сравнить с текущей таблицей (без загрузки)") + '">Δ</span>' +
             "</button>"
         )
         .join("");
     const bExp = $("#btnHistExport");
     if (bExp) bExp.addEventListener("click", exportHistory);
+    const bCsv = $("#btnHistCsv");
+    if (bCsv) bCsv.addEventListener("click", exportHistoryCsv);
     const bClr = $("#btnHistClear");
     if (bClr) bClr.addEventListener("click", clearHistory);
     $$(".history__item", panel).forEach((b) =>
@@ -1269,7 +1928,7 @@
   }
 
   function exportHistory() {
-    if (!S.history.length) { toast("История пуста — нечего выгружать", "err"); return; }
+    if (!S.history.length) { toast(t("История пуста — нечего выгружать"), "err"); return; }
     const payload = { app: "WARPSCOUT GUI", format: 1, exportedAt: new Date().toISOString(), scans: S.history };
     const json = JSON.stringify(payload, null, 2);
     const name = "warpscout-history-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + ".json";
@@ -1281,27 +1940,63 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-      toast("История выгружена: " + name, "ok");
+      toast(tF("История выгружена: {path}", { path: name }), "ok");
       return;
     }
     os()
-      .showSaveDialog("Выгрузить историю сканов (JSON)", { defaultPath: name })
+      .showSaveDialog(t("Выгрузить историю сканов (JSON)"), { defaultPath: name })
       .then(async (path) => {
         if (!path) return;
         await fs().writeFile(path, json);
-        toast("История сохранена: " + path, "ok");
+        toast(tF("История сохранена: {path}", { path: path }), "ok");
       })
-      .catch((e) => toast("Ошибка экспорта: " + (e && e.message ? e.message : e), "err"));
+      .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
+  }
+
+  /* ───────── итоги истории в CSV (v1.6.0) ───────── */
+  function exportHistoryCsv() {
+    if (!S.history.length) { toast(t("История пуста — нечего выгружать"), "err"); return; }
+    const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+    const rows = ["datetime,proto,params,working,torn,best_ping_ms"];
+    for (let i = S.history.length - 1; i >= 0; i--) {
+      const h = S.history[i];
+      const best = histBestPing(h);
+      rows.push(
+        [new Date(h.ts).toISOString(), h.proto, h.label, h.working, h.torn, best === Infinity ? "" : best]
+          .map(q).join(",")
+      );
+    }
+    const csv = "\ufeff" + rows.join("\r\n");
+    const name = "warpscout-history-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + ".csv";
+    if (IS_MOCK) {
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+      toast(tF("История CSV выгружена: {path}", { path: name }), "ok");
+      return;
+    }
+    os()
+      .showSaveDialog(t("Сохранить итоги истории (CSV)"), { defaultPath: name })
+      .then(async (path) => {
+        if (!path) return;
+        await fs().writeFile(path, csv);
+        toast(tF("История CSV сохранена: {path}", { path: path }), "ok");
+      })
+      .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
   }
 
   async function clearHistory() {
-    if (!S.history.length) { toast("История и так пуста", "ok"); return; }
-    if (!confirm("Удалить всю историю сканов (" + S.history.length + ")? Текущая таблица результатов останется.")) return;
+    if (!S.history.length) { toast(t("История и так пуста"), "ok"); return; }
+    if (!confirm(tF("Удалить всю историю сканов ({n})? Текущая таблица результатов останется.", { n: S.history.length }))) return;
     S.history = [];
     renderHistoryBtn();
     toggleHistory(true); // перерисовать открытую панель
     persist();
-    toast("История очищена", "ok");
+    toast(t("История очищена"), "ok");
   }
 
   function loadHistory(i) {
@@ -1313,6 +2008,8 @@
     S.viewMeta = { withP: h.withP, withSpeed: h.withSpeed };
     S.viewProto = h.proto;
     S.sortByPing = false;
+    S.sortKey = "report";
+    S.sortDir = 1;
     resetFilterSilently();
     const firstOk = S.results.find((r) => !r.torn);
     S.selected = firstOk ? firstOk.endpoint : "";
@@ -1320,7 +2017,7 @@
     fillEndpointSelect();
     switchSubtab("results");
     toggleHistory(false);
-    toast("Загружен скан от " + fmtTime(h.ts) + " — " + h.working + " рабочих", "ok");
+    toast(tF("Загружен скан от {ts} — {n} рабочих", { ts: fmtTime(h.ts), n: h.working }), "ok");
   }
 
   function exportCsv() {
@@ -1352,7 +2049,7 @@
       return;
     }
     os()
-      .showSaveDialog("Сохранить результаты CSV", { defaultPath: name })
+      .showSaveDialog(t("Сохранить результаты CSV"), { defaultPath: name })
       .then(async (path) => {
         if (!path) return;
         await fs().writeFile(path, csv);
@@ -1369,27 +2066,27 @@
     const name = $("#cfgFileName").textContent;
     let path;
     try {
-      path = await os().showSaveDialog("Сохранить конфиг", { defaultPath: name });
+      path = await os().showSaveDialog(t("Сохранить конфиг"), { defaultPath: name });
     } catch (e) { path = null; }
-    if (!path) { if (IS_MOCK) toast("Сохранение работает только в приложении Windows", "err"); return; }
+    if (!path) { if (IS_MOCK) toast(t("Сохранение работает только в приложении Windows"), "err"); return; }
     try {
       await fs().writeFile(path, buildConf());
-      toast("Конфиг сохранён: " + path, "ok");
+      toast(tF("Конфиг сохранён: {path}", { path: path }), "ok");
     } catch (e) {
-      toast("Ошибка записи: " + (e && e.message ? e.message : e), "err");
+      toast(tF("Ошибка записи: {err}", { err: e && e.message ? e.message : e }), "err");
     }
   }
 
   async function importI1() {
     let path;
     try {
-      path = await os().showOpenDialog("Выберите .conf с I1", { multiSelections: false });
+      path = await os().showOpenDialog(t("Выберите .conf с I1"), { multiSelections: false });
     } catch (e) { path = null; }
     let picked = null;
     if (Array.isArray(path) && path[0]) picked = path[0];
     else if (typeof path === "string" && path) picked = path;
     if (!picked) {
-      if (IS_MOCK) toast("Импорт работает только в приложении", "err");
+      if (IS_MOCK) toast(t("Импорт работает только в приложении"), "err");
       return;
     }
     try {
@@ -1398,12 +2095,12 @@
       if (m) {
         $("#cfgI1").value = m[1].trim();
         syncCfgFromInputs();
-        toast("I1 импортирован", "ok");
+        toast(t("I1 импортирован"), "ok");
       } else {
-        toast("В файле нет строки I1 — это не AWG-конфиг?", "err");
+        toast(t("В файле нет строки I1 — это не AWG-конфиг?"), "err");
       }
     } catch (e) {
-      toast("Не удалось прочитать файл", "err");
+      toast(t("Не удалось прочитать файл"), "err");
     }
   }
 
@@ -1437,7 +2134,7 @@
     const c = parseConfText(text);
     const all = Object.assign({}, c.other, c.interface, c.peer);
     const has = (k) => all[k] != null && String(all[k]).trim() !== "";
-    if (!Object.keys(all).length) { toast("Не удалось разобрать файл: нет пар «ключ = значение»", "err"); return; }
+    if (!Object.keys(all).length) { toast(t("Не удалось разобрать файл: нет пар «ключ = значение»"), "err"); return; }
 
     const applied = [];
     const skipped = [];
@@ -1457,7 +2154,7 @@
       const d = all.dns.replace(/\s+/g, " ").trim();
       const preset = Object.keys(DNS_PRESETS).find((k) => DNS_PRESETS[k].replace(/\s+/g, " ") === d);
       if (preset) { S.cfg.dns = preset; applied.push("DNS " + preset); }
-      else { S.cfg.dns = "custom"; S.cfg.dnsCustom = d; applied.push("DNS свои"); }
+      else { S.cfg.dns = "custom"; S.cfg.dnsCustom = d; applied.push(t("DNS свои")); }
     }
     if (has("mtu")) { const m = num("mtu"); if (m && m > 0 && m <= 10000) { S.cfg.mtu = m; applied.push("MTU " + m); } }
     if (has("table") && /off/i.test(all.table)) { S.cfg.tableOff = true; applied.push("Table off"); }
@@ -1465,15 +2162,15 @@
     // Peer
     if (has("endpoint") && /^[A-Za-z0-9.\[\]:-]+:\d+$/.test(all.endpoint.trim())) {
       S.cfg.endpoint = all.endpoint.trim();
-      applied.push("эндпоинт");
+      applied.push(t("эндпоинт"));
     }
     if (has("persistentkeepalive")) { const k = num("persistentkeepalive"); if (k != null && k >= 0 && k <= 65535) { S.cfg.keepalive = k; applied.push("keepalive " + k); } }
     if (has("allowedips")) {
       const a = all.allowedips.replace(/\s+/g, "");
-      if (a === "0.0.0.0/0,::/0" || a === "::/0,0.0.0.0/0") { S.cfg.allowed = "both"; applied.push("AllowedIPs весь"); }
+      if (a === "0.0.0.0/0,::/0" || a === "::/0,0.0.0.0/0") { S.cfg.allowed = "both"; applied.push(t("AllowedIPs весь")); }
       else if (a === "0.0.0.0/0") { S.cfg.allowed = "v4"; applied.push("AllowedIPs v4"); }
       else if (a === "::/0") { S.cfg.allowed = "v6"; applied.push("AllowedIPs v6"); }
-      else { S.cfg.allowed = "custom"; S.cfg.allowedCustom = all.allowedips.trim(); applied.push("AllowedIPs свои"); }
+      else { S.cfg.allowed = "custom"; S.cfg.allowedCustom = all.allowedips.trim(); applied.push(t("AllowedIPs свои")); }
     }
 
     // Обфускация AWG
@@ -1487,7 +2184,7 @@
       const heads = [];
       ["s1", "s2", "s3", "s4"].forEach((k, idx) => { if (has(k)) { const v = num(k); if (v != null) { o["s" + (idx + 1)] = v; heads.push("S" + (idx + 1)); } } });
       ["h1", "h2", "h3", "h4"].forEach((k, idx) => { if (has(k)) { o["h" + (idx + 1)] = String(all[k]).trim(); heads.push("H" + (idx + 1)); } });
-      if (heads.length) applied.push("заголовки (" + heads.length + ")");
+      if (heads.length) applied.push(tF("заголовки ({n})", { n: heads.length }));
       if (has("i1")) { o.i1 = String(all.i1).trim(); applied.push("I1"); }
       if (has31) {
         if (has("contentpaddingaddition")) { o.cpa = String(all.contentpaddingaddition).trim(); applied.push("CPA"); }
@@ -1499,35 +2196,35 @@
         if (has("randomtrailers")) { o.trailers = /on|true|1/i.test(all.randomtrailers) ? "on" : "off"; }
         if (has("disablecookies")) { o.noCookies = /on|true|1/i.test(all.disablecookies) ? "on" : "off"; }
         if (has("headerprotectionkey")) { o.hpk = String(all.headerprotectionkey).trim(); }
-        applied.push("тайминги 3.1");
+        applied.push(t("тайминги 3.1"));
       }
     }
 
     // что не переносится
-    if (has("privatekey") || has("address")) skipped.push("PrivateKey/Address берутся из аккаунта");
-    if (has("publickey")) skipped.push("PublicKey берётся из аккаунта");
-    if (has("presharedkey")) skipped.push("PresharedKey не поддерживается");
-    if (hasI2plus) skipped.push("I2–I5 отсутствуют в полях GUI");
+    if (has("privatekey") || has("address")) skipped.push(t("PrivateKey/Address берутся из аккаунта"));
+    if (has("publickey")) skipped.push(t("PublicKey берётся из аккаунта"));
+    if (has("presharedkey")) skipped.push(t("PresharedKey не поддерживается"));
+    if (hasI2plus) skipped.push(t("I2–I5 отсутствуют в полях GUI"));
 
     syncCfgInputsFromState();
     renderConf();
     persist();
-    toast("Импортирован конфиг: " + applied.join(" · "), "ok");
-    if (skipped.length) toast("Не перенесено: " + skipped.join("; "), "warn");
+    toast(tF("Импортирован конфиг: {what}", { what: applied.join(" · ") }), "ok");
+    if (skipped.length) toast(tF("Не перенесено: {what}", { what: skipped.join("; ") }), "warn");
   }
 
   async function importConf() {
     if (!IS_MOCK && HAS_NL) {
       let p;
       try {
-        p = await os().showOpenDialog("Выберите .conf для импорта", { multiSelections: false });
+        p = await os().showOpenDialog(t("Выберите .conf для импорта"), { multiSelections: false });
       } catch (e) { p = null; }
       const picked = Array.isArray(p) ? p[0] : typeof p === "string" ? p : null;
       if (!picked) return;
       try {
         applyImportedConf(await fs().readFile(picked));
       } catch (e) {
-        toast("Не удалось прочитать файл: " + (e && e.message ? e.message : e), "err");
+        toast(tF("Не удалось прочитать файл: {err}", { err: e && e.message ? e.message : e }), "err");
       }
       return;
     }
@@ -1542,7 +2239,7 @@
       const reader = new FileReader();
       reader.onload = () => {
         try { applyImportedConf(String(reader.result)); }
-        catch (err) { toast("Ошибка разбора: " + (err && err.message ? err.message : err), "err"); }
+        catch (err) { toast(tF("Ошибка разбора: {err}", { err: err && err.message ? err.message : err }), "err"); }
       };
       reader.readAsText(file);
     });
@@ -1551,8 +2248,8 @@
   /* ───────── копирование эндпоинтов (v1.5.0) ───────── */
   function copyEndpoints() {
     const list = S.results.filter((r) => !r.torn).map((r) => r.endpoint);
-    if (!list.length) { toast("Нет рабочих эндпоинтов для копирования", "err"); return; }
-    copyText(list.join("\n"), "Скопировано эндпоинтов: " + list.length);
+    if (!list.length) { toast(t("Нет рабочих эндпоинтов для копирования"), "err"); return; }
+    copyText(list.join("\n"), tF("Скопировано эндпоинтов: {n}", { n: list.length }));
   }
 
   /* ───────── тренд пинга по истории (v1.5.0) ───────── */
@@ -1588,14 +2285,14 @@
     const dots = xy
       .map((q) =>
         '<circle class="trend-dot" cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="3.5" data-trend="' + q.p.i +
-        '" role="button" tabindex="0" aria-label="Скан ' + fmtTime(q.p.ts) + ", " + q.p.ping + ' ms">' +
-        "<title>" + fmtTime(q.p.ts) + " — лучший пинг " + q.p.ping + " ms — клик загрузит скан</title></circle>"
+        '" role="button" tabindex="0" aria-label="' + tF("Скан {ts}, {ping} ms", { ts: fmtTime(q.p.ts), ping: q.p.ping }) + '">' +
+        "<title>" + tF("{ts} — лучший пинг {ping} ms — клик загрузит скан", { ts: fmtTime(q.p.ts), ping: q.p.ping }) + "</title></circle>"
       )
       .join("");
     return (
-      '<div class="trend" role="img" aria-label="Динамика лучшего пинга по сканам">' +
+      '<div class="trend" role="img" aria-label="' + t("Динамика лучшего пинга по сканам") + '">' +
         '<div class="trend__head">' +
-          '<span class="trend__title">↘ динамика лучшего пинга</span>' +
+          '<span class="trend__title">' + t("↘ динамика лучшего пинга") + "</span>" +
           '<span class="trend__range">min <b>' + min + "</b> · max <b>" + max + "</b> ms</span>" +
         "</div>" +
         '<svg class="trend__svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none">' +
@@ -1603,7 +2300,7 @@
           '<polyline class="trend__line" points="' + line + '"></polyline>' +
           dots +
         "</svg>" +
-        '<div class="trend__hint">слева направо: старые сканы → новые · клик по точке загружает скан</div>' +
+        '<div class="trend__hint">' + t("слева направо: старые сканы → новые · клик по точке загружает скан") + "</div>" +
       "</div>"
     );
   }
@@ -1637,7 +2334,7 @@
         const chip = $('#customPresetChips .chip--custom[data-pi="' + idx + '"]');
         if (chip) {
           chip.classList.add("is-active");
-          $("#presetHint").innerHTML = "Пресет «<b>" + esc(cname) + "</b>» применён. Команду можно посмотреть над кнопкой скана.";
+          $("#presetHint").innerHTML = tF("Пресет «<b>{name}</b>» применён. Команду можно посмотреть над кнопкой скана.", { name: esc(cname) });
         }
       }
       return;
@@ -1645,7 +2342,7 @@
     const chip = $('#presetChips .chip[data-preset="' + name + '"]');
     if (chip) {
       chip.classList.add("is-active");
-      $("#presetHint").innerHTML = PRESETS[name].hint;
+      $("#presetHint").innerHTML = t(PRESETS[name].hint);
     }
   }
 
@@ -1671,18 +2368,18 @@
       el.textContent = text;
       el.className = cls || "";
     };
-    set("#accFileState", has ? "найден" : "не найден — нужен для скана", has ? "is-ok" : "is-err");
+    set("#accFileState", has ? t("найден") : t("не найден — нужен для скана"), has ? "is-ok" : "is-err");
     $("#accFilePath").textContent = S.paths.accPath || "—";
     set("#accMainState", has ? "✓ " + (S.account.ipv4 || "ok") : "—", has ? "is-ok" : "is-warn");
-    set("#accMasqueState", has && S.account.masque ? "✓ есть" : "нет (нужен только для masque)", has && S.account.masque ? "is-ok" : "is-warn");
-    set("#accOuterState", has && S.account.outer ? "✓ есть" : "нет (нужен только для -through)", has && S.account.outer ? "is-ok" : "is-warn");
+    set("#accMasqueState", has && S.account.masque ? t("✓ есть") : t("нет (нужен только для masque)"), has && S.account.masque ? "is-ok" : "is-warn");
+    set("#accOuterState", has && S.account.outer ? t("✓ есть") : t("нет (нужен только для -through)"), has && S.account.outer ? "is-ok" : "is-warn");
     renderAccountStatusline();
   }
 
   function renderAccountStatusline() {
     const el = $("#stAcc");
-    if (S.account) { el.textContent = "● аккаунт: есть"; el.className = "statusline__row is-ok"; }
-    else { el.textContent = "● аккаунт: нет — вкладка «Аккаунт»"; el.className = "statusline__row is-err"; }
+    if (S.account) { el.textContent = t("● аккаунт: есть"); el.className = "statusline__row is-ok"; }
+    else { el.textContent = t("● аккаунт: нет — вкладка «Аккаунт»"); el.className = "statusline__row is-err"; }
   }
 
   async function runRegister(fresh) {
@@ -1693,12 +2390,12 @@
     log.textContent = "";
     appendLog(log, "$ warpscout register" + (fresh ? " -fresh" : "") + "\n");
     if (!HAS_NL || IS_MOCK) {
-      appendLog(log, "[демо] Используется демо-аккаунт. В приложении здесь выполняется настоящая регистрация.\n");
+      appendLog(log, t("[демо] Используется демо-аккаунт. В приложении здесь выполняется настоящая регистрация.") + "\n");
       S.account = await loadAccount();
       renderAccount();
       S.running.register = false;
       registerUi();
-      toast("Демо: аккаунт уже есть", "ok");
+      toast(t("Демо: аккаунт уже есть"), "ok");
       return;
     }
     const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
@@ -1713,16 +2410,16 @@
           S.running.register = false;
           registerUi();
           const ok = exitCodeOf(d.data) === 0;
-          appendLog(log, ok ? "\n[GUI] Готово.\n" : "\n[GUI] Регистрация завершилась с ошибкой (код " + exitCodeOf(d.data) + ").\n");
-          if (ok) { loadAccount().then(renderAccount); toast("Аккаунт готов", "ok"); }
-          else toast("Регистрация не удалась — смотрите лог", "err");
+          appendLog(log, ok ? "\n[GUI] " + t("Готово.") + "\n" : "\n[GUI] " + tF("[GUI] Регистрация завершилась с ошибкой (код {code}).", { code: exitCodeOf(d.data) }) + "\n");
+          if (ok) { loadAccount().then(renderAccount); toast(t("Аккаунт готов"), "ok"); }
+          else toast(t("Регистрация не удалась — смотрите лог"), "err");
         }
       });
     } catch (e) {
       S.running.register = false;
       registerUi();
-      appendLog(log, "\n[GUI] Не удалось запустить warpscout: " + (e && e.message ? e.message : e) + "\n");
-      toast("Ошибка запуска warpscout", "err");
+      appendLog(log, "\n[GUI] " + tF("Не удалось запустить warpscout: {err}", { err: e && e.message ? e.message : e }) + "\n");
+      toast(t("Ошибка запуска warpscout"), "err");
     }
   }
 
@@ -1744,14 +2441,14 @@
     S.running.socks = true;
     socksUi();
     const ep = $("#socksEndpoint").value.trim();
-    if (!/^\[?[0-9a-zA-Z.:]+\]?:\d{1,5}$/.test(ep)) { toast("Укажите эндпоинт в формате ip:порт (например 188.114.98.58:2408)", "err"); S.running.socks = false; socksUi(); return; }
+    if (!/^\[?[0-9a-zA-Z.:]+\]?:\d{1,5}$/.test(ep)) { toast(t("Укажите эндпоинт в формате ip:порт (например 188.114.98.58:2408)"), "err"); S.running.socks = false; socksUi(); return; }
     const port = $("#socksPort").value || "1080";
     const proto = $("#socksProto").value;
     const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
     const cmd = quoteExe() + " socks -e " + ep + " -p " + proto + " -P " + port + acc;
     $("#socksLog").textContent = "";
     let proc;
-    try { proc = await os().spawnProcess(cmd); } catch (e) { S.running.socks = false; socksUi(); toast("Не удалось запустить", "err"); return; }
+    try { proc = await os().spawnProcess(cmd); } catch (e) { S.running.socks = false; socksUi(); toast(t("Не удалось запустить"), "err"); return; }
     if (proc && proc.id != null) registerProc(proc.id, () => {});
     S.procIds.socks = proc.id;
     registerProc(proc.id, (d) => {
@@ -1760,7 +2457,7 @@
         unregisterProc(proc.id);
         S.running.socks = false;
         socksUi();
-        appendLog($("#socksLog"), "\n[GUI] Прокси остановлен.\n");
+        appendLog($("#socksLog"), "\n[GUI] " + t("Прокси остановлен.") + "\n");
       }
     });
     $("#socksAddr").textContent = "socks5h://127.0.0.1:" + port;
@@ -1811,7 +2508,7 @@
           if (m && S.running[key]) {
             $("#foundCmdBadge").classList.remove("hidden");
             S.foundCmd = "warpscout " + m[1].trim();
-            appendLog(log, "\n[GUI] Нажмите «Применить к скану».\n");
+            appendLog(log, "\n[GUI] " + t("Нажмите «Применить к скану».") + "\n");
           }
         } else if (d.type === "exit") {
           unregisterProc(proc.id);
@@ -1822,7 +2519,7 @@
     } catch (e) {
       S.running[key] = false;
       toolsUi(key);
-      toast("Не удалось запустить", "err");
+      toast(t("Не удалось запустить"), "err");
     }
   }
 
@@ -1835,7 +2532,7 @@
 
   function applyFoundCmd() {
     const cmd = S.foundCmd;
-    if (!cmd) { toast("Сначала найдите команду", "err"); return; }
+    if (!cmd) { toast(t("Сначала найдите команду"), "err"); return; }
     const s = S.scan;
     const flags = {
       "-p": (v) => (s.proto = v),
@@ -1866,7 +2563,7 @@
     updateCmdPreview();
     persist();
     switchTab("scan");
-    toast("Параметры применены к скану", "ok");
+    toast(t("Параметры применены к скану"), "ok");
   }
 
   /* ───────── вкладки/интерфейс ───────── */
@@ -2025,29 +2722,31 @@
       const out = String((res && (res.stdOut != null ? res.stdOut : res.output)) || "").trim();
       if (/^\d+\.\d+/.test(out)) {
         S.wsVersion = out;
-        el.textContent = "● warpscout v" + out + " — готов";
+        S.wsChecked = true;
+        renderStatusWs();
         el.className = "statusline__row is-ok";
         $("#stWs").title = S.paths.wsPath;
-        $("#setWsVerHint").textContent = "Найден warpscout v" + out + " · " + S.paths.wsPath;
+        renderWsHints();
         return true;
       }
     } catch (e) { /* падение ниже */ }
     S.wsVersion = "";
-    el.textContent = "● warpscout: не найден — укажите путь в «Настройках»";
+    S.wsChecked = true;
+    renderStatusWs();
     el.className = "statusline__row is-err";
-    $("#setWsVerHint").textContent = "warpscout не найден. Скачайте warpscout.exe и укажите путь.";
+    renderWsHints();
     return false;
   }
 
   async function browseWsPath() {
     let p;
     try {
-      p = await os().showOpenDialog("Выберите warpscout.exe", { multiSelections: false });
+      p = await os().showOpenDialog(t("Выберите warpscout.exe"), { multiSelections: false });
     } catch (e) { p = null; }
     let picked = null;
     if (Array.isArray(p) && p[0]) picked = p[0];
     else if (typeof p === "string" && p) picked = p;
-    if (IS_MOCK && !picked) { toast("Выбор файла работает только в приложении", "err"); return; }
+    if (IS_MOCK && !picked) { toast(t("Выбор файла работает только в приложении"), "err"); return; }
     if (!picked) return;
     S.settings.wsPath = picked;
     S.paths.wsPath = picked;
@@ -2123,7 +2822,7 @@
       $$("#presetChips .chip").forEach((c) => c.classList.toggle("is-active", c.getAttribute("data-preset") === "default"));
       PRESETS.default.apply();
       syncInputsFromState();
-      $("#presetHint").innerHTML = PRESETS.default.hint;
+      $("#presetHint").innerHTML = t(PRESETS.default.hint);
       updateCmdPreview();
       persist();
     });
@@ -2133,10 +2832,10 @@
       b.addEventListener("click", () => {
         S.scan.proto = b.getAttribute("data-proto");
         const hints = {
-          wg: "Обычный WireGuard — работает там, где трафик не фильтруется.",
-          awg: "Обфусцированный WireGuard — проходит там, где обычный WG фильтруется.",
-          masque: "CONNECT-IP поверх QUIC, второй транспорт Cloudflare. Узел один на всю сеть.",
-          "masque-h2": "MASQUE поверх TCP — те же проверки, но транспорт HTTP/2.",
+          wg: t("Обычный WireGuard — работает там, где трафик не фильтруется."),
+          awg: t("Обфусцированный WireGuard — проходит там, где обычный WG фильтруется."),
+          masque: t("CONNECT-IP поверх QUIC, второй транспорт Cloudflare. Узел один на всю сеть."),
+          "masque-h2": t("MASQUE поверх TCP — те же проверки, но транспорт HTTP/2."),
         };
         $("#protoHint").textContent = hints[S.scan.proto];
         syncInputsFromState();
@@ -2164,8 +2863,13 @@
     // скан
     $("#btnRunScan").addEventListener("click", runScan);
     $("#btnStopScan").addEventListener("click", stopScan);
-    $("#btnCopyCmd").addEventListener("click", () => copyText(buildScanCmd(S.scan), "Команда скопирована"));
-    $("#btnSortPing").addEventListener("click", () => { S.sortByPing = !S.sortByPing; renderResults(); });
+    $("#btnCopyCmd").addEventListener("click", () => copyText(buildScanCmd(S.scan), t("Команда скопирована")));
+    $("#btnSortPing").addEventListener("click", () => {
+      // v1.6.0: тумблер «↕ пинг» синхронизирован с сортировкой по заголовку
+      if (S.sortByPing || S.sortKey === "ping") { S.sortByPing = false; S.sortKey = "report"; S.sortDir = 1; }
+      else { S.sortByPing = true; S.sortKey = "ping"; S.sortDir = 1; }
+      renderResults();
+    });
     $("#btnHistory").addEventListener("click", () => toggleHistory());
 
     // фильтр результатов (v1.3.0)
@@ -2180,7 +2884,7 @@
     $("#btnCopyEps").addEventListener("click", copyEndpoints); // v1.5.0
     $("#btnConfQr").addEventListener("click", showConfQr);
     $("#btnQrPng").addEventListener("click", saveQrPng);
-    $("#btnQrCopy").addEventListener("click", () => copyText(buildConf(), "Конфиг скопирован"));
+    $("#btnQrCopy").addEventListener("click", () => copyText(buildConf(), t("Конфиг скопирован")));
     $("#btnExportState").addEventListener("click", exportState);
     $("#btnImportState").addEventListener("click", importState);
     bindImportStateFile();
@@ -2195,11 +2899,11 @@
     $("#btnTheme").addEventListener("click", toggleTheme);
     $("#btnToConfig").addEventListener("click", () => {
       const best = S.results.find((r) => !r.torn);
-      if (!best) { toast("Сначала выполните скан", "err"); return; }
+      if (!best) { toast(t("Сначала выполните скан"), "err"); return; }
       S.cfg.endpoint = best.endpoint;
       syncCfgInputsFromState();
       switchTab("config");
-      toast("Лучший эндпоинт из скана: " + best.endpoint, "ok");
+      toast(tF("Лучший эндпоинт из скана: {ep}", { ep: best.endpoint }), "ok");
     });
 
     // таблица: двойной клик = копия ip:port
@@ -2237,7 +2941,7 @@
       const info = $("#cfgEndpointInfo");
       if (r) {
         info.hidden = false;
-        info.textContent = "Узел " + r.node + " · " + r.loc + " · пинг " + (r.tunPing || r.ping) + (r.loss ? " · потери " + r.loss : "");
+        info.textContent = t("Узел") + " " + r.node + " · " + r.loc + " · " + t("пинг") + " " + (r.tunPing || r.ping) + (r.loss ? " · " + t("потери") + " " + r.loss : "");
       }
       renderConf();
       persist();
@@ -2256,13 +2960,13 @@
       };
       syncCfgInputsFromState();
       renderConf();
-      toast("Параметры обфускации восстановлены из примера", "ok");
+      toast(t("Параметры обфускации восстановлены из примера"), "ok");
     });
     $("#btnClearI1").addEventListener("click", () => { $("#cfgI1").value = ""; syncCfgFromInputs(); renderConf(); });
     $("#btnImportI1").addEventListener("click", importI1);
     $("#btnImportConf").addEventListener("click", importConf); // v1.5.0
     bindImportConfFile(); // v1.5.0
-    $("#btnCopyConf").addEventListener("click", () => copyText(buildConf(), "Конфиг скопирован"));
+    $("#btnCopyConf").addEventListener("click", () => copyText(buildConf(), t("Конфиг скопирован")));
     $("#btnSaveConf").addEventListener("click", saveConf);
 
     // аккаунт
@@ -2278,8 +2982,8 @@
       appendLog($("#accLog"), "\n[GUI] Остановлено пользователем.\n");
     });
     $("#btnOpenAccFolder").addEventListener("click", () => {
-      if (IS_MOCK) { toast("Только в приложении Windows", "err"); return; }
-      os().open(S.paths.dataDir).catch(() => toast("Не удалось открыть папку", "err"));
+      if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
+      os().open(S.paths.dataDir).catch(() => toast(t("Не удалось открыть папку"), "err"));
     });
 
     // socks
@@ -2287,12 +2991,12 @@
     $("#btnSocksStop").addEventListener("click", socksToggle);
     $("#btnSocksBest").addEventListener("click", () => {
       const best = S.results.find((r) => !r.torn);
-      if (!best) { toast("Нет результатов скана", "err"); return; }
+      if (!best) { toast(t("Нет результатов скана"), "err"); return; }
       $("#socksEndpoint").value = best.endpoint;
       $("#socksProto").value = S.scan.proto;
-      toast("Взят лучший эндпоинт: " + best.endpoint, "ok");
+      toast(tF("Взят лучший эндпоинт: {ep}", { ep: best.endpoint }), "ok");
     });
-    $("#btnCopySocks").addEventListener("click", () => copyText($("#socksAddr").textContent, "Адрес прокси скопирован"));
+    $("#btnCopySocks").addEventListener("click", () => copyText($("#socksAddr").textContent, t("Адрес прокси скопирован")));
 
     // инструменты
     $("#btnFjRun").addEventListener("click", () => runTool("fj"));
@@ -2310,15 +3014,15 @@
       checkWarpscout();
     });
     $("#btnOpenAcc").addEventListener("click", () => {
-      if (IS_MOCK) { toast("Только в приложении Windows", "err"); return; }
+      if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
       os().open(S.paths.dataDir).catch(() => {});
     });
     $("#btnOpenReports").addEventListener("click", () => {
-      if (IS_MOCK) { toast("Только в приложении Windows", "err"); return; }
+      if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
       os().open(S.paths.reportsDir).catch(() => {});
     });
     $("#btnResetStorage").addEventListener("click", async () => {
-      if (!confirm("Сбросить все настройки и данные приложения?")) return;
+      if (!confirm(t("Сбросить все настройки и данные приложения?"))) return;
       S.scan = Object.assign({}, DEFAULT_SCAN);
       S.cfg = {
         ver: "awg31", dns: "cloudflare", dnsCustom: "", endpoint: "", mtu: 1280,
@@ -2332,6 +3036,8 @@
       };
       S.results = [];
       S.sortByPing = false;
+      S.sortKey = "report";
+      S.sortDir = 1;
       S.prevEndpoints = null;
       S.diff = null;
       S.customPresets = [];
@@ -2347,7 +3053,7 @@
       renderCustomPresets();
       applyCompact();
       renderHistoryBtn();
-      toast("Настройки сброшены", "ok");
+      toast(t("Настройки сброшены"), "ok");
     });
 
     // горячие клавиши
@@ -2423,13 +3129,15 @@
     bindProcEvents();
 
     await restoreState();
+    ensureLangSwitch();                       // v1.6.0: RU/EN-переключатель в сайдбаре
+    applyLang(S.settings.lang || "ru", { skipPersist: true }); // v1.6.0: применить язык
     applyTheme(S.settings.theme || "dark");
     applyCompact();
     renderCustomPresets();
     await computePaths();
     syncInputsFromState();
     syncCfgInputsFromState();
-    $("#presetHint").innerHTML = PRESETS.default.hint;
+    $("#presetHint").innerHTML = t(PRESETS.default.hint);
     highlightMatchingPreset(); // v1.5.0: подсветить пресет, соответствующий сохранённой форме
     bindEvents();
     updateCmdPreview();
@@ -2450,8 +3158,8 @@
     renderAccount();
     renderConf();
     if (IS_MOCK) {
-      $("#stWs").textContent = "● warpscout v0.16.0 — готов (демо)";
-      $("#stWs").className = "statusline__row is-ok";
+      S.wsVersion = "0.16.0"; // демо: считаем warpscout найденным
+      renderStatusWs();
     } else {
       checkWarpscout();
     }
