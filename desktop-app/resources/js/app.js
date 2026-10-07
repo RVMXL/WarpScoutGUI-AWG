@@ -28,6 +28,17 @@
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
+  function flagEmoji(cc) {
+    if (!cc || !/^[A-Za-z]{2}$/.test(cc)) return "";
+    return String.fromCodePoint(...[...cc.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
+  }
+
+  function fmtTime(ts) {
+    const d = new Date(ts);
+    return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) + ", " +
+      d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+  }
+
   function debounce(fn, ms) {
     let t;
     return function () {
@@ -91,6 +102,9 @@
     results: [],        // {endpoint, ping, tunPing, loss, seenAs, node, loc, torn}
     sortByPing: false,
     selected: "",
+    history: [],        // последние 10 сканов {ts, label, results, withP, withSpeed}
+    viewMeta: { withP: true, withSpeed: false }, // колонки текущей таблицы
+    historyOpen: false,
     cfg: {
       ver: "awg31",
       dns: "cloudflare",
@@ -347,8 +361,8 @@
   function renderResults() {
     const head = $("#resultsHead");
     const body = $("#resultsBody");
-    const withP = S.scan.tunPing;
-    const withSpeed = S.scan.speed || S.scan.bestBySpeed;
+    const withP = S.viewMeta.withP;
+    const withSpeed = S.viewMeta.withSpeed;
 
     const rows = S.results.slice();
     if (S.sortByPing) {
@@ -358,7 +372,7 @@
     const cols = ["Эндпоинт", S.sortByPing ? "TUN PING ↑" : "PING"];
     if (withP) cols.push("LOSS");
     if (withSpeed) cols.push("SPEED");
-    cols.push("SEEN AS", "NODE", "Локация узла");
+    cols.push("SEEN AS", "NODE", "Локация узла", "");
 
     head.innerHTML = "<tr>" + cols.map((c) => "<th>" + esc(c) + "</th>").join("") + "</tr>";
 
@@ -374,27 +388,54 @@
 
     body.innerHTML = rows
       .map((r, idx) => {
+        const ep = r.endpoint;
         const cells = [
-          "<td>" + esc(r.endpoint) + "</td>",
+          "<td>" + esc(ep) + "</td>",
           "<td>" + pingCell(S.sortByPing ? (r.tunPing || r.ping) : r.ping) + "</td>",
           withP ? "<td>" + pingCell(r.tunPing) + "</td><td>" + lossCell(r.loss) + "</td>" : "",
           withSpeed ? "<td>" + esc(r.speed || "—") + "</td>" : "",
-          "<td>" + esc(r.seenAs || "—") + "</td>",
+          '<td class="seen">' + flagEmoji(r.seenAs) + " " + esc(r.seenAs || "—") + "</td>",
           "<td>" + esc(r.node || "—") + "</td>",
           "<td>" + esc(r.loc || "—") + "</td>",
+          '<td class="row-actions">' +
+            '<button type="button" data-act="copy" title="Скопировать ip:порт">⧉</button>' +
+            '<button type="button" data-act="cfg" title="Использовать в конфиге">⚙</button>' +
+            '<button type="button" data-act="socks" title="Проверить через SOCKS5">🧦</button>' +
+          "</td>",
         ];
-        const sel = r.endpoint === S.selected ? " is-selected" : "";
+        const sel = ep === S.selected ? " is-selected" : "";
         const torn = r.torn ? " is-torn" : "";
-        return '<tr data-ep="' + esc(r.endpoint) + '" class="' + sel.trim() + torn + '">' + cells.join("") + "</tr>";
+        return '<tr data-ep="' + esc(ep) + '" class="' + sel.trim() + torn + '">' + cells.join("") + "</tr>";
       })
       .join("");
 
-    $$("#resultsBody tr").forEach((tr) =>
+    $$("#resultsBody tr").forEach((tr) => {
       tr.addEventListener("click", () => {
         S.selected = tr.getAttribute("data-ep");
         renderResults();
-      })
-    );
+      });
+      $$(".row-actions button", tr).forEach((b) =>
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const ep = tr.getAttribute("data-ep");
+          const act = b.getAttribute("data-act");
+          if (act === "copy") { copyText(ep, "Эндпоинт скопирован"); return; }
+          if (act === "cfg") {
+            S.cfg.endpoint = ep;
+            syncCfgInputsFromState();
+            switchTab("config");
+            toast("Эндпоинт подставлен в конфиг: " + ep, "ok");
+            return;
+          }
+          if (act === "socks") {
+            $("#socksEndpoint").value = ep;
+            $("#socksProto").value = S.viewProto || "awg";
+            switchTab("socks");
+            toast("Эндпоинт готов к проверке во вкладке SOCKS", "ok");
+          }
+        })
+      );
+    });
   }
 
   /* ───────── прогон скана ───────── */
@@ -502,8 +543,10 @@
       return;
     }
     S.results = parseReport(text, withP, withSpeed);
-    const firstOk = S.results.find((r) => !r.torn);
-    S.selected = firstOk ? firstOk.endpoint : "";
+    S.viewMeta = { withP, withSpeed };
+    S.viewProto = S.scan.proto;
+    S.selected = S.results.find((r) => !r.torn) ? S.results.find((r) => !r.torn).endpoint : "";
+    pushHistory(S.scan.proto);
     renderResults();
     fillEndpointSelect();
     switchSubtab("results");
@@ -638,6 +681,116 @@
     if (S.cfg.endpoint && S.results.some((r) => r.endpoint === S.cfg.endpoint && !r.torn)) {
       sel.value = S.cfg.endpoint;
     }
+  }
+
+  function pushHistory(proto) {
+    const working = S.results.filter((r) => !r.torn).length;
+    const torn = S.results.length - working;
+    const bits = [];
+    bits.push(S.scan.full ? "-f" : "-n " + (S.scan.sample || 5));
+    if (S.scan.exclNode && S.scan.exclNode.trim()) bits.push("-exclude-node " + safeVal(S.scan.exclNode));
+    if (S.scan.genI1) bits.push("-gen-i1 " + S.scan.genI1);
+    S.history.unshift({
+      ts: Date.now(),
+      proto,
+      label: bits.join(" "),
+      working,
+      torn,
+      withP: S.viewMeta.withP,
+      withSpeed: S.viewMeta.withSpeed,
+      results: S.results.map((r) => Object.assign({}, r)),
+    });
+    S.history = S.history.slice(0, 10);
+    renderHistoryBtn();
+  }
+
+  function renderHistoryBtn() {
+    const btn = $("#btnHistory");
+    if (!btn) return;
+    btn.textContent = "🕘 История" + (S.history.length ? " (" + S.history.length + ")" : "");
+  }
+
+  function toggleHistory(force) {
+    S.historyOpen = force != null ? force : !S.historyOpen;
+    const panel = $("#historyPanel");
+    panel.classList.toggle("hidden", !S.historyOpen);
+    if (!S.historyOpen) return;
+    if (!S.history.length) {
+      panel.innerHTML = '<div class="history__empty">История пуста — выполните первый скан.</div>';
+      return;
+    }
+    panel.innerHTML =
+      '<div class="history__head">Последние сканы (хранятся локально, до 10)</div>' +
+      S.history
+        .map(
+          (h, i) =>
+            '<button type="button" class="history__item" data-hi="' + i + '">' +
+              "<span class=\"history__ts\">" + fmtTime(h.ts) + "</span>" +
+              "<span class=\"history__proto\">" + esc(h.proto.toUpperCase()) + "</span>" +
+              "<span class=\"history__label\">" + esc(h.label) + "</span>" +
+              '<span class="history__cnt ' + (h.working ? "is-ok" : "is-err") + '">' +
+                h.working + " рабочих" + (h.torn ? " / " + h.torn + " разорвано" : "") +
+              "</span>" +
+            "</button>"
+        )
+        .join("");
+    $$(".history__item", panel).forEach((b) =>
+      b.addEventListener("click", () => loadHistory(+b.getAttribute("data-hi")))
+    );
+  }
+
+  function loadHistory(i) {
+    const h = S.history[i];
+    if (!h) return;
+    S.results = h.results.map((r) => Object.assign({}, r));
+    S.viewMeta = { withP: h.withP, withSpeed: h.withSpeed };
+    S.viewProto = h.proto;
+    S.sortByPing = false;
+    const firstOk = S.results.find((r) => !r.torn);
+    S.selected = firstOk ? firstOk.endpoint : "";
+    renderResults();
+    fillEndpointSelect();
+    switchSubtab("results");
+    toggleHistory(false);
+    toast("Загружен скан от " + fmtTime(h.ts) + " — " + h.working + " рабочих", "ok");
+  }
+
+  function exportCsv() {
+    if (!S.results.length) { toast("Нет результатов для экспорта", "err"); return; }
+    const { withP, withSpeed } = S.viewMeta;
+    const head = ["endpoint", "endpoint_ping", ...(withP ? ["tun_ping", "loss"] : []), ...(withSpeed ? ["speed"] : []), "seen_as", "node", "node_location", "torn"];
+    const escCell = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+    const lines = [head.join(",")];
+    for (const r of S.results) {
+      const cells = [
+        r.endpoint, r.ping,
+        ...(withP ? [r.tunPing, r.loss] : []),
+        ...(withSpeed ? [r.speed] : []),
+        r.seenAs, r.node, r.loc, r.torn ? "yes" : "no",
+      ];
+      lines.push(cells.map(escCell).join(","));
+    }
+    const csv = "\ufeff" + lines.join("\r\n") + "\r\n"; // BOM для Excel
+    const name = "warpscout-results-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + ".csv";
+    if (IS_MOCK) {
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+      toast("CSV скачан: " + name, "ok");
+      return;
+    }
+    os()
+      .showSaveDialog("Сохранить результаты CSV", { defaultPath: name })
+      .then(async (path) => {
+        if (!path) return;
+        await fs().writeFile(path, csv);
+        toast("CSV сохранён: " + path, "ok");
+      })
+      .catch((e) => toast("Ошибка экспорта: " + (e && e.message ? e.message : e), "err"));
   }
 
   function selectedRowInfo() {
@@ -1043,14 +1196,14 @@
     if (!HAS_NL) return;
     try {
       store()
-        .setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, foundCmd: S.foundCmd || "" }))
+        .setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, foundCmd: S.foundCmd || "", history: S.history.slice(0, 10) }))
         .catch(() => {});
     } catch (e) {}
   }, 400);
 
   window.addEventListener("beforeunload", () => {
     if (!HAS_NL) return;
-    try { store().setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, foundCmd: S.foundCmd || "" })); } catch (e) {}
+    try { store().setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, foundCmd: S.foundCmd || "", history: S.history.slice(0, 10) })); } catch (e) {}
   });
 
   /* ───────── проверка warpscout ───────── */
@@ -1121,6 +1274,7 @@
       if (st.scan) S.scan = Object.assign({}, DEFAULT_SCAN, st.scan);
       if (st.cfg) S.cfg = deepMerge(S.cfg, st.cfg);
       if (st.settings) S.settings = Object.assign({}, S.settings, st.settings);
+      if (Array.isArray(st.history)) S.history = st.history.slice(0, 10);
       S.foundCmd = st.foundCmd || "";
     } catch (e) {}
   }
@@ -1200,6 +1354,8 @@
     $("#btnStopScan").addEventListener("click", stopScan);
     $("#btnCopyCmd").addEventListener("click", () => copyText(buildScanCmd(S.scan), "Команда скопирована"));
     $("#btnSortPing").addEventListener("click", () => { S.sortByPing = !S.sortByPing; renderResults(); });
+    $("#btnHistory").addEventListener("click", () => toggleHistory());
+    $("#btnExportCsv").addEventListener("click", exportCsv);
     $("#btnToConfig").addEventListener("click", () => {
       const best = S.results.find((r) => !r.torn);
       if (!best) { toast("Сначала выполните скан", "err"); return; }
@@ -1379,6 +1535,14 @@
     renderResults();
     renderConf();
 
+    if (!S.results.length && S.history.length) {
+      // восстановим последнюю таблицу из истории, чтобы UI не был пустым
+      const h = S.history[0];
+      S.results = h.results.map((r) => Object.assign({}, r));
+      S.viewMeta = { withP: h.withP, withSpeed: h.withSpeed };
+      S.viewProto = h.proto;
+    }
+    renderHistoryBtn();
     await loadAccount();
     renderAccount();
     renderConf();

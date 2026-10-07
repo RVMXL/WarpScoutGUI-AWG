@@ -52,7 +52,7 @@
           <div class="statusline__row" id="stWs" title="">● warpscout: проверка…</div>
           <div class="statusline__row" id="stAcc">● аккаунт: проверка…</div>
         </div>
-        <div class="sidebar__ver">WARPSCOUT GUI v1.0.1 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v1.1.0 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -282,10 +282,13 @@
                   <button class="subtab" data-subtab="log" type="button">Лог</button>
                 </div>
                 <div class="card__tools">
-                  <button class="btn btn--ghost btn--sm" id="btnSortPing" type="button" title="Сортировать по пингу">↕ пинг</button>
+                  <button class="btn btn--ghost btn--sm" id="btnHistory" type="button" title="История сканов этого приложения">🕘 История</button>
+                  <button class="btn btn--ghost btn--sm" id="btnExportCsv" type="button" title="Сохранить таблицу в CSV">⬇ CSV</button>
+                  <button class="btn btn--ghost btn--sm" id="btnSortPing" type="button" title="Переключить: порядок отчёта / сортировка по TUN PING">↕ пинг</button>
                   <button class="btn btn--ghost btn--sm" id="btnToConfig" type="button" title="Лучший результат → генератор конфига">→ Конфиг</button>
                 </div>
               </div>
+              <div class="history hidden" id="historyPanel" aria-label="История сканов"></div>
               <div class="table-wrap" id="resultsWrap">
                 <table class="rtable" id="resultsTable">
                   <thead id="resultsHead"></thead>
