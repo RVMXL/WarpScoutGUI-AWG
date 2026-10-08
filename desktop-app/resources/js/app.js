@@ -4264,7 +4264,7 @@
   /* ───────── инициализация ───────── */
   async function computePaths() {
     if (IS_MOCK) {
-      S.paths.dataDir = "C:\\Users\\Demo\\AppData\\Local\\WARPScoutGUI";
+      S.paths.dataDir = "C:\\Users\\Demo\\AppData\\Roaming\\WARPScoutGUI"; // v2.1.0: как в реальном приложении (Roaming)
     } else {
       let dataDir = "";
       try { dataDir = await os().getPath("data"); } catch (e) { dataDir = ""; }
