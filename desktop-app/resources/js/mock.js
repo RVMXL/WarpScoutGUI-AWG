@@ -350,8 +350,7 @@
       },
       createDirectory() { return Promise.resolve(); },
       readDirectory() { return Promise.resolve([]); },
-      // v2.2.0: демо-заглушки для переноса данных и объединения папок
-      move() { return Promise.resolve(); },
+      // v2.2.0: демо-заглушки (v2.3.0: remove нужен repairUdfJunction в реальном приложении; в демо не вызывается)
       remove() { return Promise.resolve(); },
     },
     storage: {
@@ -385,10 +384,7 @@
   window.NL_PATH = "C:\\Users\\Demo\\Apps\\WARPScoutGUI";
   window.NL_CWD = window.NL_PATH;
   window.NL_OS = "Windows";
-  window.NL_APPVERSION = "1.0.0";
-  // v2.2.0: виртуальные папки для статуса «одна папка / два каталога»:
-  // в демо считаем, что веб-кэш лежит в %APPDATA%\WARPScoutGUI.exe\EBWebView (split)
-  window.NeutralinoMock.folders = {
-    "C:\\Users\\Demo\\AppData\\Roaming\\WARPScoutGUI.exe\\EBWebView": true,
-  };
+  window.NL_APPVERSION = "2.3.0";
+  // v2.3.0: демо показывает только статус «всё в одной папке» —
+  // виртуальные папки v2.2.0 больше не нужны
 })();

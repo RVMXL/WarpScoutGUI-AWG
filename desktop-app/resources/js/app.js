@@ -137,14 +137,13 @@
         keepaliveTo: "9-16", maxHs: "18-26", trailers: "on", noCookies: "on", hpk: "",
       },
     },
-    settings: { wsPath: "", dataRoot: "" }, // v2.2.0: dataRoot — своя папка данных (пусто = Roaming\WARPScoutGUI)
+    settings: { wsPath: "", dataRoot: "" }, // v2.3.0: dataRoot — своя папка данных (пусто = Roaming\WARPScoutGUI.exe)
     wsVersionOk: false,   // v2.2.0: последняя проверка warpscout успешна
     wsCheckedAt: 0,       // v2.2.0: время последней проверки (кэш 60 с)
     wsChecking: false,    // v2.2.0: проверка уже идёт
-    udfMode: "fresh",     // v2.2.0: consolidated | split | fresh — где лежит веб-кэш
     customPresets: [],   // {name, scan:{...}} — пользовательские пресеты
     compact: false,      // компактная таблица
-    paths: { dataDir: "", dataDirDefault: "", udfPath: "", exeName: "", accPath: "", reportsDir: "", wsPath: "" },
+    paths: { dataDir: "", dataDirDefault: "", legacyDataDir: "", udfPath: "", exeName: "", appDir: "", accPath: "", reportsDir: "", wsPath: "" },
     wsVersion: "",
     account: null,
     accountError: "", // v2.1.0: причина, почему файл аккаунта не принят ("parse" | "not-account")
@@ -783,38 +782,31 @@
     "Ошибка экспорта PNG: {err}": "PNG export error: {err}",
     "сканов с пингами": "scans with pings",
     /* — v1.8.0: лендинг — */
-    /* — v2.2.0: единая папка данных — */
+    /* — v2.2.0: единая папка данных — (v2.3.0: данные перенесены в папку «<имя exe>», объединение удалено) — */
     "Папка данных": "Data folder",
-    "Аккаунт, отчёты и (после объединения) веб-кэш движка — в одной папке. По умолчанию: %APPDATA%\\WARPScoutGUI. Можно выбрать любую другую — например, на другом диске.": "Account, reports and (after merging) the engine web cache live in one folder. Default: %APPDATA%\\WARPScoutGUI. You can pick any other folder — e.g. on another drive.",
+    "Аккаунт, отчёты и веб-кэш движка (EBWebView) — в одной папке: %APPDATA%\\WARPScoutGUI.exe. Она создаётся программой сама и всегда на месте. Можно выбрать и другую — например, на другом диске.": "Account, reports and the engine web cache (EBWebView) live in one folder: %APPDATA%\\WARPScoutGUI.exe. The app creates it itself, so it is always there. You can pick another folder — e.g. on another drive.",
     "📁 Выбрать…": "📁 Browse…",
     "📂 Открыть": "📂 Open",
     "↩ По умолчанию": "↩ Default",
-    "Веб-кэш движка (EBWebView)": "Engine web cache (EBWebView)",
-    "🧲 Объединить в одну папку": "🧲 Merge into one folder",
-    "Перенести веб-кэш в папку данных после закрытия приложения и поставить ссылку с имени «WARPScoutGUI.exe» на неё — физически останется одна папка": "Move the web cache into the data folder after the app closes and put a link named «WARPScoutGUI.exe» to it — physically one folder remains",
-    "Файл кладётся сюда (путь выше). Если warpscout-account.json лежит рядом с warpscout.exe в bin — кнопка «Проверить снова» подхватит его без перезапуска. Саму папку данных можно сменить в Настройках → «Папка данных».": "The file goes here (path above). If warpscout-account.json sits next to warpscout.exe in bin — the «Проверить снова» button picks it up without a restart. The data folder itself can be changed in Settings → «Data folder».",
-    "✓ всё в одной папке": "✓ everything in one folder",
-    "⚠ два каталога": "⚠ two folders",
-    "кэш ещё не создан": "cache not created yet",
-    "Веб-кэш и данные — в одной папке. Каталог «<имя exe>» — это ссылка (junction) на неё, физически каталог один.": "Web cache and data are in one folder. The «<exe name>» directory is a junction link to it — physically there is a single folder.",
-    "Веб-кэш лежит отдельно: {p}. Кнопка «Объединить» перенесёт его в папку данных после закрытия приложения и поставит ссылку — останется один каталог.": "The web cache sits separately: {p}. The «Merge» button moves it into the data folder after the app closes and puts a link — one folder remains.",
-    "Веб-кэш появится при первом запуске. Можно объединить заранее — тогда кэш сразу будет создаваться в папке данных.": "The web cache will appear on first run. You can merge in advance — then the cache is created inside the data folder from the start.",
+    "Статус": "Status",
+    "✓ аккаунт, отчёты и кэш — в одной папке": "✓ account, reports and cache — in one folder",
+    "⚠ своя папка данных": "⚠ custom data folder",
+    "Всё вместе — в одной папке: {u}. Она создаётся программой сама, поэтому всегда на месте.": "Everything together in one folder: {u}. The app creates it itself, so it is always there.",
+    "Данные (аккаунт, отчёты): {d}. Веб-кэш движка рантайм всегда держит в {u} — техническая папка останется рядом.": "Data (account, reports): {d}. The runtime always keeps the engine web cache in {u} — that technical folder will remain nearby.",
+    "Файл кладётся сюда (путь выше). Если warpscout-account.json лежит рядом с warpscout.exe в bin — кнопка «Проверить снова» подхватит его без перезапуска. Саму папку данных можно сменить в Настройках → «Папка данных».": "The file goes here (path above). If warpscout-account.json sits next to warpscout.exe in bin — the «Check again» button picks it up without a restart. The data folder itself can be changed in Settings → «Data folder».",
     "Пользовательская папка данных недоступна — вернулись к папке по умолчанию": "Custom data folder is unavailable — switched back to the default folder",
     "Сначала остановите скан/регистрацию/прокси — перенос данных посреди работы невозможен": "Stop the scan/registration/proxy first — data cannot be moved while running",
     "Сначала остановите скан/регистрацию/прокси": "Stop the scan/registration/proxy first",
     "Данные уже хранятся в этой папке": "Data is already stored in this folder",
     "Папка недоступна для записи — выберите другую": "Folder is not writable — pick another one",
-    "Веб-кэш остался в предыдущей папке — нажмите «Объединить», чтобы перенести и пере-направить ссылку.": "The web cache stayed in the previous folder — press «Merge» to move it and re-point the link.",
     "Папка данных изменена, перенесено файлов: {n} ({list})": "Data folder changed, moved {n} file(s): {list}",
     "Папка данных изменена": "Data folder changed",
     "Демо: путь к новой папке данных:": "Demo: path of the new data folder:",
     "Выберите папку для данных WARPSCOUT GUI": "Choose a folder for WARPSCOUT GUI data",
-    "Папки уже объединены": "Folders are already merged",
-    "Демо: папки объединены — в реальном приложении это делает PowerShell после закрытия": "Demo: folders merged — in the real app PowerShell does this after the app closes",
-    "Сейчас приложение закроется, веб-кэш перенесётся в папку данных ({r}), а имя «{e}» станет ссылкой на неё. Затем приложение откроется само (обычно 5–20 секунд). Продолжить?": "The app will now close, the web cache will move into the data folder ({r}), and the name «{e}» will become a link to it. Then the app reopens by itself (usually 5–20 seconds). Continue?",
-    "Объединяю папки — приложение сейчас закроется…": "Merging folders — the app will close now…",
-    "Не удалось запустить PowerShell: {err}": "Failed to run PowerShell: {err}",
-    "Найдены две папки данных. Настройки → «Папка данных» → «Объединить» — останется одна": "Two data folders found. Settings → «Data folder» → «Merge» — one folder remains",
+    /* — v2.3.0: разбор junction v2.2.0 и перенос данных из старой папки — */
+    "Не удалось снять ссылку «<имя exe>» — данные доступны, папка осталась ссылкой. Закройте приложение и удалите ссылку вручную (Проводник удаляет только ссылку), затем запустите снова.": "Could not remove the «<exe name>» link — data is accessible, the folder remained a link. Close the app and delete the link manually (Explorer removes only the link), then start the app again.",
+    "Ссылка «<имя exe>» разобрана: аккаунт и отчёты снова в обычной папке, рядом с кэшем движка": "The «<exe name>» link has been dismantled: account and reports are back in a regular folder, next to the engine cache",
+    "Данные перенесены рядом с кэшем движка ({n}): {list}": "Data moved next to the engine cache ({n}): {list}",
   };
 
   let LANG = "ru";
@@ -4042,10 +4034,12 @@
   async function adoptAccountFromPlaces() {
     if (!HAS_NL || IS_MOCK) return false;
     if (S.account || S.accountError) return false; // свой есть (или лежит битый) — не трогаем
-    const base = String(S.paths.dataDir || "").replace(/[\\/]WARPScoutGUI$/i, "");
+    const base = String(S.paths.dataDir || "").replace(/[\\/]WARPScoutGUI(\.exe)?$/i, "");
     const np = String(window.NL_PATH || "").replace(/[\\/]+$/, "");
     const exeDir = String(S.paths.wsPath || "").replace(/[\\/]warpscout(\.exe)?$/i, "").replace(/[\\/]+$/, "");
     const candidates = [];
+    const legacy = S.paths.legacyDataDir || ""; // v2.3.0: старая папка данных — первый кандидат
+    if (legacy && legacy.toLowerCase() !== String(S.paths.dataDir || "").toLowerCase()) candidates.push(legacy + "\\warpscout-account.json");
     if (np) candidates.push(np + "\\warpscout-account.json", np + "\\bin\\warpscout-account.json");
     if (exeDir && exeDir !== np && exeDir !== base) candidates.push(exeDir + "\\warpscout-account.json");
     if (base && base !== np) candidates.push(base + "\\warpscout-account.json");
@@ -4475,6 +4469,20 @@
     return m ? m[1] + ".exe" : "WARPScoutGUI.exe";
   }
 
+  // v2.3.0: папка приложения — по полному пути из NL_ARGS[0], а НЕ по window.NL_PATH.
+  // NL_PATH после перезапуска внешним скриптом (Start-Process из чужого рабочего
+  // каталога) может оказаться неверным — тогда приложение «не находит warpscout в
+  // своей папке». NL_ARGS[0] — фактический путь запущенного exe, от CWD не зависит.
+  function exeDirName() {
+    const a0 = window.NL_ARGS && window.NL_ARGS[0] ? String(window.NL_ARGS[0]) : "";
+    const i = Math.max(a0.lastIndexOf("\\"), a0.lastIndexOf("/"));
+    if (i > 0) {
+      const dir = a0.slice(0, i).replace(/[\\/]+$/, "");
+      if (/^[a-zA-Z]:[\\/]/.test(dir) || dir.startsWith("\\\\")) return dir; // только абсолютные пути
+    }
+    return window.NL_PATH ? String(window.NL_PATH).replace(/[\\/]+$/, "") : "";
+  }
+
   async function computePaths() {
     let base = "";
     if (IS_MOCK) {
@@ -4487,9 +4495,21 @@
     }
     S.paths.exeName = IS_MOCK ? "WARPScoutGUI.exe" : exeFileName();
     S.paths.udfPath = base + "\\" + S.paths.exeName; // каталог веб-кэша (жёстко задан рантаймом)
-    S.paths.dataDirDefault = base + "\\WARPScoutGUI";
+    // v2.3.0 — НАОБОРОТ (просьба пользователя): данные (аккаунт + отчёты) живут ВНУТРИ
+    // папки «<имя exe>», рядом с EBWebView. Эта папка создаётся рантаймом всегда и
+    // существует с первого запуска — «одна папка» достигается без junction/PowerShell.
+    S.paths.dataDirDefault = S.paths.udfPath;
+    S.paths.legacyDataDir = base + "\\WARPScoutGUI"; // v2.1–2.2: старая папка (для автопереноса)
     // v2.2.0: пользовательская папка данных (Настройки → «Папка данных»)
     let root = (S.settings.dataRoot || "").trim();
+    // v2.3.0: нормализация — старое умолчание и сама папка exe больше не считаются «своей папкой»
+    if (root) {
+      const rl = root.toLowerCase();
+      if (rl === (S.paths.legacyDataDir || "").toLowerCase() || rl === S.paths.udfPath.toLowerCase()) {
+        S.settings.dataRoot = "";
+        root = "";
+      }
+    }
     if (root && !IS_MOCK) {
       let ok = true;
       try { await ensureDir(root); } catch (e) { ok = false; }
@@ -4503,7 +4523,10 @@
     S.paths.dataDir = root || S.paths.dataDirDefault;
     S.paths.accPath = S.paths.dataDir + "\\warpscout-account.json";
     S.paths.reportsDir = S.paths.dataDir + "\\reports";
-    S.paths.wsPath = S.settings.wsPath || (window.NL_PATH ? window.NL_PATH + "\\bin\\warpscout.exe" : "bin\\warpscout.exe");
+    // v2.3.0: warpscout ищем в папке ПРИЛОЖЕНИЯ (bin рядом с WARPScoutGUI.exe), база —
+    // exeDirName() (из NL_ARGS[0]); NL_PATH остался только запасным вариантом.
+    S.paths.appDir = IS_MOCK ? String(window.NL_PATH || "") : exeDirName();
+    S.paths.wsPath = S.settings.wsPath || (S.paths.appDir ? S.paths.appDir + "\\bin\\warpscout.exe" : (window.NL_PATH ? window.NL_PATH + "\\bin\\warpscout.exe" : "bin\\warpscout.exe"));
     // v2.1.0: папка данных существует с первого запуска — иначе warpscout не сможет
     // сохранить аккаунт (не создаёт родительские каталоги), а «Открыть папку» падал
     await ensureDir(S.paths.dataDir);
@@ -4518,56 +4541,26 @@
       .forEach(([sel, p]) => { const b = $(sel); if (b) b.title = p; });
   }
 
-  /* ───────── v2.2.0: единая папка данных ───────── */
-  // Рантайм Neutralino жёстко кладёт веб-кэш (EBWebView) в %APPDATA%\<имя exe>,
-  // а наши данные (аккаунт, отчёты) живут в %APPDATA%\WARPScoutGUI — пользователь
-  // видит два похожих каталога. Решение: папка данных настраивается (Настройки),
-  // а веб-кэш переносится в неё junction-ссылкой: после закрытия приложения
-  // PowerShell переносит EBWebView, удаляет каталог «<имя exe>» и ставит на его
-  // место ссылку на папку данных — движок пишет кэш туда же, физически папка одна.
+  /* ───────── v2.3.0: одна папка данных — внутри «<имя exe>», рядом с EBWebView ───────── */
+  // Рантайм Neutralino жёстко создаёт веб-кэш (EBWebView) в %APPDATA%\<имя exe>.
+  // v2.3.0 (просьба пользователя): данные (аккаунт, отчёты) теперь живут РЯДОМ с ним —
+  // внутри той же папки. Junction-объединение v2.2.0 удалено как ненадёжное; для тех,
+  // кто успел объединить, есть repairUdfJunction() ниже.
 
-  async function dirExists(p) {
-    if (!p) return false;
-    if (IS_MOCK) {
-      const m = window.NeutralinoMock;
-      return !!(m && m.folders && m.folders[p]);
-    }
-    try { const items = await fs().readDirectory(p); return Array.isArray(items); } catch (e) { return false; }
-  }
-
-  // где физически лежит EBWebView: в папке данных (consolidated), в каталоге «*.exe» (split) или нигде (fresh)
-  async function udfStatus() {
-    if (await dirExists(S.paths.dataDir + "\\EBWebView")) return "consolidated";
-    if (await dirExists(S.paths.udfPath + "\\EBWebView")) return "split";
-    return "fresh";
-  }
-
-  function udfStatusText(mode) {
-    if (mode === "consolidated") return { txt: "✓ всё в одной папке", cls: "is-ok" };
-    if (mode === "split") return { txt: "⚠ два каталога", cls: "is-warn" };
-    return { txt: "кэш ещё не создан", cls: "" };
-  }
-
+  // ─── v2.3.0: статус папки данных — одна папка, без junction/объединений ───
   async function renderDataFolder() {
     const el = $("#udfState");
-    if (!el) return "fresh";
-    const st = await udfStatus();
-    const s = udfStatusText(st);
-    el.textContent = t(s.txt);
-    el.className = s.cls;
-    const btn = $("#btnUdfMerge");
-    if (btn) btn.hidden = st === "consolidated";
+    if (!el) return "default";
+    const custom = !!String(S.settings.dataRoot || "").trim();
+    el.textContent = custom ? t("⚠ своя папка данных") : t("✓ аккаунт, отчёты и кэш — в одной папке");
+    el.className = custom ? "is-warn" : "is-ok";
     const hint = $("#dataRootHint");
     if (hint) {
-      hint.textContent =
-        st === "consolidated"
-          ? t("Веб-кэш и данные — в одной папке. Каталог «<имя exe>» — это ссылка (junction) на неё, физически каталог один.")
-          : st === "split"
-          ? tF("Веб-кэш лежит отдельно: {p}. Кнопка «Объединить» перенесёт его в папку данных после закрытия приложения и поставит ссылку — останется один каталог.", { p: S.paths.udfPath })
-          : t("Веб-кэш появится при первом запуске. Можно объединить заранее — тогда кэш сразу будет создаваться в папке данных.");
+      hint.textContent = custom
+        ? tF("Данные (аккаунт, отчёты): {d}. Веб-кэш движка рантайм всегда держит в {u} — техническая папка останется рядом.", { d: S.paths.dataDir, u: S.paths.udfPath })
+        : tF("Всё вместе — в одной папке: {u}. Она создаётся программой сама, поэтому всегда на месте.", { u: S.paths.udfPath });
     }
-    S.udfMode = st;
-    return st;
+    return custom ? "custom" : "default";
   }
 
   // перенос данных (аккаунт + отчёты) между корнями при смене папки данных.
@@ -4630,11 +4623,10 @@
     await loadAccount();
     renderAccount();
     renderDataFolder().catch(() => {});
-    const oldRootNote = S.udfMode === "consolidated" ? " " + t("Веб-кэш остался в предыдущей папке — нажмите «Объединить», чтобы перенести и пере-направить ссылку.") : "";
     toast(
       moved.length
-        ? tF("Папка данных изменена, перенесено файлов: {n} ({list})", { n: moved.length, list: moved.slice(0, 3).join(", ") + (moved.length > 3 ? "…" : "") }) + oldRootNote
-        : t("Папка данных изменена") + oldRootNote,
+        ? tF("Папка данных изменена, перенесено файлов: {n} ({list})", { n: moved.length, list: moved.slice(0, 3).join(", ") + (moved.length > 3 ? "…" : "") })
+        : t("Папка данных изменена"),
       "ok"
     );
   }
@@ -4653,131 +4645,152 @@
     await applyDataRoot(String(p).replace(/[\\/]+$/, ""));
   }
 
-  function psq(s) {
-    return "'" + String(s).replace(/'/g, "''") + "'";
-  } // кавычки для строк PowerShell
+  /* ───────── v2.3.0: порядок в папках — данные рядом с кэшем, без junction ───────── */
+  // Данные (аккаунт + отчёты) теперь живут ВНУТРИ %APPDATA%\<имя exe>, рядом с EBWebView:
+  // рантайм создаёт эту папку всегда, так что «одна папка» достигается сама, без ссылок,
+  // PowerShell и объединений (v2.2.0 «Объединить» работало ненадёжно и больше не нужно).
+  // Здесь только ПРИБИРАЕМ за v2.2.0:
+  //   • repairUdfJunction() — если «Объединить» успели нажать и в Roaming осталась
+  //     junction «<имя exe>» → снимаем ссылку, возвращаем настоящую папку, переносим данные;
+  //   • migrateLegacyData() — если данные остались в старой папке %APPDATA%\WARPScoutGUI —
+  //     переносим их рядом с кэшем и убираем опустевшую старую папку.
 
-  function psEncode(cmd) {
-    const bytes = new Uint8Array(cmd.length * 2);
-    for (let i = 0; i < cmd.length; i++) {
-      const c = cmd.charCodeAt(i);
-      bytes[2 * i] = c & 255;
-      bytes[2 * i + 1] = c >> 8;
-    }
-    let bin = "";
-    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-    return btoa(bin); // UTF-16LE → base64: -EncodedCommand не зависит от кавычек и кодировки
-  }
-
-  function buildMergeScript(o) {
-    // o: { udf, root, exe, pid, exeName }
-    return [
-      "$ErrorActionPreference = 'Stop'",
-      "$udf  = " + psq(o.udf),
-      "$root = " + psq(o.root),
-      "$exe  = " + psq(o.exe),
-      "$exeName = " + psq(o.exeName),
-      "$pid0 = " + (o.pid || 0),
-      "$log  = Join-Path $root 'merge-folders-log.txt'",
-      "function Log($m){ try{ \"$m\" | Out-File -LiteralPath $log -Append -Encoding utf8 }catch{} }",
-      "Log \"[$(Get-Date -Format s)] merge: start\"",
-      "try {",
-      "  if ($pid0 -gt 0) { try { Wait-Process -Id $pid0 -Timeout 60 -ErrorAction SilentlyContinue } catch {} }",
-      "  else { try { Wait-Process -Name ($exeName -replace '\\.exe$','') -Timeout 60 -ErrorAction SilentlyContinue } catch {} }",
-      "  Start-Sleep -Seconds 2",
-      "  New-Item -ItemType Directory -Path $root -Force | Out-Null",
-      "  $item = Get-Item -LiteralPath $udf -Force -ErrorAction SilentlyContinue",
-      "  $isLink = $false",
-      "  if ($item) { $isLink = ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 }",
-      "  if ($isLink) {",
-      "    $tgt = ''",
-      "    try { $tgt = [String](Get-Item -LiteralPath $udf -Force).Target } catch {}",
-      "    Log \"old junction -> $tgt\"",
-      "    if ($tgt -and ($tgt -ne $root)) {",
-      "      $eb = Join-Path $tgt 'EBWebView'",
-      "      if (Test-Path -LiteralPath $eb) {",
-      "        $dest = Join-Path $root 'EBWebView'",
-      "        if (Test-Path -LiteralPath $dest) { Rename-Item -LiteralPath $dest -NewName ('EBWebView_old_' + (Get-Date -Format 'yyyyMMdd_HHmmss')) -Force -ErrorAction SilentlyContinue }",
-      "        robocopy \"$eb\" \"$dest\" /E /MOVE /R:1 /W:1 /NFL /NDL /NJH /NJS | Out-Null",
-      "        Log 'EBWebView moved from old target'",
-      "      }",
-      "      $left = @(Get-ChildItem -LiteralPath $tgt -Force -ErrorAction SilentlyContinue)",
-      "      if ($left.Count -eq 0) { Remove-Item -LiteralPath $tgt -Force -ErrorAction SilentlyContinue; Log 'old target removed (empty)' }",
-      "    }",
-      "    cmd /c rmdir \"$udf\" | Out-Null",
-      "  } elseif (Test-Path -LiteralPath $udf) {",
-      "    Log 'real dir: moving children into root'",
-      "    Get-ChildItem -LiteralPath $udf -Force | ForEach-Object {",
-      "      $dest = Join-Path $root $_.Name",
-      "      if (Test-Path -LiteralPath $dest) {",
-      "        if ($_.PSIsContainer) { robocopy \"$($_.FullName)\" \"$dest\" /E /MOVE /R:1 /W:1 /NFL /NDL /NJH /NJS | Out-Null }",
-      "        else { Copy-Item -LiteralPath $_.FullName -Destination $dest -Force; Remove-Item -LiteralPath $_.FullName -Force }",
-      "      } else { Move-Item -LiteralPath $_.FullName -Destination $dest -Force }",
-      "    }",
-      "    Start-Sleep -Milliseconds 500",
-      "    Remove-Item -LiteralPath $udf -Recurse -Force -ErrorAction SilentlyContinue",
-      "  }",
-      "  $ok = $false",
-      "  foreach ($i in 1..3) {",
-      "    if (Test-Path -LiteralPath $udf) { Start-Sleep -Seconds 2 }",
-      "    try { New-Item -ItemType Junction -Path $udf -Target $root -ErrorAction Stop | Out-Null; $ok = $true; break }",
-      "    catch { Log \"junction attempt $i failed: $_\" }",
-      "  }",
-      "  if ($ok) { Log 'junction created' } else { Log 'junction FAILED' }",
-      "} catch {",
-      "  Log (\"ERROR: \" + $_)",
-      "}",
-      "if ($exe -and (Test-Path -LiteralPath $exe)) { Start-Process -FilePath $exe | Out-Null }",
-      "Log \"[$(Get-Date -Format s)] done\"",
-    ].join("\r\n");
-  }
-
-  async function appPid() {
+  // Является ли каталог «<имя exe>» junction-ссылкой v2.2.0. Без PowerShell: пишем
+  // маркер в ссылку и ищем его в известных целях (старая папка данных / своя папка).
+  // Возвращает "" (настоящая папка), "broken" (битая ссылка) или путь цели ссылки.
+  async function detectUdfJunction() {
+    const udf = S.paths.udfPath;
+    if (!udf) return "";
+    const targets = [];
+    if (S.paths.legacyDataDir) targets.push(S.paths.legacyDataDir);
+    const custom = String(S.settings.dataRoot || "").trim();
+    if (custom && targets.indexOf(custom) === -1) targets.push(custom);
+    if (!targets.length) return "";
+    const probe = ".wsghui-probe-" + Date.now();
     try {
-      const r = await window.Neutralino.app.getProcessId();
-      return typeof r === "number" ? r : 0;
-    } catch (e) { return 0; }
-  }
-
-  async function consolidateFolders() {
-    if (await anyProcRunning()) {
-      toast(t("Сначала остановите скан/регистрацию/прокси"), "err");
-      return;
-    }
-    const st = await udfStatus();
-    if (st === "consolidated") { toast(t("Папки уже объединены"), "ok"); return; }
-    if (IS_MOCK) {
-      // демо: имитируем результат объединения (реальный перенос — только в приложении)
-      const m = window.NeutralinoMock;
-      if (m && m.folders) {
-        delete m.folders[S.paths.udfPath + "\\EBWebView"];
-        m.folders[S.paths.dataDir + "\\EBWebView"] = true;
-      }
-      S.settings.udfMergedDemo = true;
-      await persist();
-      renderDataFolder().catch(() => {});
-      toast(t("Демо: папки объединены — в реальном приложении это делает PowerShell после закрытия"), "ok");
-      return;
-    }
-    const ok = confirm(
-      tF("Сейчас приложение закроется, веб-кэш перенесётся в папку данных ({r}), а имя «{e}» станет ссылкой на неё. Затем приложение откроется само (обычно 5–20 секунд). Продолжить?", { r: S.paths.dataDir, e: S.paths.exeName })
-    );
-    if (!ok) return;
-    toast(t("Объединяю папки — приложение сейчас закроется…"), "info");
-    const script = buildMergeScript({
-      udf: S.paths.udfPath,
-      root: S.paths.dataDir,
-      exe: (window.NL_PATH ? window.NL_PATH + "\\" : "") + S.paths.exeName,
-      exeName: S.paths.exeName,
-      pid: await appPid(),
-    });
-    try {
-      await os().spawnProcess("powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand " + psEncode(script));
+      await fs().writeFile(udf + "\\" + probe, "probe");
     } catch (e) {
-      toast(tF("Не удалось запустить PowerShell: {err}", { err: e && e.message ? e.message : e }), "err");
+      // запись не прошла: либо битая ссылка, либо реальная папка без прав записи
+      try { await fs().readDirectory(udf); return ""; } catch (e2) { return "broken"; }
+    }
+    let hit = "";
+    for (const tgt of targets) {
+      try {
+        await fs().readFile(tgt + "\\" + probe);
+        hit = tgt;
+        break;
+      } catch (e) { /* не эта цель */ }
+    }
+    try { await fs().remove(udf + "\\" + probe); } catch (e) {}
+    return hit;
+  }
+
+  // Аккуратная уборка старой папки: тяжёлый кэш EBWebView удаляем фоновым процессом
+  // (spawnProcess не блокирует очередь нативных вызовов — урок «30 секунд»), саму папку
+  // снимаем только когда она опустеет. Трогаем ТОЛЬКО известные нам каталоги.
+  function cleanupOldFolder(target) {
+    if (!target || IS_MOCK || !HAS_NL) return;
+    const t0 = String(target).replace(/[\\/]+$/, "").toLowerCase();
+    if (t0 === String(S.paths.dataDir || "").toLowerCase()) return; // текущую папку не трогаем
+    const known = [];
+    if (S.paths.legacyDataDir) known.push(S.paths.legacyDataDir.toLowerCase());
+    const custom = String(S.settings.dataRoot || "").trim().toLowerCase();
+    if (custom) known.push(custom);
+    if (known.indexOf(t0) === -1) return; // чужая папка (например, выбранная пользователем на другом диске) — не трогаем
+    const eb = target + "\\EBWebView";
+    // ping — как пауза: за ~25 с приложение закроется/движок отпустит файлы кэша
+    try { os().spawnProcess('cmd /c ping -n 26 127.0.0.1 > nul & rmdir /s /q "' + eb + '" & rmdir "' + target + '"').catch(() => {}); } catch (e) {}
+  }
+
+  // v2.2.0 могла оставить junction «<имя exe>» → старая папка данных. Разбираем:
+  // читаем данные сквозь ссылку, снимаем её (cmd rmdir на ссылке трогает только ссылку),
+  // создаём настоящую папку и возвращаем данные в неё — рядом с новым кэшем движка.
+  async function repairUdfJunction() {
+    if (IS_MOCK || !HAS_NL) return;
+    const udf = S.paths.udfPath;
+    if (!udf) return;
+    let det = "";
+    try { det = await detectUdfJunction(); } catch (e) { det = ""; }
+    if (det === "") return; // настоящая папка — порядок и так в порядке
+    if (det === "broken") {
+      // битая ссылка: снимаем и оставляем рантайму создать настоящую папку
+      try { await os().execCommand('cmd /c rmdir "' + udf + '"'); } catch (e) {}
+      try { await ensureDir(udf); } catch (e) {}
       return;
     }
-    setTimeout(() => { try { window.Neutralino.app.exit(); } catch (e) {} }, 1200);
+    // v2.2.0-ссылка: сперва спасаем данные (аккаунт + отчёты) сквозь ссылку
+    let accText = "";
+    try { accText = await fs().readFile(udf + "\\warpscout-account.json"); } catch (e) { accText = ""; }
+    const savedReports = [];
+    try {
+      const items = await fs().readDirectory(udf + "\\reports");
+      if (Array.isArray(items)) {
+        for (const it of items) {
+          if (String(it.type || "").toUpperCase() === "DIRECTORY") continue;
+          const name = String(it.path || "").split(/[\\/]/).pop();
+          if (!name) continue;
+          try { savedReports.push({ name: name, text: await fs().readFile(it.path) }); } catch (e) {}
+        }
+      }
+    } catch (e) { /* отчётов нет */ }
+    try { await os().execCommand('cmd /c rmdir "' + udf + '"'); } catch (e) {}
+    let okDir = true;
+    try { await ensureDir(udf); } catch (e) { okDir = false; }
+    if (!okDir) {
+      toast(t("Не удалось снять ссылку «<имя exe>» — данные доступны, папка осталась ссылкой. Закройте приложение и удалите ссылку вручную (Проводник удаляет только ссылку), затем запустите снова."), "err");
+      return;
+    }
+    if (accText) { try { await fs().writeFile(udf + "\\warpscout-account.json", accText); } catch (e) {} }
+    try {
+      await ensureDir(udf + "\\reports");
+      for (const r of savedReports) { try { await fs().writeFile(udf + "\\reports\\" + r.name, r.text); } catch (e) {} }
+    } catch (e) {}
+    cleanupOldFolder(det);
+    toast(t("Ссылка «<имя exe>» разобрана: аккаунт и отчёты снова в обычной папке, рядом с кэшем движка"), "ok");
+  }
+
+  // v2.3.0: автоперенос аккаунта/отчётов из старой папки v2.1–2.2 (%APPDATA%\WARPScoutGUI)
+  // в новую (рядом с EBWebView). Аккаунт переносим только валидный, отчёты — все.
+  async function migrateLegacyData() {
+    if (IS_MOCK || !HAS_NL) return;
+    const dst = S.paths.dataDir;
+    const src = S.paths.legacyDataDir;
+    if (!src || src.toLowerCase() === String(dst).toLowerCase()) return;
+    let haveAcc = false;
+    try { await fs().readFile(dst + "\\warpscout-account.json"); haveAcc = true; } catch (e) {}
+    const copied = [];
+    if (!haveAcc) {
+      try {
+        const txt = await fs().readFile(src + "\\warpscout-account.json");
+        const r = accountFromText(txt); // битый файл не тащим
+        if (!r.error) {
+          await fs().writeFile(dst + "\\warpscout-account.json", txt);
+          copied.push("warpscout-account.json");
+        }
+      } catch (e) { /* аккаунта в старой папке нет */ }
+    }
+    try {
+      const items = await fs().readDirectory(src + "\\reports");
+      if (Array.isArray(items) && items.length) {
+        await ensureDir(dst + "\\reports");
+        for (const it of items) {
+          if (String(it.type || "").toUpperCase() === "DIRECTORY") continue;
+          const name = String(it.path || "").split(/[\\/]/).pop();
+          if (!name) continue;
+          try {
+            const txt2 = await fs().readFile(it.path);
+            await fs().writeFile(dst + "\\reports\\" + name, txt2);
+            try { await fs().remove(it.path); } catch (e) {}
+            copied.push("reports/" + name);
+          } catch (e) { /* один файл не читается — переносим остальные */ }
+        }
+      }
+    } catch (e) { /* папки отчётов нет */ }
+    if (copied.length) {
+      toast(tF("Данные перенесены рядом с кэшем движка ({n}): {list}", { n: copied.length, list: copied.slice(0, 3).join(", ") + (copied.length > 3 ? "…" : "") }), "ok");
+      cleanupOldFolder(src); // старая папка опустеет и уберётся фоном
+    }
+    return copied;
   }
 
   async function restoreState() {
@@ -4995,7 +5008,7 @@
       if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
       os().open(S.paths.dataDir).catch(() => toast(t("Не удалось открыть папку"), "err"));
     });
-    // v2.2.0: папка данных (Настройки)
+    // v2.2.0: папка данных (Настройки) — v2.3.0: кнопки выбрать/открыть/по умолчанию
     const bPick = $("#btnDataRootPick");
     if (bPick) bPick.addEventListener("click", pickDataRoot);
     const bReset = $("#btnDataRootReset");
@@ -5005,8 +5018,6 @@
       if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
       os().open(S.paths.dataDir).catch(() => toast(t("Не удалось открыть папку"), "err"));
     });
-    const bMerge = $("#btnUdfMerge");
-    if (bMerge) bMerge.addEventListener("click", consolidateFolders);
     // v2.1.1: перепроверка / копирование пути / помощь при «коде -1»
     $("#btnAccRecheck").addEventListener("click", async () => {
       const has = await recheckAccount();
@@ -5190,6 +5201,8 @@
     applyCompact();
     renderCustomPresets();
     await computePaths();
+    // v2.3.0: разбираем junction v2.2.0 (если «Объединить» нажимали) ДО чтения аккаунта
+    await repairUdfJunction().catch(() => {});
     syncInputsFromState();
     syncCfgInputsFromState();
     $("#presetHint").innerHTML = t(PRESETS.default.hint);
@@ -5211,8 +5224,9 @@
     renderHistoryBtn();
     await loadAccount();
     renderAccount();
+    migrateLegacyData().catch(() => {}); // v2.3.0: перенос аккаунта/отчётов из старой папки v2.1–2.2
     adoptAccountFromPlaces().catch(() => {}); // v2.1.0: автоподхват готового аккаунта
-    renderDataFolder().catch(() => {}); // v2.2.0: статус «одна папка / два каталога»
+    renderDataFolder().catch(() => {}); // v2.3.0: статус «всё в одной папке»
     renderConf();
     if (IS_MOCK) {
       S.wsVersion = "0.16.0"; // демо: считаем warpscout найденным
@@ -5221,18 +5235,10 @@
       checkWarpscout();
     }
     renderAccountStatusline();
-    // v2.2.0: мягкое одноразовое предложение объединить папки (если веб-кэш отдельно)
-    renderDataFolder().then((st) => {
-      if (st === "split" && S.settings.udfToastFor !== "2.2.0") {
-        S.settings.udfToastFor = "2.2.0";
-        persist();
-        toast(t("Найдены две папки данных. Настройки → «Папка данных» → «Объединить» — останется одна"), "info");
-      }
-    }).catch(() => {});
   }
 
   // отладочный хук (безвредно): помогает диагностике через консоль
-  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, validateAccountJson, udfStatus, renderDataFolder, consolidateFolders, applyDataRoot, buildMergeScript, psEncode };
+  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, validateAccountJson, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {

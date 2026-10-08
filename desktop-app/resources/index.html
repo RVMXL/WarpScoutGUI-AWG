@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=22v0" />
+  <link rel="stylesheet" href="css/app.css?v=23v0" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -54,7 +54,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светлую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v2.2.0 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v2.3.0 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -510,7 +510,7 @@
               <button class="btn btn--ghost" id="btnAccCopyPath" type="button">📋 Скопировать путь</button>
               <input type="file" id="importAccFile" accept=".json,.txt,application/json,text/plain" class="hidden" aria-hidden="true" tabindex="-1" />
             </div>
-            <p class="hint">Файл кладётся сюда (путь выше). Если warpscout-account.json лежит рядом с warpscout.exe в bin — кнопка «Проверить снова» подхватит его без перезапуска. Саму папку данных можно сменить в Настройках → «Папка данных».</p>
+            <p class="hint">Файл кладётся сюда (путь выше). Если warpscout-account.json лежит рядом с warpscout.exe в bin — кнопка «Проверить снова» подхватит его без перезапуска. По умолчанию файл хранится в %APPDATA%\WARPScoutGUI.exe (вместе с отчётами и кэшем движка); папку можно сменить в Настройках → «Папка данных».</p>
             <p class="hint">«Обновить ключи» меняет ключи, не создавая новое устройство. «Новый аккаунт» регистрирует устройство с нуля. Готовый аккаунт из другой установки: «Импорт файла аккаунта» сам проверит JSON (нужны ключи private_key и peer_public_key) и сохранит его в папку выше с нужным именем.</p>
           </div>
           <div class="card card--results">
@@ -658,7 +658,7 @@
           </div>
           <div class="card">
             <div class="card__head"><h2>Папка данных</h2></div>
-            <p class="hint">Аккаунт, отчёты и (после объединения) веб-кэш движка — в одной папке. По умолчанию: %APPDATA%\WARPScoutGUI. Можно выбрать любую другую — например, на другом диске.</p>
+            <p class="hint">Аккаунт, отчёты и веб-кэш движка (EBWebView) — в одной папке: %APPDATA%\WARPScoutGUI.exe. Она создаётся программой сама и всегда на месте — никаких ссылок и объединений. Можно выбрать и другую папку — например, на другом диске.</p>
             <div class="form-grid">
               <label class="field field--wide">
                 <span class="field__label">Папка данных</span>
@@ -670,10 +670,9 @@
                 </div>
               </label>
               <div class="field field--wide">
-                <span class="field__label">Веб-кэш движка (EBWebView)</span>
+                <span class="field__label">Статус</span>
                 <div style="display:flex; gap:8px; align-items:center">
                   <b id="udfState">…</b>
-                  <button class="btn btn--ghost" id="btnUdfMerge" type="button" title="Перенести веб-кэш в папку данных после закрытия приложения и поставить ссылку с имени «WARPScoutGUI.exe» на неё — физически останется одна папка">🧲 Объединить в одну папку</button>
                 </div>
                 <div class="hint" id="dataRootHint">…</div>
               </div>
@@ -808,8 +807,8 @@
   </datalist>
 
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js?v=22v0"></script>
-  <script src="js/qrcode.js?v=22v0"></script>
-  <script src="js/app.js?v=22v0"></script>
+  <script src="js/mock.js?v=23v0"></script>
+  <script src="js/qrcode.js?v=23v0"></script>
+  <script src="js/app.js?v=23v0"></script>
 </body>
 </html>
