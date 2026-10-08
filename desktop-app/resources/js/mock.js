@@ -303,7 +303,19 @@
         });
       },
       spawnProcess(cmd) {
-        return streamProcess(cmd, scripts.socks(cmd));
+        // v2.4.2 FIX: реальное приложение перешло с execCommand{stream} на spawnProcess —
+        // мок обязан диспетчить по команде так же, как execCommand, иначе демо-скан/
+        // регистрация/инструменты получали бы socks-сценарий.
+        const key = cmd.trim().split(/\s+/).slice(0, 2).join(" ").replace(/\.exe$/i, "").toLowerCase();
+        let script;
+        if (key.includes("scan")) script = scripts.scan(cmd);
+        else if (key.includes("register")) script = scripts.register(cmd);
+        else if (key.includes("find-junk")) script = scripts["find-junk"](cmd);
+        else if (key.includes("find-sni")) script = scripts["find-sni"](cmd);
+        else if (key.includes("socks")) script = scripts.socks(cmd);
+        else if (key.includes("version")) script = scripts.version(cmd);
+        else script = [{ delay: 100, data: "(демо: команда не поддержана в превью)\r\n" }, { delay: 50, type: "exit", data: "0" }];
+        return streamProcess(cmd, script);
       },
       killProcess(id) {
         if (processes[id]) {
@@ -384,7 +396,7 @@
   window.NL_PATH = "C:\\Users\\Demo\\Apps\\WARPScoutGUI";
   window.NL_CWD = window.NL_PATH;
   window.NL_OS = "Windows";
-  window.NL_APPVERSION = "2.4.1";
+  window.NL_APPVERSION = "2.4.2";
   // v2.3.0: демо показывает только статус «всё в одной папке» —
   // виртуальные папки v2.2.0 больше не нужны
 })();

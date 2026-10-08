@@ -1019,7 +1019,8 @@
     if (!target) { toast(t("Папка не определена — укажите путь и повторите"), "err"); return; }
     const there = await dirThere(target) || await wsFileExists(target);
     if (!there) { toast(tF("Папки нет на диске: {p}", { p: target }), "err"); return; }
-    try { os().open(target); } catch (e) {}
+    // v2.4.2 FIX: os.open возвращает промис — без .catch отказ терялся молча
+    try { Promise.resolve(os().open(target)).catch(() => {}); } catch (e) {}
     toast(tF("Папка открыта: {p}", { p: target }), "ok");
   }
 
@@ -1135,10 +1136,23 @@
 
   function bindProcEvents() {
     window.Neutralino.events.on("spawnedProcess", (evt) => {
-      const d = evt.detail || evt;
+      const raw = evt.detail || evt;
+      // v2.4.2 FIX (проверено живым тестом рантайма 6.10.0): реальная форма события —
+      // {action:"stdOut"|"stdErr"|"exit", data, id}. Раньше код читал d.type — такого
+      // поля НЕ существует, поэтому checkWarpscout (v2.2.0+) никогда не получал вывод
+      // и exit-код: версия warpscout не определялась, регистрация отбивала «exe не найден»
+      // при рабочем exe, а Stop-кнопки молчали (в 2.1.1 работало — там был execCommand
+      // с чтением stdOut из результата). Мок присылает type — принимаем ОБЕ формы.
+      const act = String(raw.action != null ? raw.action : raw.type || "").toLowerCase();
+      const d = {
+        id: raw.id,
+        type: act === "stdout" ? "stdout" : act === "stderr" ? "stderr" : act === "exit" ? "exit" : act,
+        data: raw.data,
+        synthetic: raw.synthetic
+      };
       const h = procRegistry[d.id];
       if (h) h(d);
-      else backlogPush(d.id, d);
+      else if (d.id != null) backlogPush(d.id, d);
     });
     // страховка: если exit-событие потеряно — раз в 5 сек сверяемся со списком живых процессов
     setInterval(async () => {
@@ -1736,7 +1750,11 @@
     updateCmdPreview();
     S.scanStopped = false;
     try {
-      const proc = await os().execCommand(cmd, { stream: true });
+      // v2.4.2 FIX: у os.execCommand в Neutralino 6.10 НЕТ стриминга (опции stream
+      // не существует, событий spawnedProcess он не шлёт, поля id в ответе нет) —
+      // ответ приходит одним куском ПОСЛЕ завершения. spawnProcess даёт живой
+      // стриминг, реальный id для Stop-кнопок и настоящий exit-код.
+      const proc = await os().spawnProcess(cmd);
       S.procIds.scan = proc.id;
       let buf = "";
       registerProc(proc.id, (d) => {
@@ -3496,7 +3514,8 @@
     qcLogData("$ " + built.cmd + "\r\n");
     S.qcBuf = "";
     try {
-      const proc = await os().execCommand(built.cmd, { stream: true });
+      // v2.4.2 FIX: execCommand в 6.10 не стримит и не даёт id — см. комментарий в runScan
+      const proc = await os().spawnProcess(built.cmd);
       S.procIds.check = proc.id;
       registerProc(proc.id, (d) => {
         if (d.type === "stdout" || d.type === "stderr") {
@@ -4000,7 +4019,8 @@
     // новый» от «старый так и лежит» при ненулевом коде выхода
     const preId = S.account && S.account.id ? String(S.account.id) : "";
     try {
-      const proc = await os().execCommand(cmd, { stream: true });
+      // v2.4.2 FIX: execCommand в 6.10 не стримит и не даёт id — см. комментарий в runScan
+      const proc = await os().spawnProcess(cmd);
       S.procIds.register = proc.id;
       registerProc(proc.id, (d) => {
         if (d.type === "stdout" || d.type === "stderr") {
@@ -4255,7 +4275,8 @@
     }
     appendLog(log, "$ " + (IS_MOCK ? cmd.replace(/^"[^"]*"/, "warpscout") : cmd) + "\n\n");
     try {
-      const proc = await os().execCommand(cmd, { stream: true });
+      // v2.4.2 FIX: execCommand в 6.10 не стримит и не даёт id — см. комментарий в runScan
+      const proc = await os().spawnProcess(cmd);
       S.procIds[key] = proc.id;
       registerProc(proc.id, (d) => {
         if (d.type === "stdout" || d.type === "stderr") {
@@ -4483,8 +4504,23 @@
   async function checkWarpscout(force) {
     const el = $("#stWs");
     if (!force && S.wsChecked && S.wsVersionOk && Date.now() - (S.wsCheckedAt || 0) < 60000) return true;
-    if (S.wsChecking) return S.wsChecked ? S.wsVersionOk : false;
+    if (S.wsChecking) {
+      // v2.4.2 FIX: force-проверка во время идущей — дожидаемся ЕЁ результата,
+      // а не возвращаем устаревший false (ложное «не найден» при живом exe)
+      if (force && S.wsInflight) return S.wsInflight;
+      return S.wsChecked ? S.wsVersionOk : false;
+    }
     S.wsChecking = true;
+    S.wsInflight = checkWarpscoutRun(el);
+    try {
+      return await S.wsInflight;
+    } finally {
+      S.wsChecking = false;
+      S.wsInflight = null;
+    }
+  }
+
+  async function checkWarpscoutRun(el) {
     let ok = false;
     let fileThere = false;
     try {
@@ -4542,7 +4578,6 @@
     S.wsChecked = true;
     S.wsVersionOk = ok;
     S.wsCheckedAt = Date.now();
-    S.wsChecking = false;
     S.wsFileThere = fileThere;
     renderStatusWs();
     renderWsHints(); // v2.4.0: подсказка обновляется ВСЕГДА — раньше при неудаче висело «Проверка не выполнялась»
@@ -4661,7 +4696,10 @@
     if (!p || IS_MOCK) return false;
     try {
       const st = await fs().getStats(p);
-      return !!st && String(st.type || "").toUpperCase() === "DIRECTORY";
+      // v2.4.2 FIX: у Neutralino 6.10 Stats НЕТ поля type ({size,isFile,isDirectory,createdAt,modifiedAt}) —
+      // проверка st.type==="DIRECTORY" всегда давала false: appBinMissing не определялся,
+      // а «📁 Показать в папке» писала «Папки нет на диске» для существующих папок.
+      return !!st && st.isDirectory === true;
     } catch (e) { return false; }
   }
 
@@ -4672,7 +4710,9 @@
     const inp = $("#setWsPath");
     if (!code && !inp) return;
     const inpVal = inp ? inp.value.trim() : "";
-    const shown = (S.paths.wsFound && S.paths.wsPath) ? S.paths.wsPath
+    // v2.4.2 FIX: пока пользователь печатает свой путь — показываем ЕГО ввод,
+    // найденный путь показываем только когда он совпадает с полем
+    const shown = (S.paths.wsFound && S.paths.wsPath && inpVal.toLowerCase() === S.paths.wsPath.toLowerCase()) ? S.paths.wsPath
       : (inpVal || S.paths.wsPath || "—");
     if (code) code.textContent = shown;
     if (inp) inp.title = shown;
