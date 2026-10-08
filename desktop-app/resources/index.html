@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=23v0" />
+  <link rel="stylesheet" href="css/app.css?v=24v0" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -54,7 +54,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светлую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v2.3.0 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v2.4.0 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -634,10 +634,11 @@
               <label class="field field--wide">
                 <span class="field__label">Путь до warpscout.exe</span>
                 <div style="display:flex; gap:8px">
-                  <input type="text" id="setWsPath" placeholder="bin\warpscout.exe" />
+                  <input type="text" id="setWsPath" placeholder="bin\warpscout.exe или папка с ним" />
                   <button class="btn btn--ghost" id="btnBrowseWs" type="button">Обзор…</button>
                   <button class="btn btn--ghost" id="btnCheckWs" type="button">Проверить</button>
                 </div>
+                <div class="hint">Можно указать сам warpscout.exe или папку, где он лежит, — программа найдёт exe сама, в том числе в подпапке bin.</div>
                 <div class="hint" id="setWsVerHint">Проверка не выполнялась</div>
               </label>
               <label class="field field--wide">
@@ -807,8 +808,8 @@
   </datalist>
 
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js?v=23v0"></script>
-  <script src="js/qrcode.js?v=23v0"></script>
-  <script src="js/app.js?v=23v0"></script>
+  <script src="js/mock.js?v=24v0"></script>
+  <script src="js/qrcode.js?v=24v0"></script>
+  <script src="js/app.js?v=24v0"></script>
 </body>
 </html>

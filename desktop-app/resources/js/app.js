@@ -143,8 +143,9 @@
     wsChecking: false,    // v2.2.0: проверка уже идёт
     customPresets: [],   // {name, scan:{...}} — пользовательские пресеты
     compact: false,      // компактная таблица
-    paths: { dataDir: "", dataDirDefault: "", legacyDataDir: "", udfPath: "", exeName: "", appDir: "", accPath: "", reportsDir: "", wsPath: "" },
+    paths: { dataDir: "", dataDirDefault: "", legacyDataDir: "", udfPath: "", exeName: "", appDir: "", accPath: "", reportsDir: "", wsPath: "", wsFound: false, wsTried: [] },
     wsVersion: "",
+    wsFileThere: false,  // v2.4.0: файл warpscout.exe существует (даже если версию получить не удалось)
     account: null,
     accountError: "", // v2.1.0: причина, почему файл аккаунта не принят ("parse" | "not-account")
     running: { scan: false, register: false, fj: false, fs: false, socks: false, check: false },
@@ -474,6 +475,12 @@
     "Обзор…": "Browse…",
     "Проверить": "Check",
     "Проверка не выполнялась": "Not checked yet",
+    "Файл найден ({p}), но версию получить не удалось — вероятно, антивирус мешает запуску. Откройте вкладку «Аккаунт» и нажмите «Разблокировать exe», либо добавьте папку в исключения антивируса.": "File found ({p}), but the version could not be obtained — the antivirus is probably blocking it. Open the 'Account' tab and press 'Unblock exe', or add the folder to antivirus exclusions.",
+    "warpscout.exe не найден. Проверили: {list}. Укажите путь к самому warpscout.exe или к папке, где он лежит — программа найдёт exe, в том числе в подпапке bin.": "warpscout.exe not found. Checked: {list}. Set the path to warpscout.exe itself or to the folder where it sits — the app will find the exe, including inside a bin subfolder.",
+    "✓ warpscout v{v} — готов к работе": "✓ warpscout v{v} — ready to go",
+    "warpscout.exe не найден — подробности в подсказке под полем пути": "warpscout.exe not found — see details in the hint under the path field",
+    "Можно указать сам warpscout.exe или папку, где он лежит, — программа найдёт exe сама, в том числе в подпапке bin.": "You can point to warpscout.exe itself or to the folder where it sits — the app will find the exe, including inside a bin subfolder.",
+    "bin\\warpscout.exe или папка с ним": "bin\\warpscout.exe or its folder",
     "Показать в папке": "Show in folder",
     "Отчёты сканов сохраняются в": "Scan reports are saved to",
     "Открыть": "Open",
@@ -950,13 +957,19 @@
     }
   }
 
-  // подсказка в «Настройках» о статусе warpscout (v1.6.0 — с учётом языка)
+  // подсказка в «Настройках» о статусе warpscout (v1.6.0 — с учётом языка;
+  // v2.4.0 — три честных состояния: версия получена / файл есть, но не отвечает / не найден + список мест)
   function renderWsHints() {
     const hint = $("#setWsVerHint");
     if (!hint) return;
     if (S.wsVersion) hint.textContent = t("Найден warpscout v") + S.wsVersion + " · " + S.paths.wsPath;
-    else if (S.wsChecked) hint.textContent = t("warpscout не найден. Скачайте warpscout.exe и укажите путь.");
-    else hint.textContent = t("Проверка не выполнялась");
+    else if (S.wsChecked && S.wsFileThere) {
+      hint.textContent = tF("Файл найден ({p}), но версию получить не удалось — вероятно, антивирус мешает запуску. Откройте вкладку «Аккаунт» и нажмите «Разблокировать exe», либо добавьте папку в исключения антивируса.", { p: S.paths.wsPath });
+    } else if (S.wsChecked) {
+      const tried = ((S.paths.wsTried && S.paths.wsTried.length) ? S.paths.wsTried : [S.paths.wsPath]).slice(0, 3).join("; ");
+      const more = S.paths.wsTried && S.paths.wsTried.length > 3 ? "; …" : "";
+      hint.textContent = tF("warpscout.exe не найден. Проверили: {list}. Укажите путь к самому warpscout.exe или к папке, где он лежит — программа найдёт exe, в том числе в подпапке bin.", { list: tried + more });
+    } else hint.textContent = t("Проверка не выполнялась");
   }
 
   function applyLang(lang, opts) {
@@ -4403,11 +4416,28 @@
     if (S.wsChecking) return S.wsChecked ? S.wsVersionOk : false;
     S.wsChecking = true;
     let ok = false;
+    let fileThere = false;
     try {
+      // v2.4.0: сперва ЧЕСТНО резолвим путь. Пользователь может указать сам exe, папку
+      // с exe или папку приложения (exe внутри bin). Битый/устаревший путь из настроек
+      // больше не блокирует штатные места — см. resolveWarpscoutPath().
+      const res = await resolveWarpscoutPath();
+      S.paths.wsTried = res.tried;
+      S.paths.wsFound = res.found;
+      if (res.found) {
+        S.paths.wsPath = res.path;
+        fileThere = true;
+        const inp = $("#setWsPath");
+        if (inp && inp.value.trim() !== res.path) inp.value = res.path;
+        if (String(S.settings.wsPath || "").trim().toLowerCase() !== res.path.toLowerCase()) {
+          S.settings.wsPath = res.path; // нормализация: в настройках храним точный путь к exe
+          persist();
+        }
+      }
       if (IS_MOCK) {
         S.wsVersion = "0.16.0";
         ok = true;
-      } else {
+      } else if (fileThere) {
         let proc = null;
         try { proc = await os().spawnProcess(quoteExe() + " version"); } catch (e) { proc = null; }
         const out = await new Promise((resolve) => {
@@ -4428,17 +4458,20 @@
         } else {
           S.wsVersion = "";
         }
+      } else {
+        S.wsVersion = "";
       }
     } catch (e) { /* помечаем «не отвечает» ниже */ }
     S.wsChecked = true;
     S.wsVersionOk = ok;
     S.wsCheckedAt = Date.now();
     S.wsChecking = false;
+    S.wsFileThere = fileThere;
     renderStatusWs();
-    el.className = ok ? "statusline__row is-ok" : "statusline__row is-err";
-    if (ok) {
-      $("#stWs").title = S.paths.wsPath;
-      renderWsHints();
+    renderWsHints(); // v2.4.0: подсказка обновляется ВСЕГДА — раньше при неудаче висело «Проверка не выполнялась»
+    if (el) {
+      el.className = ok ? "statusline__row is-ok" : "statusline__row is-err";
+      el.title = S.paths.wsPath;
     }
     return ok;
   }
@@ -4446,7 +4479,7 @@
   async function browseWsPath() {
     let p;
     try {
-      p = await os().showOpenDialog(t("Выберите warpscout.exe"), { multiSelections: false });
+      p = await os().showOpenDialog(t("Выберите warpscout.exe"), { multiSelections: false, filters: [{ name: "warpscout.exe", extensions: ["exe"] }] });
     } catch (e) { p = null; }
     let picked = null;
     if (Array.isArray(p) && p[0]) picked = p[0];
@@ -4457,7 +4490,7 @@
     S.paths.wsPath = picked;
     $("#setWsPath").value = picked;
     persist();
-    checkWarpscout();
+    checkWarpscout(true); // v2.4.0: force — пользователь явно попросил проверку
   }
 
   /* ───────── инициализация ───────── */
@@ -4481,6 +4514,61 @@
       if (/^[a-zA-Z]:[\\/]/.test(dir) || dir.startsWith("\\\\")) return dir; // только абсолютные пути
     }
     return window.NL_PATH ? String(window.NL_PATH).replace(/[\\/]+$/, "") : "";
+  }
+
+  // ─── v2.4.0: честный поиск warpscout.exe ───
+  // Регресс v2.3.0: пользователь указывал в настройках ПАПКУ (например,
+  // D:\Downloads\WARPScoutGUI), она сохранялась как есть и навсегда перекрывала
+  // штатное место bin\ рядом с приложением; проверка пыталась «запустить папку»,
+  // падала молча, а подсказка оставалась «Проверка не выполнялась». Теперь:
+  // (1) папка — валидный ввод: ищем exe внутри (в корне и в bin\);
+  // (2) битый custom больше не затирает штатные места — проверяем все кандидаты;
+  // (3) существование проверяем fs.getStats (isFile), а не попыткой запуска.
+  async function wsFileExists(p) {
+    if (!p) return false;
+    if (IS_MOCK) return /warpscout(\.exe)?$/i.test(String(p).replace(/[\\/]+$/, ""));
+    try {
+      const st = await fs().getStats(p);
+      if (!st) return false;
+      if (st.isFile === true || st.isDirectory === false) return String(st.type || "FILE").toUpperCase() !== "DIRECTORY";
+      return false;
+    } catch (e) { return false; }
+  }
+
+  function wsCandidates() {
+    const list = [];
+    const push = (p) => { if (p) list.push(String(p).replace(/[\\/]+$/, "")); };
+    const custom = String(S.settings.wsPath || "").trim().replace(/[\\/]+$/, "");
+    if (custom) {
+      push(custom);                          // указан сам exe
+      push(custom + "\\warpscout.exe");      // указана папка, где exe лежит рядом
+      push(custom + "\\bin\\warpscout.exe"); // указана папка приложения (exe внутри bin)
+    }
+    const appDir = String(S.paths.appDir || "").replace(/[\\/]+$/, "");
+    if (appDir) {
+      push(appDir + "\\bin\\warpscout.exe"); // штатное место: bin рядом с WARPScoutGUI.exe
+      push(appDir + "\\warpscout.exe");      // warpscout лежит рядом с GUI
+    }
+    const nlPath = window.NL_PATH ? String(window.NL_PATH).replace(/[\\/]+$/, "") : "";
+    if (nlPath && nlPath.toLowerCase() !== appDir.toLowerCase()) {
+      push(nlPath + "\\bin\\warpscout.exe");
+      push(nlPath + "\\warpscout.exe");
+    }
+    const seen = new Set();
+    return list.filter((p) => {
+      const k = p.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+
+  async function resolveWarpscoutPath() {
+    const cands = wsCandidates();
+    for (const c of cands) {
+      if (await wsFileExists(c)) return { path: c, found: true, tried: cands };
+    }
+    return { path: "", found: false, tried: cands };
   }
 
   async function computePaths() {
@@ -4523,15 +4611,35 @@
     S.paths.dataDir = root || S.paths.dataDirDefault;
     S.paths.accPath = S.paths.dataDir + "\\warpscout-account.json";
     S.paths.reportsDir = S.paths.dataDir + "\\reports";
-    // v2.3.0: warpscout ищем в папке ПРИЛОЖЕНИЯ (bin рядом с WARPScoutGUI.exe), база —
-    // exeDirName() (из NL_ARGS[0]); NL_PATH остался только запасным вариантом.
+    // v2.4.0: warpscout ищем по всем типичным местам: пользовательский путь (сам exe,
+    // папка с exe или папка приложения с bin\), затем bin/папка приложения, затем NL_PATH.
+    // Порядок и самозамазка — в wsCandidates()/resolveWarpscoutPath().
     S.paths.appDir = IS_MOCK ? String(window.NL_PATH || "") : exeDirName();
-    S.paths.wsPath = S.settings.wsPath || (S.paths.appDir ? S.paths.appDir + "\\bin\\warpscout.exe" : (window.NL_PATH ? window.NL_PATH + "\\bin\\warpscout.exe" : "bin\\warpscout.exe"));
+    const wsCustom = String(S.settings.wsPath || "").trim();
+    S.paths.wsPath = "";
+    S.paths.wsFound = false;
+    S.paths.wsTried = [];
+    const wsRes = await resolveWarpscoutPath();
+    S.paths.wsTried = wsRes.tried;
+    S.paths.wsFound = wsRes.found;
+    if (wsRes.found) {
+      S.paths.wsPath = wsRes.path;
+      // custom указывает не на найденный exe (мусор/переезд папки)? — самоочистка,
+      // иначе он навсегда перекрыл бы штатное место (корень регресса v2.3.0)
+      if (wsCustom && wsCustom.toLowerCase() !== wsRes.path.toLowerCase()) {
+        S.settings.wsPath = "";
+        persist();
+      }
+    }
+    if (!S.paths.wsPath) {
+      S.paths.wsPath = wsCustom || (S.paths.appDir ? S.paths.appDir + "\\bin\\warpscout.exe" : (window.NL_PATH ? window.NL_PATH + "\\bin\\warpscout.exe" : "bin\\warpscout.exe"));
+    }
+    S.paths.wsCustom = wsCustom;
     // v2.1.0: папка данных существует с первого запуска — иначе warpscout не сможет
     // сохранить аккаунт (не создаёт родительские каталоги), а «Открыть папку» падал
     await ensureDir(S.paths.dataDir);
     await ensureDir(S.paths.reportsDir);
-    $("#setWsPath").value = S.paths.wsPath;
+    $("#setWsPath").value = S.paths.wsFound ? S.paths.wsPath : (wsCustom || S.paths.wsPath);
     $("#setAccPath").value = S.paths.accPath;
     $("#setReportDir").value = S.paths.reportsDir;
     const dr = $("#setDataRoot");
@@ -5047,11 +5155,15 @@
 
     // настройки
     $("#btnBrowseWs").addEventListener("click", browseWsPath);
-    $("#btnCheckWs").addEventListener("click", () => {
-      S.paths.wsPath = $("#setWsPath").value.trim() || S.paths.wsPath;
-      S.settings.wsPath = S.paths.wsPath;
+    $("#btnCheckWs").addEventListener("click", async () => {
+      const v = $("#setWsPath").value.trim();
+      S.settings.wsPath = v; // v2.4.0: пусто = искать штатно; папка — тоже валидный ввод (резолвим внутри)
       persist();
-      checkWarpscout(true);
+      const ok = await checkWarpscout(true);
+      toast(
+        ok ? tF("✓ warpscout v{v} — готов к работе", { v: S.wsVersion }) : t("warpscout.exe не найден — подробности в подсказке под полем пути"),
+        ok ? "ok" : "err"
+      );
     });
     $("#btnOpenAcc").addEventListener("click", () => {
       if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
@@ -5238,7 +5350,7 @@
   }
 
   // отладочный хук (безвредно): помогает диагностике через консоль
-  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, validateAccountJson, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName };
+  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, validateAccountJson, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {
