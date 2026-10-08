@@ -476,7 +476,19 @@
     "Проверить": "Check",
     "Проверка не выполнялась": "Not checked yet",
     "Файл найден ({p}), но версию получить не удалось — вероятно, антивирус мешает запуску. Откройте вкладку «Аккаунт» и нажмите «Разблокировать exe», либо добавьте папку в исключения антивируса.": "File found ({p}), but the version could not be obtained — the antivirus is probably blocking it. Open the 'Account' tab and press 'Unblock exe', or add the folder to antivirus exclusions.",
-    "warpscout.exe не найден. Проверили: {list}. Укажите путь к самому warpscout.exe или к папке, где он лежит — программа найдёт exe, в том числе в подпапке bin.": "warpscout.exe not found. Checked: {list}. Set the path to warpscout.exe itself or to the folder where it sits — the app will find the exe, including inside a bin subfolder.",
+    "warpscout.exe не найден. Проверяли:": "warpscout.exe not found. Places checked:",
+    "Укажите путь к самому warpscout.exe или к папке, где он лежит, — программа найдёт exe, в том числе в подпапке bin.": "Point to warpscout.exe itself or to the folder where it sits — the app will find the exe, including inside a bin subfolder.",
+    "Папка bin на месте, но самого warpscout.exe в ней нет. Так бывает, когда антивирус удалил файл при распаковке ZIP или архив распакован не целиком: верните файл из карантина («Безопасность Windows» → Защита от вирусов → Журнал защиты), добавьте папку приложения в исключения антивируса и распакуйте ZIP заново.": "The bin folder is there, but warpscout.exe itself is missing from it. This happens when antivirus removed the file during ZIP extraction or the archive was not fully unpacked: restore the file from quarantine (Windows Security → Virus protection → Protection history), add the app folder to antivirus exclusions and unpack the ZIP again.",
+    "Полный путь:": "Full path:",
+    "Открыть папку, где программа ищет или нашла warpscout.exe": "Open the folder where the app looks for or found warpscout.exe",
+    "Скопировать отчёт о проверке текстом — удобно прислать вместо скриншота": "Copy the check report as text — handy to send instead of a screenshot",
+    "📁 Показать в папке": "📁 Show in folder",
+    "⧉ Скопировать диагностику": "⧉ Copy diagnostics",
+    "Диагностика скопирована — пришлите её текстом": "Diagnostics copied — please send it as text",
+    "Папка не определена — укажите путь и повторите": "Folder not determined — set the path and try again",
+    "Папки нет на диске: {p}": "Folder does not exist on disk: {p}",
+    "Папка открыта: {p}": "Folder opened: {p}",
+    "Файл найден, но не отвечает — вероятно, антивирус. Подробности в подсказке под полем": "File found but does not respond — likely antivirus. See the hint under the path field",
     "✓ warpscout v{v} — готов к работе": "✓ warpscout v{v} — ready to go",
     "warpscout.exe не найден — подробности в подсказке под полем пути": "warpscout.exe not found — see details in the hint under the path field",
     "Можно указать сам warpscout.exe или папку, где он лежит, — программа найдёт exe сама, в том числе в подпапке bin.": "You can point to warpscout.exe itself or to the folder where it sits — the app will find the exe, including inside a bin subfolder.",
@@ -958,18 +970,76 @@
   }
 
   // подсказка в «Настройках» о статусе warpscout (v1.6.0 — с учётом языка;
-  // v2.4.0 — три честных состояния: версия получена / файл есть, но не отвечает / не найден + список мест)
+  // v2.4.0 — три честных состояния: версия получена / файл есть, но не отвечает / не найден + список мест;
+  // v2.4.1 — при «не найден» показываем ПОСТРОЧНО все проверенные места с отметками есть/нет
+  // и отдельную подсказку про антивирус, если папка bin есть, а warpscout.exe в ней нет)
   function renderWsHints() {
     const hint = $("#setWsVerHint");
     if (!hint) return;
-    if (S.wsVersion) hint.textContent = t("Найден warpscout v") + S.wsVersion + " · " + S.paths.wsPath;
-    else if (S.wsChecked && S.wsFileThere) {
+    hint.classList.remove("is-err-hint");
+    if (S.wsVersion) {
+      hint.textContent = t("Найден warpscout v") + S.wsVersion + " · " + S.paths.wsPath;
+    } else if (S.wsChecked && S.wsFileThere) {
       hint.textContent = tF("Файл найден ({p}), но версию получить не удалось — вероятно, антивирус мешает запуску. Откройте вкладку «Аккаунт» и нажмите «Разблокировать exe», либо добавьте папку в исключения антивируса.", { p: S.paths.wsPath });
+      hint.classList.add("is-err-hint");
     } else if (S.wsChecked) {
-      const tried = ((S.paths.wsTried && S.paths.wsTried.length) ? S.paths.wsTried : [S.paths.wsPath]).slice(0, 3).join("; ");
-      const more = S.paths.wsTried && S.paths.wsTried.length > 3 ? "; …" : "";
-      hint.textContent = tF("warpscout.exe не найден. Проверили: {list}. Укажите путь к самому warpscout.exe или к папке, где он лежит — программа найдёт exe, в том числе в подпапке bin.", { list: tried + more });
+      const checked = (S.paths.wsCheckedList && S.paths.wsCheckedList.length)
+        ? S.paths.wsCheckedList
+        : (S.paths.wsTried || []).map((p) => ({ path: p, exists: false }));
+      const lines = checked.slice(0, 8).map((c) => (c.exists ? "✓ " : "✗ ") + c.path);
+      const more = checked.length > 8 ? "\n… и ещё " + (checked.length - 8) : "";
+      let extra = "";
+      if (S.paths.appBinMissing) {
+        extra = "\n" + t("Папка bin на месте, но самого warpscout.exe в ней нет. Так бывает, когда антивирус удалил файл при распаковке ZIP или архив распакован не целиком: верните файл из карантина («Безопасность Windows» → Защита от вирусов → Журнал защиты), добавьте папку приложения в исключения антивируса и распакуйте ZIP заново.");
+      }
+      hint.textContent = t("warpscout.exe не найден. Проверяли:") + "\n" + lines.join("\n") + more + "\n" + t("Укажите путь к самому warpscout.exe или к папке, где он лежит, — программа найдёт exe, в том числе в подпапке bin.") + extra;
+      hint.classList.add("is-err-hint");
     } else hint.textContent = t("Проверка не выполнялась");
+  }
+
+  // ─── v2.4.1: «Показать в папке» и «Скопировать диагностику» для warpscout ───
+  // Цель — чтобы пользователь УВИДЕЛ глазами: есть ли файл физически (частый случай:
+  // антивирус удалил bin\warpscout.exe при распаковке новой версии — «в 2.1.1 работало,
+  // сейчас ничего»), и мог прислать диагностику ТЕКСТОМ вместо скриншота.
+  function wsFolderOf(p) {
+    const s = String(p || "").replace(/[\\/]+$/, "");
+    const i = Math.max(s.lastIndexOf("\\"), s.lastIndexOf("/"));
+    return i > 0 ? s.slice(0, i) : "";
+  }
+
+  async function openWsFolder() {
+    if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
+    let target = "";
+    if (S.paths.wsFound && S.paths.wsPath) target = wsFolderOf(S.paths.wsPath);
+    if (!target) {
+      const custom = String(S.settings.wsPath || "").trim().replace(/[\\/]+$/, "");
+      if (custom) target = /warpscout\.exe$/i.test(custom) ? wsFolderOf(custom) : custom;
+    }
+    if (!target && S.paths.appDir) target = S.paths.appDir + "\\bin";
+    if (!target) { toast(t("Папка не определена — укажите путь и повторите"), "err"); return; }
+    const there = await dirThere(target) || await wsFileExists(target);
+    if (!there) { toast(tF("Папки нет на диске: {p}", { p: target }), "err"); return; }
+    try { os().open(target); } catch (e) {}
+    toast(tF("Папка открыта: {p}", { p: target }), "ok");
+  }
+
+  async function wsDiagText() {
+    const checked = (S.paths.wsCheckedList && S.paths.wsCheckedList.length)
+      ? S.paths.wsCheckedList
+      : (S.paths.wsTried || []).map((p) => ({ path: p, exists: null }));
+    const lines = [];
+    lines.push("WARPScout GUI v" + (window.NL_APPVERSION || "?") + " — диагностика warpscout");
+    lines.push("Дата: " + new Date().toLocaleString());
+    lines.push("GUI exe: " + (window.NL_ARGS && window.NL_ARGS[0] ? window.NL_ARGS[0] : "?"));
+    lines.push("NL_PATH: " + (window.NL_PATH || "?"));
+    lines.push("Папка приложения (appDir): " + (S.paths.appDir || "?"));
+    lines.push("Папка данных: " + (S.paths.dataDir || "?"));
+    lines.push("В поле пути указано: " + (String(S.settings.wsPath || "").trim() || "(пусто — ищем штатно)"));
+    lines.push("Итог: " + (S.wsVersion ? "найден warpscout v" + S.wsVersion + " — " + S.paths.wsPath : (S.wsFileThere ? "файл есть, но не запускается: " + S.paths.wsPath : "warpscout.exe не найден")));
+    lines.push("Проверенные места:");
+    checked.forEach((c) => lines.push("  [" + (c.exists === true ? "есть" : c.exists === false ? "нет" : "?") + "] " + c.path));
+    if (S.paths.appBinMissing) lines.push("(!) Папка bin есть, а warpscout.exe в ней нет — похоже, антивирус удалил файл при распаковке ZIP или архив распакован не целиком.");
+    return lines.join("\n");
   }
 
   function applyLang(lang, opts) {
@@ -4423,7 +4493,14 @@
       // больше не блокирует штатные места — см. resolveWarpscoutPath().
       const res = await resolveWarpscoutPath();
       S.paths.wsTried = res.tried;
+      S.paths.wsCheckedList = res.checked;
       S.paths.wsFound = res.found;
+      // v2.4.1: папка bin на месте, а warpscout.exe в ней нет? — почти наверняка
+      // антивирус удалил файл при распаковке ZIP (или архив распакован не целиком)
+      S.paths.appBinMissing = false;
+      if (!res.found && S.paths.appDir) {
+        S.paths.appBinMissing = await dirThere(S.paths.appDir + "\\bin");
+      }
       if (res.found) {
         S.paths.wsPath = res.path;
         fileThere = true;
@@ -4469,6 +4546,7 @@
     S.wsFileThere = fileThere;
     renderStatusWs();
     renderWsHints(); // v2.4.0: подсказка обновляется ВСЕГДА — раньше при неудаче висело «Проверка не выполнялась»
+    updateWsFullPath(); // v2.4.1: строка «Полный путь» синхронна с результатом
     if (el) {
       el.className = ok ? "statusline__row is-ok" : "statusline__row is-err";
       el.title = S.paths.wsPath;
@@ -4489,6 +4567,7 @@
     S.settings.wsPath = picked;
     S.paths.wsPath = picked;
     $("#setWsPath").value = picked;
+    updateWsFullPath();
     persist();
     checkWarpscout(true); // v2.4.0: force — пользователь явно попросил проверку
   }
@@ -4563,12 +4642,40 @@
     });
   }
 
+  // v2.4.1: возвращаем ещё и checked — построчные результаты «есть/нет» для каждого
+  // кандидата: они идут в подсказку и в «Скопировать диагностику», чтобы пользователь
+  // ВИДЕЛ, где программа искала файл и что там нашлось (без скриншотов и догадок).
   async function resolveWarpscoutPath() {
     const cands = wsCandidates();
+    const checked = [];
     for (const c of cands) {
-      if (await wsFileExists(c)) return { path: c, found: true, tried: cands };
+      const ex = await wsFileExists(c);
+      checked.push({ path: c, exists: !!ex });
+      if (ex) return { path: c, found: true, tried: cands, checked };
     }
-    return { path: "", found: false, tried: cands };
+    return { path: "", found: false, tried: cands, checked };
+  }
+
+  // v2.4.1: существует ли КАТАЛОГ (для сценария «bin есть, а warpscout.exe в нём удалён антивирусом»)
+  async function dirThere(p) {
+    if (!p || IS_MOCK) return false;
+    try {
+      const st = await fs().getStats(p);
+      return !!st && String(st.type || "").toUpperCase() === "DIRECTORY";
+    } catch (e) { return false; }
+  }
+
+  // v2.4.1: полный путь — отдельной строкой под полем (жалоба пользователя: полный путь
+  // «не был виден из-за короткой строки»). Дублируем в title поля — виден при наведении.
+  function updateWsFullPath() {
+    const code = $("#setWsFull");
+    const inp = $("#setWsPath");
+    if (!code && !inp) return;
+    const inpVal = inp ? inp.value.trim() : "";
+    const shown = (S.paths.wsFound && S.paths.wsPath) ? S.paths.wsPath
+      : (inpVal || S.paths.wsPath || "—");
+    if (code) code.textContent = shown;
+    if (inp) inp.title = shown;
   }
 
   async function computePaths() {
@@ -4621,6 +4728,7 @@
     S.paths.wsTried = [];
     const wsRes = await resolveWarpscoutPath();
     S.paths.wsTried = wsRes.tried;
+    S.paths.wsCheckedList = wsRes.checked;
     S.paths.wsFound = wsRes.found;
     if (wsRes.found) {
       S.paths.wsPath = wsRes.path;
@@ -4640,6 +4748,7 @@
     await ensureDir(S.paths.dataDir);
     await ensureDir(S.paths.reportsDir);
     $("#setWsPath").value = S.paths.wsFound ? S.paths.wsPath : (wsCustom || S.paths.wsPath);
+    updateWsFullPath(); // v2.4.1: полный путь виден целиком сразу после расчёта путей
     $("#setAccPath").value = S.paths.accPath;
     $("#setReportDir").value = S.paths.reportsDir;
     const dr = $("#setDataRoot");
@@ -5155,15 +5264,22 @@
 
     // настройки
     $("#btnBrowseWs").addEventListener("click", browseWsPath);
+    $("#setWsPath").addEventListener("input", () => updateWsFullPath()); // v2.4.1: полный путь виден сразу при вводе
     $("#btnCheckWs").addEventListener("click", async () => {
       const v = $("#setWsPath").value.trim();
       S.settings.wsPath = v; // v2.4.0: пусто = искать штатно; папка — тоже валидный ввод (резолвим внутри)
       persist();
       const ok = await checkWarpscout(true);
-      toast(
-        ok ? tF("✓ warpscout v{v} — готов к работе", { v: S.wsVersion }) : t("warpscout.exe не найден — подробности в подсказке под полем пути"),
-        ok ? "ok" : "err"
-      );
+      if (ok) toast(tF("✓ warpscout v{v} — готов к работе", { v: S.wsVersion }), "ok");
+      else if (S.wsFileThere) toast(t("Файл найден, но не отвечает — вероятно, антивирус. Подробности в подсказке под полем"), "err");
+      else toast(t("warpscout.exe не найден — подробности в подсказке под полем пути"), "err");
+    });
+    // v2.4.1: «Показать в папке» — пользователь своими глазами видит, есть ли warpscout.exe
+    $("#btnOpenWsFolder").addEventListener("click", openWsFolder);
+    // v2.4.1: диагностика ТЕКСТОМ — вместо скриншотов, которые не читаются
+    $("#btnCopyWsDiag").addEventListener("click", async () => {
+      const txt = await wsDiagText();
+      copyText(txt, t("Диагностика скопирована — пришлите её текстом"));
     });
     $("#btnOpenAcc").addEventListener("click", () => {
       if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
@@ -5350,7 +5466,7 @@
   }
 
   // отладочный хук (безвредно): помогает диагностике через консоль
-  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, validateAccountJson, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists };
+  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, validateAccountJson, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {

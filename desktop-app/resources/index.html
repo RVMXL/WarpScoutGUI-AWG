@@ -54,7 +54,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светлую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v2.4.0 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v2.4.1 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -638,8 +638,13 @@
                   <button class="btn btn--ghost" id="btnBrowseWs" type="button">Обзор…</button>
                   <button class="btn btn--ghost" id="btnCheckWs" type="button">Проверить</button>
                 </div>
+                <div class="hint ws-fullpath"><span class="ws-fullpath__label">Полный путь:</span> <code id="setWsFull">—</code></div>
                 <div class="hint">Можно указать сам warpscout.exe или папку, где он лежит, — программа найдёт exe сама, в том числе в подпапке bin.</div>
-                <div class="hint" id="setWsVerHint">Проверка не выполнялась</div>
+                <div class="hint hint--pre" id="setWsVerHint">Проверка не выполнялась</div>
+                <div class="row-buttons row-buttons--tight">
+                  <button class="btn btn--ghost btn--sm" id="btnOpenWsFolder" type="button" title="Открыть папку, где программа ищет или нашла warpscout.exe">📁 Показать в папке</button>
+                  <button class="btn btn--ghost btn--sm" id="btnCopyWsDiag" type="button" title="Скопировать отчёт о проверке текстом — удобно прислать вместо скриншота">⧉ Скопировать диагностику</button>
+                </div>
               </label>
               <label class="field field--wide">
                 <span class="field__label">Файл аккаунта <code>-a</code></span>
