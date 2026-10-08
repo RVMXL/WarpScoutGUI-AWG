@@ -143,6 +143,7 @@
     paths: { dataDir: "", accPath: "", reportsDir: "", wsPath: "" },
     wsVersion: "",
     account: null,
+    accountError: "", // v2.1.0: причина, почему файл аккаунта не принят ("parse" | "not-account")
     running: { scan: false, register: false, fj: false, fs: false, socks: false, check: false },
     procIds: {},
     demoScanned: false,
@@ -377,6 +378,31 @@
     "Демо: аккаунт уже есть": "Demo: account already exists",
     "Создать новый аккаунт WARP с нуля? Текущие ключи будут заменены.":
       "Create a brand-new WARP account? Current keys will be replaced.",
+    "📥 Импорт файла аккаунта": "📥 Import account file",
+    "Выберите файл аккаунта (warpscout-account.json)": "Pick the account file (warpscout-account.json)",
+    "Не удалось скопировать файл: {err}": "Could not copy the file: {err}",
+    "Готовый аккаунт подключён — можно сканировать": "Ready-made account connected — you can scan now",
+    "Подключён готовый аккаунт, найденный рядом: {src}": "Connected a ready-made account found nearby: {src}",
+    "Это не JSON-файл. Нужен аккаунт warpscout: JSON с ключами private_key и peer_public_key.":
+      "This is not a JSON file. A warpscout account is expected: JSON with private_key and peer_public_key keys.",
+    "В файле нет ключей аккаунта (private_key/peer_public_key) — это не warpscout-account.json. Возможно, вы выбрали .conf-конфиг или файл другой программы.":
+      "No account keys in the file (private_key/peer_public_key) — this isn't a warpscout-account.json. You may have picked a .conf config or a file from another app.",
+    "Не удалось распознать файл аккаунта.": "Could not recognize the account file.",
+    "файл есть, но это не JSON": "file exists but is not valid JSON",
+    "в файле нет ключей private_key/peer_public_key": "no private_key/peer_public_key keys in the file",
+    "warpscout.exe не найден. Распакуйте ZIP целиком (рядом с WARPScoutGUI.exe должна лежать папка bin с warpscout.exe) или укажите путь в Настройках. Если файл на месте — добавьте папку в исключения антивируса.":
+      "warpscout.exe was not found. Unpack the ZIP entirely (a bin folder with warpscout.exe must sit next to WARPScoutGUI.exe) or set the path in Settings. If the file is there — add the folder to your antivirus exclusions.",
+    "Не удалось сохранить файл аккаунта — папка данных пересоздана. Нажмите «Зарегистрировать» ещё раз.":
+      "Could not save the account file — the data folder has been recreated. Click 'Register' once more.",
+    "Файл аккаунта повреждён или не читается. Удалите его (кнопка «Открыть папку») и зарегистрируйте заново — или используйте «Новый аккаунт».":
+      "The account file is damaged or unreadable. Delete it (via 'Open folder') and register again — or use 'New account'.",
+    "Cloudflare API недоступна напрямую и через туннель WARP. Проверьте интернет, попробуйте VPN/прокси или повторите позже — иногда помогает несколько попыток.":
+      "The Cloudflare API is unreachable both directly and via a WARP tunnel. Check your connection, try a VPN/proxy, or retry later — several attempts sometimes help.",
+    "Код -1: warpscout.exe не смог запуститься или был закрыт. Причины: антивирус заблокировал файл; ZIP распакован не целиком (нет папки bin с warpscout.exe); неверный путь в Настройках. Проверьте папку кнопкой «Открыть папку» и добавьте её в исключения антивируса.":
+      "Exit code -1: warpscout.exe failed to start or was closed. Causes: antivirus blocked the file; the ZIP was not fully unpacked (no bin folder with warpscout.exe); a wrong path in Settings. Check the folder via 'Open folder' and add it to your antivirus exclusions.",
+    "Смотрите лог выше — там точная причина от warpscout.": "See the log above — warpscout prints the exact reason there.",
+    "«Обновить ключи» меняет ключи, не создавая новое устройство. «Новый аккаунт» регистрирует устройство с нуля. Готовый аккаунт из другой установки: «Импорт файла аккаунта» сам проверит JSON (нужны ключи private_key и peer_public_key) и скопирует его в нужное место с нужным именем.":
+      "'Renew keys' rotates keys without creating a new device. 'New account' registers a device from scratch. Got an account from another installation? 'Import account file' validates the JSON (private_key and peer_public_key keys are required) and copies it to the right place with the right name.",
     /* — socks — */
     "Проверка одного эндпоинта": "Single endpoint check",
     "(как в результатах скана)": "(as in scan results)",
@@ -3684,16 +3710,43 @@
   }
 
   /* ───────── аккаунт ───────── */
+  // v2.1.0: валидация JSON-аккаунта warpscout — нужны private_key и peer_public_key
+  function validateAccountJson(obj) {
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return "not-json";
+    // мягкие алиасы: некоторые утилиты пишут public_key вместо peer_public_key
+    if (!obj.peer_public_key && typeof obj.public_key === "string" && obj.public_key) obj.peer_public_key = obj.public_key;
+    if (typeof obj.private_key !== "string" || !obj.private_key) return "not-account";
+    if (typeof obj.peer_public_key !== "string" || !obj.peer_public_key) return "not-account";
+    return null;
+  }
+
+  function accountImportErrorText(kind) {
+    if (kind === "parse") return t("Это не JSON-файл. Нужен аккаунт warpscout: JSON с ключами private_key и peer_public_key.");
+    if (kind === "not-account") return t("В файле нет ключей аккаунта (private_key/peer_public_key) — это не warpscout-account.json. Возможно, вы выбрали .conf-конфиг или файл другой программы.");
+    return t("Не удалось распознать файл аккаунта.");
+  }
+
+  function accountFromText(text) {
+    let obj;
+    try { obj = JSON.parse(text); } catch (e) { return { error: "parse" }; }
+    const v = validateAccountJson(obj);
+    if (v) return { error: v };
+    return { account: obj };
+  }
+
   async function loadAccount() {
+    S.accountError = "";
     if (IS_MOCK) {
       S.account = window.NeutralinoMock ? window.NeutralinoMock.account : null;
       return S.account;
     }
     try {
       const text = await fs().readFile(S.paths.accPath);
-      S.account = JSON.parse(text);
+      const r = accountFromText(text);
+      if (r.error) { S.accountError = r.error; S.account = null; return S.account; }
+      S.account = r.account;
     } catch (e) {
-      S.account = null;
+      S.account = null; // файл просто отсутствует — это не ошибка
     }
     return S.account;
   }
@@ -3705,7 +3758,13 @@
       el.textContent = text;
       el.className = cls || "";
     };
-    set("#accFileState", has ? t("найден") : t("не найден — нужен для скана"), has ? "is-ok" : "is-err");
+    let fileState;
+    let fileCls;
+    if (has) { fileState = t("найден"); fileCls = "is-ok"; }
+    else if (S.accountError === "parse") { fileState = t("файл есть, но это не JSON"); fileCls = "is-err"; }
+    else if (S.accountError === "not-account") { fileState = t("в файле нет ключей private_key/peer_public_key"); fileCls = "is-err"; }
+    else { fileState = t("не найден — нужен для скана"); fileCls = "is-err"; }
+    set("#accFileState", fileState, fileCls);
     $("#accFilePath").textContent = S.paths.accPath || "—";
     set("#accMainState", has ? "✓ " + (S.account.ipv4 || "ok") : "—", has ? "is-ok" : "is-warn");
     set("#accMasqueState", has && S.account.masque ? t("✓ есть") : t("нет (нужен только для masque)"), has && S.account.masque ? "is-ok" : "is-warn");
@@ -3717,6 +3776,20 @@
     const el = $("#stAcc");
     if (S.account) { el.textContent = t("● аккаунт: есть"); el.className = "statusline__row is-ok"; }
     else { el.textContent = t("● аккаунт: нет — вкладка «Аккаунт»"); el.className = "statusline__row is-err"; }
+  }
+
+  // v2.1.0: человекочитаемая подсказка по коду выхода и хвосту лога warpscout
+  function registerHintFor(code, logTail) {
+    const tl = String(logTail || "").toLowerCase();
+    if (tl.includes("could not save account"))
+      return t("Не удалось сохранить файл аккаунта — папка данных пересоздана. Нажмите «Зарегистрировать» ещё раз.");
+    if (tl.includes("fix or move"))
+      return t("Файл аккаунта повреждён или не читается. Удалите его (кнопка «Открыть папку») и зарегистрируйте заново — или используйте «Новый аккаунт».");
+    if (tl.includes("registration failed") || tl.includes("no reachable endpoint"))
+      return t("Cloudflare API недоступна напрямую и через туннель WARP. Проверьте интернет, попробуйте VPN/прокси или повторите позже — иногда помогает несколько попыток.");
+    if (code === -1)
+      return t("Код -1: warpscout.exe не смог запуститься или был закрыт. Причины: антивирус заблокировал файл; ZIP распакован не целиком (нет папки bin с warpscout.exe); неверный путь в Настройках. Проверьте папку кнопкой «Открыть папку» и добавьте её в исключения антивируса.");
+    return t("Смотрите лог выше — там точная причина от warpscout.");
   }
 
   async function runRegister(fresh) {
@@ -3735,21 +3808,41 @@
       toast(t("Демо: аккаунт уже есть"), "ok");
       return;
     }
+    // v2.1.0: папка данных должна существовать ДО запуска — warpscout не создаёт
+    // родительские каталоги, и без этого аккаунт не сохранялся (ошибка регистрации)
+    await ensureDir(S.paths.dataDir);
+    await ensureDir(S.paths.reportsDir);
+    // v2.1.0: предпроверка warpscout — не ловим «код -1» ради отсутствующего exe
+    if (!(await checkWarpscout())) {
+      S.running.register = false;
+      registerUi();
+      appendLog(log, "\n[GUI] " + t("warpscout.exe не найден. Распакуйте ZIP целиком (рядом с WARPScoutGUI.exe должна лежать папка bin с warpscout.exe) или укажите путь в Настройках. Если файл на месте — добавьте папку в исключения антивируса.") + "\n");
+      toast(t("Ошибка запуска warpscout"), "err");
+      return;
+    }
     const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
     const cmd = quoteExe() + " register" + (fresh ? " -fresh" : "") + acc;
+    let logTail = "";
     try {
       const proc = await os().execCommand(cmd, { stream: true });
       S.procIds.register = proc.id;
       registerProc(proc.id, (d) => {
-        if (d.type === "stdout" || d.type === "stderr") appendLog(log, typeof d.data === "string" ? d.data : "");
-        else if (d.type === "exit") {
+        if (d.type === "stdout" || d.type === "stderr") {
+          const data = typeof d.data === "string" ? d.data : "";
+          appendLog(log, data);
+          logTail = (logTail + data).slice(-4000);
+        } else if (d.type === "exit") {
           unregisterProc(proc.id);
           S.running.register = false;
           registerUi();
-          const ok = exitCodeOf(d.data) === 0;
-          appendLog(log, ok ? "\n[GUI] " + t("Готово.") + "\n" : "\n[GUI] " + tF("[GUI] Регистрация завершилась с ошибкой (код {code}).", { code: exitCodeOf(d.data) }) + "\n");
+          const code = exitCodeOf(d.data);
+          const ok = code === 0;
+          appendLog(log, ok ? "\n[GUI] " + t("Готово.") + "\n" : "\n[GUI] " + tF("[GUI] Регистрация завершилась с ошибкой (код {code}).", { code }) + "\n");
           if (ok) { loadAccount().then(renderAccount); toast(t("Аккаунт готов"), "ok"); }
-          else toast(t("Регистрация не удалась — смотрите лог"), "err");
+          else {
+            appendLog(log, "[GUI] " + registerHintFor(code, logTail) + "\n");
+            toast(t("Регистрация не удалась — смотрите лог"), "err");
+          }
         }
       });
     } catch (e) {
@@ -3764,6 +3857,82 @@
     $("#btnRegister").hidden = S.running.register;
     $("#btnRegisterFresh").hidden = S.running.register;
     $("#btnRegisterStop").hidden = !S.running.register;
+  }
+
+  /* ───────── v2.1.0: импорт готового файла аккаунта ───────── */
+  async function adoptImportedAccount(source) {
+    if (!IS_MOCK) {
+      try {
+        await ensureDir(S.paths.dataDir);
+        await fs().copyFile(source, S.paths.accPath);
+      } catch (e) {
+        toast(tF("Не удалось скопировать файл: {err}", { err: e && e.message ? e.message : e }), "err");
+        return false;
+      }
+    }
+    await loadAccount();
+    renderAccount();
+    return true;
+  }
+
+  async function importAccount() {
+    if (HAS_NL && !IS_MOCK) {
+      let p;
+      try { p = await os().showOpenDialog(t("Выберите файл аккаунта (warpscout-account.json)"), { multiSelections: false }); }
+      catch (e) { p = null; }
+      const picked = Array.isArray(p) ? p[0] : typeof p === "string" ? p : null;
+      if (!picked) return;
+      let text = "";
+      try { text = await fs().readFile(picked); }
+      catch (e) {
+        toast(tF("Не удалось прочитать файл: {err}", { err: e && e.message ? e.message : e }), "err");
+        return;
+      }
+      const r = accountFromText(text);
+      if (r.error) { toast(t(accountImportErrorText(r.error)), "err"); return; }
+      if (await adoptImportedAccount(picked)) toast(t("Готовый аккаунт подключён — можно сканировать"), "ok");
+      return;
+    }
+    // демо: <input type=file>
+    $("#importAccFile").value = "";
+    $("#importAccFile").click();
+  }
+
+  function bindImportAccFile() {
+    $("#importAccFile").addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const r = accountFromText(String(reader.result));
+        if (r.error) { toast(t(accountImportErrorText(r.error)), "err"); return; }
+        if (window.NeutralinoMock) window.NeutralinoMock.account = r.account;
+        if (await adoptImportedAccount(null)) toast(t("Готовый аккаунт подключён — можно сканировать"), "ok");
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  // v2.1.0: автоподхват готового аккаунта из типичных мест, если своего ещё нет
+  async function adoptAccountFromPlaces() {
+    if (!HAS_NL || IS_MOCK) return;
+    if (S.account || S.accountError) return; // свой есть (или лежит битый) — не трогаем
+    const base = String(S.paths.dataDir || "").replace(/[\\/]WARPScoutGUI$/i, "");
+    const np = String(window.NL_PATH || "").replace(/[\\/]+$/, "");
+    const candidates = [];
+    if (np) candidates.push(np + "\\warpscout-account.json", np + "\\bin\\warpscout-account.json");
+    if (base && base !== np) candidates.push(base + "\\warpscout-account.json");
+    candidates.push("warpscout-account.json"); // рядом с местом запуска
+    for (const src of candidates) {
+      let text = "";
+      try { text = await fs().readFile(src); } catch (e) { continue; }
+      const r = accountFromText(text);
+      if (r.error) continue;
+      if (await adoptImportedAccount(src)) {
+        toast(tF("Подключён готовый аккаунт, найденный рядом: {src}", { src }), "ok");
+        return;
+      }
+    }
   }
 
   /* ───────── SOCKS ───────── */
@@ -4106,6 +4275,10 @@
     S.paths.accPath = S.paths.dataDir + "\\warpscout-account.json";
     S.paths.reportsDir = S.paths.dataDir + "\\reports";
     S.paths.wsPath = S.settings.wsPath || (window.NL_PATH ? window.NL_PATH + "\\bin\\warpscout.exe" : "bin\\warpscout.exe");
+    // v2.1.0: папка данных существует с первого запуска — иначе warpscout не сможет
+    // сохранить аккаунт (не создаёт родительские каталоги), а «Открыть папку» падал
+    await ensureDir(S.paths.dataDir);
+    await ensureDir(S.paths.reportsDir);
     $("#setWsPath").value = S.paths.wsPath;
     $("#setAccPath").value = S.paths.accPath;
     $("#setReportDir").value = S.paths.reportsDir;
@@ -4479,6 +4652,8 @@
     if (selA) selA.addEventListener("change", renderCmpBody);
     if (selB) selB.addEventListener("change", renderCmpBody);
 
+    $("#btnAccImport").addEventListener("click", importAccount); // v2.1.0
+    bindImportAccFile(); // v2.1.0
     // внешние ссылки — системный браузер
     $$("a[data-ext]").forEach((a) =>
       a.addEventListener("click", (e) => {
@@ -4521,6 +4696,7 @@
     renderHistoryBtn();
     await loadAccount();
     renderAccount();
+    adoptAccountFromPlaces().catch(() => {}); // v2.1.0: автоподхват готового аккаунта
     renderConf();
     if (IS_MOCK) {
       S.wsVersion = "0.16.0"; // демо: считаем warpscout найденным
@@ -4532,7 +4708,7 @@
   }
 
   // отладочный хук (безвредно): помогает диагностике через консоль
-  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv };
+  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, validateAccountJson };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {

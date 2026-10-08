@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=20v0" />
+  <link rel="stylesheet" href="css/app.css?v=21v0" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -54,7 +54,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светлую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v2.0.0 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v2.1.0 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -504,9 +504,11 @@
               <button class="btn btn--primary" id="btnRegister" type="button">⚙️ Зарегистрировать / обновить ключи</button>
               <button class="btn btn--danger" id="btnRegisterFresh" type="button">🔥 Новый аккаунт (-fresh)</button>
               <button class="btn btn--ghost" id="btnRegisterStop" type="button" hidden>■ Остановить</button>
+              <button class="btn btn--ghost" id="btnAccImport" type="button">📥 Импорт файла аккаунта</button>
               <button class="btn btn--ghost" id="btnOpenAccFolder" type="button">📁 Открыть папку</button>
+              <input type="file" id="importAccFile" accept=".json,.txt,application/json,text/plain" class="hidden" aria-hidden="true" tabindex="-1" />
             </div>
-            <p class="hint">«Обновить ключи» меняет ключи, не создавая новое устройство. «Новый аккаунт» регистрирует устройство с нуля.</p>
+            <p class="hint">«Обновить ключи» меняет ключи, не создавая новое устройство. «Новый аккаунт» регистрирует устройство с нуля. Готовый аккаунт из другой установки: «Импорт файла аккаунта» сам проверит JSON (нужны ключи private_key и peer_public_key) и скопирует его в нужное место с нужным именем.</p>
           </div>
           <div class="card card--results">
             <div class="card__head"><h2>Лог регистрации</h2></div>
@@ -774,8 +776,8 @@
   </datalist>
 
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js?v=20v0"></script>
-  <script src="js/qrcode.js?v=20v0"></script>
-  <script src="js/app.js?v=20v0"></script>
+  <script src="js/mock.js?v=21v0"></script>
+  <script src="js/qrcode.js?v=21v0"></script>
+  <script src="js/app.js?v=21v0"></script>
 </body>
 </html>
