@@ -380,7 +380,7 @@
       "Create a brand-new WARP account? Current keys will be replaced.",
     "📥 Импорт файла аккаунта": "📥 Import account file",
     "Выберите файл аккаунта (warpscout-account.json)": "Pick the account file (warpscout-account.json)",
-    "Не удалось скопировать файл: {err}": "Could not copy the file: {err}",
+    "Не удалось сохранить файл аккаунта: {err}": "Could not save the account file: {err}",
     "Готовый аккаунт подключён — можно сканировать": "Ready-made account connected — you can scan now",
     "Подключён готовый аккаунт, найденный рядом: {src}": "Connected a ready-made account found nearby: {src}",
     "Это не JSON-файл. Нужен аккаунт warpscout: JSON с ключами private_key и peer_public_key.":
@@ -401,8 +401,36 @@
     "Код -1: warpscout.exe не смог запуститься или был закрыт. Причины: антивирус заблокировал файл; ZIP распакован не целиком (нет папки bin с warpscout.exe); неверный путь в Настройках. Проверьте папку кнопкой «Открыть папку» и добавьте её в исключения антивируса.":
       "Exit code -1: warpscout.exe failed to start or was closed. Causes: antivirus blocked the file; the ZIP was not fully unpacked (no bin folder with warpscout.exe); a wrong path in Settings. Check the folder via 'Open folder' and add it to your antivirus exclusions.",
     "Смотрите лог выше — там точная причина от warpscout.": "See the log above — warpscout prints the exact reason there.",
-    "«Обновить ключи» меняет ключи, не создавая новое устройство. «Новый аккаунт» регистрирует устройство с нуля. Готовый аккаунт из другой установки: «Импорт файла аккаунта» сам проверит JSON (нужны ключи private_key и peer_public_key) и скопирует его в нужное место с нужным именем.":
-      "'Renew keys' rotates keys without creating a new device. 'New account' registers a device from scratch. Got an account from another installation? 'Import account file' validates the JSON (private_key and peer_public_key keys are required) and copies it to the right place with the right name.",
+    /* — v2.1.1: аккаунт — перепроверка и диагностика «кода -1» — */
+    "🔄 Проверить снова": "🔄 Check again",
+    "📋 Скопировать путь": "📋 Copy path",
+    "Путь скопирован": "Path copied",
+    "Аккаунт найден": "Account found",
+    "Аккаунт не найден — смотрите путь выше": "Account not found — see the path above",
+    "🔓 Разблокировать exe (антивирус)": "🔓 Unblock exe (antivirus)",
+    "📂 Папка warpscout.exe": "📂 warpscout.exe folder",
+    "🔎 Проверить warpscout": "🔎 Check warpscout",
+    "Проверяю warpscout…": "Checking warpscout…",
+    "warpscout готов: {v}": "warpscout ready: {v}",
+    "warpscout не отвечает — проверьте путь и антивирус": "warpscout is not responding — check the path and your antivirus",
+    "warpscout не отвечает (таймаут)": "warpscout is not responding (timeout)",
+    "Доступно только в приложении Windows": "Available in the Windows app only",
+    "Unblock-File выполнен: с exe снята метка «скачано из интернета». Попробуйте регистрацию ещё раз.":
+      "Unblock-File done: the 'downloaded from the internet' mark has been removed from the exe. Try registering again.",
+    "Готово — попробуйте регистрацию ещё раз": "Done — try registering again",
+    "Не удалось выполнить Unblock-File: {err}": "Could not run Unblock-File: {err}",
+    "Процесс завершился с кодом {code}, но файл аккаунта создан и читается — регистрация прошла. Можно сканировать.":
+      "The process exited with code {code}, but the account file was created and reads fine — registration succeeded. You can scan now.",
+    "Процесс завершился без финального отчёта — сигнал о завершении потерян (так бывает при потере событий или закрытии процесса системой). Нажмите «Проверить снова»: аккаунт мог успеть создаться. Если его нет — добавьте папку в исключения антивируса и повторите регистрацию.":
+      "The process ended without a final report — the exit signal was lost (this happens when events drop or the process is closed by the system). Click 'Check again': the account may have been created in time. If not — add the folder to your antivirus exclusions and register again.",
+    "Проверка перед запуском показала версию {v} — сам exe запускается, путь верный. Похоже, процесс закрывается уже во время регистрации: добавьте папку в исключения антивируса (и нажмите «Разблокировать exe»), затем повторите.":
+      "The preflight check reported version {v} — the exe itself starts and the path is correct. The process seems to get closed during registration: add the folder to your antivirus exclusions (and click 'Unblock exe'), then retry.",
+    "Файл кладётся сюда (путь выше). Если warpscout-account.json лежит рядом с warpscout.exe в bin — кнопка «Проверить снова» подхватит его без перезапуска.":
+      "This is where the file is kept (path above). If warpscout-account.json sits next to warpscout.exe in bin — the 'Check again' button will pick it up without an app restart.",
+    "Если регистрация падает с «кодом -1»: «Проверить warpscout» показывает, запускается ли exe вообще; «Разблокировать exe» снимает метку «скачано из интернета» (PowerShell Unblock-File); папку из предыдущей кнопки добавьте в исключения антивируса.":
+      "If registration fails with 'exit code -1': 'Check warpscout' shows whether the exe starts at all; 'Unblock exe' removes the 'downloaded from the internet' mark (PowerShell Unblock-File); add the folder from the previous button to your antivirus exclusions.",
+    "«Обновить ключи» меняет ключи, не создавая новое устройство. «Новый аккаунт» регистрирует устройство с нуля. Готовый аккаунт из другой установки: «Импорт файла аккаунта» сам проверит JSON (нужны ключи private_key и peer_public_key) и сохранит его в папку выше с нужным именем.":
+      "'Renew keys' rotates keys without creating a new device. 'New account' registers a device from scratch. Got an account from another installation? 'Import account file' validates the JSON (private_key and peer_public_key keys are required) and saves it to the folder above with the right name.",
     /* — socks — */
     "Проверка одного эндпоинта": "Single endpoint check",
     "(как в результатах скана)": "(as in scan results)",
@@ -969,7 +997,28 @@
   }
 
   const procRegistry = {};
-  function registerProc(id, handler) { procRegistry[id] = handler; }
+  // v2.1.1: события могут прийти ДО registerProc (гонка «execCommand вернулся →
+  // подписка оформлена»): раньше они молча терялись, и первый вывод warpscout
+  // не попадал в лог. Копим «ранние» события и отыгрываем их в момент
+  // регистрации обработчика (старше 60с — мусор, выбрасываем).
+  const procBacklog = new Map(); // id -> [{ evt, ts }]
+  function backlogPush(id, evt) {
+    const arr = procBacklog.get(id) || [];
+    arr.push({ evt, ts: Date.now() });
+    procBacklog.set(id, arr);
+    for (const [k, v] of procBacklog) {
+      const fresh = v.filter((x) => Date.now() - x.ts < 60000);
+      if (fresh.length) procBacklog.set(k, fresh); else procBacklog.delete(k);
+    }
+  }
+  function registerProc(id, handler) {
+    procRegistry[id] = handler;
+    const back = procBacklog.get(id);
+    if (back) {
+      procBacklog.delete(id);
+      for (const { evt } of back) { try { handler(evt); } catch (e) { /* не роняем поток событий */ } }
+    }
+  }
   function unregisterProc(id) { delete procRegistry[id]; }
 
   function bindProcEvents() {
@@ -977,6 +1026,7 @@
       const d = evt.detail || evt;
       const h = procRegistry[d.id];
       if (h) h(d);
+      else backlogPush(d.id, d);
     });
     // страховка: если exit-событие потеряно — раз в 5 сек сверяемся со списком живых процессов
     setInterval(async () => {
@@ -990,7 +1040,8 @@
           if (!liveIds.has(String(id))) {
             const h = procRegistry[id];
             delete procRegistry[id];
-            if (h) h({ id: Number(id), type: "exit", data: -1 });
+            // v2.1.1: synthetic — exit-событие потеряно, это НЕ настоящий код -1
+            if (h) h({ id: Number(id), type: "exit", data: -1, synthetic: true });
           }
         }
       } catch (e) { /* рантайм недоступен — не страшно */ }
@@ -999,7 +1050,10 @@
 
   async function ensureDir(dir) {
     if (IS_MOCK || !dir) return;
-    try { await fs().createDirectory(dir, { recursive: true }); } catch (e) { /* уже есть */ }
+    // v2.1.1: у createDirectory в Neutralino нет опции recursive (фантомный
+    // второй аргумент молча игнорировался клиентом) — порядок ensureDir ниже
+    // гарантирует существование родителя
+    try { await fs().createDirectory(dir); } catch (e) { /* уже есть */ }
   }
 
   /* ───────── построение команды скана ───────── */
@@ -3779,7 +3833,9 @@
   }
 
   // v2.1.0: человекочитаемая подсказка по коду выхода и хвосту лога warpscout
-  function registerHintFor(code, logTail) {
+  // v2.1.1: различаем потерянный exit-сигнал (synthetic) и настоящий вылет;
+  // если проверка «warpscout version» проходила — exe запускается, путь верный
+  function registerHintFor(code, logTail, synthetic) {
     const tl = String(logTail || "").toLowerCase();
     if (tl.includes("could not save account"))
       return t("Не удалось сохранить файл аккаунта — папка данных пересоздана. Нажмите «Зарегистрировать» ещё раз.");
@@ -3787,8 +3843,12 @@
       return t("Файл аккаунта повреждён или не читается. Удалите его (кнопка «Открыть папку») и зарегистрируйте заново — или используйте «Новый аккаунт».");
     if (tl.includes("registration failed") || tl.includes("no reachable endpoint"))
       return t("Cloudflare API недоступна напрямую и через туннель WARP. Проверьте интернет, попробуйте VPN/прокси или повторите позже — иногда помогает несколько попыток.");
-    if (code === -1)
-      return t("Код -1: warpscout.exe не смог запуститься или был закрыт. Причины: антивирус заблокировал файл; ZIP распакован не целиком (нет папки bin с warpscout.exe); неверный путь в Настройках. Проверьте папку кнопкой «Открыть папку» и добавьте её в исключения антивируса.");
+    if (code === -1) {
+      if (synthetic)
+        return t("Процесс завершился без финального отчёта — сигнал о завершении потерян (так бывает при потере событий или закрытии процесса системой). Нажмите «Проверить снова»: аккаунт мог успеть создаться. Если его нет — добавьте папку в исключения антивируса и повторите регистрацию.");
+      const v = S.wsVersion ? " " + tF("Проверка перед запуском показала версию {v} — сам exe запускается, путь верный. Похоже, процесс закрывается уже во время регистрации: добавьте папку в исключения антивируса (и нажмите «Разблокировать exe»), затем повторите.", { v: S.wsVersion }) : "";
+      return t("Код -1: warpscout.exe не смог запуститься или был закрыт. Причины: антивирус заблокировал файл; ZIP распакован не целиком (нет папки bin с warpscout.exe); неверный путь в Настройках. Проверьте папку кнопкой «Открыть папку» и добавьте её в исключения антивируса.") + v;
+    }
     return t("Смотрите лог выше — там точная причина от warpscout.");
   }
 
@@ -3822,7 +3882,11 @@
     }
     const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
     const cmd = quoteExe() + " register" + (fresh ? " -fresh" : "") + acc;
+    appendLog(log, "$ " + cmd + "\n"); // v2.1.1: полная команда с путями — для диагностики
     let logTail = "";
+    // v2.1.1: помним, какой аккаунт был ДО запуска — чтобы отличить «появился
+    // новый» от «старый так и лежит» при ненулевом коде выхода
+    const preId = S.account && S.account.id ? String(S.account.id) : "";
     try {
       const proc = await os().execCommand(cmd, { stream: true });
       S.procIds.register = proc.id;
@@ -3835,14 +3899,7 @@
           unregisterProc(proc.id);
           S.running.register = false;
           registerUi();
-          const code = exitCodeOf(d.data);
-          const ok = code === 0;
-          appendLog(log, ok ? "\n[GUI] " + t("Готово.") + "\n" : "\n[GUI] " + tF("[GUI] Регистрация завершилась с ошибкой (код {code}).", { code }) + "\n");
-          if (ok) { loadAccount().then(renderAccount); toast(t("Аккаунт готов"), "ok"); }
-          else {
-            appendLog(log, "[GUI] " + registerHintFor(code, logTail) + "\n");
-            toast(t("Регистрация не удалась — смотрите лог"), "err");
-          }
+          finishRegister(exitCodeOf(d.data), d.synthetic);
         }
       });
     } catch (e) {
@@ -3850,6 +3907,30 @@
       registerUi();
       appendLog(log, "\n[GUI] " + tF("Не удалось запустить warpscout: {err}", { err: e && e.message ? e.message : e }) + "\n");
       toast(t("Ошибка запуска warpscout"), "err");
+    }
+
+    // v2.1.1: код выхода warpscout — не истина в последней инстанции: события
+    // могут теряться, процесс могут закрыть в фоне ПОСЛЕ записи файла. Поэтому
+    // при ненулевом коде перепроверяем файл аккаунта по факту.
+    async function finishRegister(code, synthetic) {
+      try { await loadAccount(); } catch (e) {}
+      renderAccount();
+      const newId = S.account && S.account.id ? String(S.account.id) : "";
+      const accountAppeared = !!S.account && (!preId || newId !== preId);
+      if (code === 0) {
+        appendLog(log, "\n[GUI] " + t("Готово.") + "\n");
+        toast(t("Аккаунт готов"), "ok");
+        return;
+      }
+      if (accountAppeared) {
+        appendLog(log, "\n" + tF("Процесс завершился с кодом {code}, но файл аккаунта создан и читается — регистрация прошла. Можно сканировать.", { code }) + "\n");
+        toast(t("Аккаунт готов"), "ok");
+        return;
+      }
+      // v2.1.1: раньше здесь был двойной префикс «[GUI] [GUI]» — убран
+      appendLog(log, "\n" + tF("[GUI] Регистрация завершилась с ошибкой (код {code}).", { code }) + "\n");
+      appendLog(log, "[GUI] " + registerHintFor(code, logTail, synthetic) + "\n");
+      toast(t("Регистрация не удалась — смотрите лог"), "err");
     }
   }
 
@@ -3860,13 +3941,18 @@
   }
 
   /* ───────── v2.1.0: импорт готового файла аккаунта ───────── */
-  async function adoptImportedAccount(source) {
+  // v2.1.1: БАГФИКС «fs(...).copyFile is not a function». В Neutralino v6 нет
+  // fs().copyFile (есть только fs().copy) — импорт падал, и готовый аккаунт
+  // «не подхватывался». Теперь вызывающий код уже прочитал и проверил JSON —
+  // остаётся сохранить текст в accPath через writeFile (есть во всех версиях).
+  async function adoptImportedAccount(source, text) {
     if (!IS_MOCK) {
       try {
         await ensureDir(S.paths.dataDir);
-        await fs().copyFile(source, S.paths.accPath);
+        if (text == null) text = await fs().readFile(source);
+        await fs().writeFile(S.paths.accPath, String(text));
       } catch (e) {
-        toast(tF("Не удалось скопировать файл: {err}", { err: e && e.message ? e.message : e }), "err");
+        toast(tF("Не удалось сохранить файл аккаунта: {err}", { err: e && e.message ? e.message : e }), "err");
         return false;
       }
     }
@@ -3890,7 +3976,7 @@
       }
       const r = accountFromText(text);
       if (r.error) { toast(t(accountImportErrorText(r.error)), "err"); return; }
-      if (await adoptImportedAccount(picked)) toast(t("Готовый аккаунт подключён — можно сканировать"), "ok");
+      if (await adoptImportedAccount(picked, text)) toast(t("Готовый аккаунт подключён — можно сканировать"), "ok");
       return;
     }
     // демо: <input type=file>
@@ -3907,20 +3993,24 @@
         const r = accountFromText(String(reader.result));
         if (r.error) { toast(t(accountImportErrorText(r.error)), "err"); return; }
         if (window.NeutralinoMock) window.NeutralinoMock.account = r.account;
-        if (await adoptImportedAccount(null)) toast(t("Готовый аккаунт подключён — можно сканировать"), "ok");
+        if (await adoptImportedAccount(null, String(reader.result))) toast(t("Готовый аккаунт подключён — можно сканировать"), "ok");
       };
       reader.readAsText(file);
     });
   }
 
   // v2.1.0: автоподхват готового аккаунта из типичных мест, если своего ещё нет
+  // v2.1.1: добавлена папка, где лежит warpscout.exe (типичный случай —
+  // пользователь кладёт warpscout-account.json рядом с exe в bin)
   async function adoptAccountFromPlaces() {
-    if (!HAS_NL || IS_MOCK) return;
-    if (S.account || S.accountError) return; // свой есть (или лежит битый) — не трогаем
+    if (!HAS_NL || IS_MOCK) return false;
+    if (S.account || S.accountError) return false; // свой есть (или лежит битый) — не трогаем
     const base = String(S.paths.dataDir || "").replace(/[\\/]WARPScoutGUI$/i, "");
     const np = String(window.NL_PATH || "").replace(/[\\/]+$/, "");
+    const exeDir = String(S.paths.wsPath || "").replace(/[\\/]warpscout(\.exe)?$/i, "").replace(/[\\/]+$/, "");
     const candidates = [];
     if (np) candidates.push(np + "\\warpscout-account.json", np + "\\bin\\warpscout-account.json");
+    if (exeDir && exeDir !== np && exeDir !== base) candidates.push(exeDir + "\\warpscout-account.json");
     if (base && base !== np) candidates.push(base + "\\warpscout-account.json");
     candidates.push("warpscout-account.json"); // рядом с местом запуска
     for (const src of candidates) {
@@ -3928,11 +4018,58 @@
       try { text = await fs().readFile(src); } catch (e) { continue; }
       const r = accountFromText(text);
       if (r.error) continue;
-      if (await adoptImportedAccount(src)) {
+      if (await adoptImportedAccount(src, text)) {
         toast(tF("Подключён готовый аккаунт, найденный рядом: {src}", { src }), "ok");
-        return;
+        return true;
       }
     }
+    return false;
+  }
+
+  // v2.1.1: перепроверка файла аккаунта БЕЗ перезапуска приложения
+  async function recheckAccount() {
+    await loadAccount();
+    let adopted = false;
+    if (!S.account && !S.accountError && HAS_NL && !IS_MOCK) {
+      adopted = await adoptAccountFromPlaces();
+    }
+    if (!adopted) renderAccount();
+    return !!S.account;
+  }
+
+  // v2.1.1: помощь при «коде -1» — антивирус / метка Zone.Identifier из ZIP
+  function bindExeHelpers() {
+    $("#btnAccUnblock").addEventListener("click", async () => {
+      if (IS_MOCK || !HAS_NL) { toast(t("Доступно только в приложении Windows"), "err"); return; }
+      const p = String(S.paths.wsPath || "").replace(/"/g, "");
+      if (!p) return;
+      appendLog($("#accLog"), "\n$ powershell Unblock-File <warpscout.exe>\n");
+      try {
+        await os().execCommand("powershell -NoProfile -ExecutionPolicy Bypass -Command \"Unblock-File -LiteralPath '" + p + "'\"");
+        appendLog($("#accLog"), "[GUI] " + t("Unblock-File выполнен: с exe снята метка «скачано из интернета». Попробуйте регистрацию ещё раз.") + "\n");
+        toast(t("Готово — попробуйте регистрацию ещё раз"), "ok");
+      } catch (e) {
+        toast(tF("Не удалось выполнить Unblock-File: {err}", { err: e && e.message ? e.message : e }), "err");
+      }
+    });
+    $("#btnAccOpenExeDir").addEventListener("click", () => {
+      if (IS_MOCK) { toast(t("Доступно только в приложении Windows"), "err"); return; }
+      const dir = String(S.paths.wsPath || "").replace(/[\\/]warpscout(\.exe)?$/i, "").replace(/[\\/]+$/, "");
+      if (!dir) { toast(t("Не удалось открыть папку"), "err"); return; }
+      os().open(dir).catch(() => toast(t("Не удалось открыть папку"), "err"));
+    });
+    $("#btnAccCheckWs").addEventListener("click", async () => {
+      toast(t("Проверяю warpscout…"), "ok");
+      try {
+        const ok = await Promise.race([
+          checkWarpscout(),
+          new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 15000)),
+        ]);
+        toast(ok ? tF("warpscout готов: {v}", { v: S.wsVersion || "?" }) : t("warpscout не отвечает — проверьте путь и антивирус"), ok ? "ok" : "err");
+      } catch (e) {
+        toast(t("warpscout не отвечает (таймаут)"), "err");
+      }
+    });
   }
 
   /* ───────── SOCKS ───────── */
@@ -4077,7 +4214,9 @@
     $$(".nav__item").forEach((b) => b.classList.toggle("is-active", b.getAttribute("data-tab") === name));
     $$(".tab").forEach((t) => t.classList.toggle("is-active", t.id === "tab-" + name));
     if (name === "config") { fillEndpointSelect(); renderConf(); }
-    if (name === "account") renderAccount();
+    // v2.1.1: перешли на вкладку «Аккаунт» — перепроверяем файл (вдруг его
+    // положили вручную, пока приложение было открыто)
+    if (name === "account") recheckAccount().catch(() => {});
   }
 
   function switchSubtab(name) {
@@ -4499,6 +4638,13 @@
       if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
       os().open(S.paths.dataDir).catch(() => toast(t("Не удалось открыть папку"), "err"));
     });
+    // v2.1.1: перепроверка / копирование пути / помощь при «коде -1»
+    $("#btnAccRecheck").addEventListener("click", async () => {
+      const has = await recheckAccount();
+      toast(has ? t("Аккаунт найден") : t("Аккаунт не найден — смотрите путь выше"), has ? "ok" : "err");
+    });
+    $("#btnAccCopyPath").addEventListener("click", () => copyText(S.paths.accPath || "", t("Путь скопирован")));
+    bindExeHelpers();
 
     // socks
     $("#btnSocksRun").addEventListener("click", socksToggle);
