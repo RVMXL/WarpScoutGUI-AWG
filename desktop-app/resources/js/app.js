@@ -137,10 +137,14 @@
         keepaliveTo: "9-16", maxHs: "18-26", trailers: "on", noCookies: "on", hpk: "",
       },
     },
-    settings: { wsPath: "" },
+    settings: { wsPath: "", dataRoot: "" }, // v2.2.0: dataRoot — своя папка данных (пусто = Roaming\WARPScoutGUI)
+    wsVersionOk: false,   // v2.2.0: последняя проверка warpscout успешна
+    wsCheckedAt: 0,       // v2.2.0: время последней проверки (кэш 60 с)
+    wsChecking: false,    // v2.2.0: проверка уже идёт
+    udfMode: "fresh",     // v2.2.0: consolidated | split | fresh — где лежит веб-кэш
     customPresets: [],   // {name, scan:{...}} — пользовательские пресеты
     compact: false,      // компактная таблица
-    paths: { dataDir: "", accPath: "", reportsDir: "", wsPath: "" },
+    paths: { dataDir: "", dataDirDefault: "", udfPath: "", exeName: "", accPath: "", reportsDir: "", wsPath: "" },
     wsVersion: "",
     account: null,
     accountError: "", // v2.1.0: причина, почему файл аккаунта не принят ("parse" | "not-account")
@@ -779,6 +783,38 @@
     "Ошибка экспорта PNG: {err}": "PNG export error: {err}",
     "сканов с пингами": "scans with pings",
     /* — v1.8.0: лендинг — */
+    /* — v2.2.0: единая папка данных — */
+    "Папка данных": "Data folder",
+    "Аккаунт, отчёты и (после объединения) веб-кэш движка — в одной папке. По умолчанию: %APPDATA%\\WARPScoutGUI. Можно выбрать любую другую — например, на другом диске.": "Account, reports and (after merging) the engine web cache live in one folder. Default: %APPDATA%\\WARPScoutGUI. You can pick any other folder — e.g. on another drive.",
+    "📁 Выбрать…": "📁 Browse…",
+    "📂 Открыть": "📂 Open",
+    "↩ По умолчанию": "↩ Default",
+    "Веб-кэш движка (EBWebView)": "Engine web cache (EBWebView)",
+    "🧲 Объединить в одну папку": "🧲 Merge into one folder",
+    "Перенести веб-кэш в папку данных после закрытия приложения и поставить ссылку с имени «WARPScoutGUI.exe» на неё — физически останется одна папка": "Move the web cache into the data folder after the app closes and put a link named «WARPScoutGUI.exe» to it — physically one folder remains",
+    "Файл кладётся сюда (путь выше). Если warpscout-account.json лежит рядом с warpscout.exe в bin — кнопка «Проверить снова» подхватит его без перезапуска. Саму папку данных можно сменить в Настройках → «Папка данных».": "The file goes here (path above). If warpscout-account.json sits next to warpscout.exe in bin — the «Проверить снова» button picks it up without a restart. The data folder itself can be changed in Settings → «Data folder».",
+    "✓ всё в одной папке": "✓ everything in one folder",
+    "⚠ два каталога": "⚠ two folders",
+    "кэш ещё не создан": "cache not created yet",
+    "Веб-кэш и данные — в одной папке. Каталог «<имя exe>» — это ссылка (junction) на неё, физически каталог один.": "Web cache and data are in one folder. The «<exe name>» directory is a junction link to it — physically there is a single folder.",
+    "Веб-кэш лежит отдельно: {p}. Кнопка «Объединить» перенесёт его в папку данных после закрытия приложения и поставит ссылку — останется один каталог.": "The web cache sits separately: {p}. The «Merge» button moves it into the data folder after the app closes and puts a link — one folder remains.",
+    "Веб-кэш появится при первом запуске. Можно объединить заранее — тогда кэш сразу будет создаваться в папке данных.": "The web cache will appear on first run. You can merge in advance — then the cache is created inside the data folder from the start.",
+    "Пользовательская папка данных недоступна — вернулись к папке по умолчанию": "Custom data folder is unavailable — switched back to the default folder",
+    "Сначала остановите скан/регистрацию/прокси — перенос данных посреди работы невозможен": "Stop the scan/registration/proxy first — data cannot be moved while running",
+    "Сначала остановите скан/регистрацию/прокси": "Stop the scan/registration/proxy first",
+    "Данные уже хранятся в этой папке": "Data is already stored in this folder",
+    "Папка недоступна для записи — выберите другую": "Folder is not writable — pick another one",
+    "Веб-кэш остался в предыдущей папке — нажмите «Объединить», чтобы перенести и пере-направить ссылку.": "The web cache stayed in the previous folder — press «Merge» to move it and re-point the link.",
+    "Папка данных изменена, перенесено файлов: {n} ({list})": "Data folder changed, moved {n} file(s): {list}",
+    "Папка данных изменена": "Data folder changed",
+    "Демо: путь к новой папке данных:": "Demo: path of the new data folder:",
+    "Выберите папку для данных WARPSCOUT GUI": "Choose a folder for WARPSCOUT GUI data",
+    "Папки уже объединены": "Folders are already merged",
+    "Демо: папки объединены — в реальном приложении это делает PowerShell после закрытия": "Demo: folders merged — in the real app PowerShell does this after the app closes",
+    "Сейчас приложение закроется, веб-кэш перенесётся в папку данных ({r}), а имя «{e}» станет ссылкой на неё. Затем приложение откроется само (обычно 5–20 секунд). Продолжить?": "The app will now close, the web cache will move into the data folder ({r}), and the name «{e}» will become a link to it. Then the app reopens by itself (usually 5–20 seconds). Continue?",
+    "Объединяю папки — приложение сейчас закроется…": "Merging folders — the app will close now…",
+    "Не удалось запустить PowerShell: {err}": "Failed to run PowerShell: {err}",
+    "Найдены две папки данных. Настройки → «Папка данных» → «Объединить» — останется одна": "Two data folders found. Settings → «Data folder» → «Merge» — one folder remains",
   };
 
   let LANG = "ru";
@@ -806,7 +842,7 @@
     "#accOuterState,#btnRunScanLabel,#scanPhase,#resCount,#cfgFileName,#cfgVerHint," +
     "#cfgKeysState,#socksAddr,#setWsVerHint,#foundCmdBadge,#qrBox,#cfgEndpointSel," +
     "#btnHistory,#btnTheme,#kbdTable,#presetName," +
-    "#scanLivePhase,#scanLiveElapsed,#scanLiveMeta,#scanLiveNodes,#scanLiveDot";
+    "#udfState,#dataRootHint,#setDataRoot,#scanLivePhase,#scanLiveElapsed,#scanLiveMeta,#scanLiveNodes,#scanLiveDot";
 
   function i18nInitStatic() {
     if (i18nStaticReady) return;
@@ -884,6 +920,7 @@
     try { renderWsHints(); } catch (e) {}
     try { const cm = $("#cmpModal"); if (cm && !cm.classList.contains("hidden")) renderCmpBody(); } catch (e) {} // v1.7.0
     try { qcRenderLast(); } catch (e) {} // v1.9.0: вердикт быстрой проверки на новом языке
+    try { renderDataFolder(); } catch (e) {} // v2.2.0: статус папки данных на новом языке
     try {
       const bSel = $("#btnSelectMode"); // v2.0.0: метка кнопки перезаписывается JS — обновить вручную
       if (bSel) bSel.textContent = S.qcSelMode ? "✕ " + t("Снять выбор") : "☑ " + t("Выбрать");
@@ -3873,7 +3910,7 @@
     await ensureDir(S.paths.dataDir);
     await ensureDir(S.paths.reportsDir);
     // v2.1.0: предпроверка warpscout — не ловим «код -1» ради отсутствующего exe
-    if (!(await checkWarpscout())) {
+    if (!(await checkWarpscout(true))) {
       S.running.register = false;
       registerUi();
       appendLog(log, "\n[GUI] " + t("warpscout.exe не найден. Распакуйте ZIP целиком (рядом с WARPScoutGUI.exe должна лежать папка bin с warpscout.exe) или укажите путь в Настройках. Если файл на месте — добавьте папку в исключения антивируса.") + "\n");
@@ -4062,7 +4099,7 @@
       toast(t("Проверяю warpscout…"), "ok");
       try {
         const ok = await Promise.race([
-          checkWarpscout(),
+          checkWarpscout(true),
           new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 15000)),
         ]);
         toast(ok ? tF("warpscout готов: {v}", { v: S.wsVersion || "?" }) : t("warpscout не отвечает — проверьте путь и антивирус"), ok ? "ok" : "err");
@@ -4217,6 +4254,7 @@
     // v2.1.1: перешли на вкладку «Аккаунт» — перепроверяем файл (вдруг его
     // положили вручную, пока приложение было открыто)
     if (name === "account") recheckAccount().catch(() => {});
+    if (name === "settings") renderDataFolder().catch(() => {}); // v2.2.0: свежий статус папки данных
   }
 
   function switchSubtab(name) {
@@ -4359,28 +4397,56 @@
   });
 
   /* ───────── проверка warpscout ───────── */
-  async function checkWarpscout() {
+  // v2.2.0: проверка версии через spawnProcess вместо не-stream execCommand.
+  // Причина: нативные вызовы Neutralino обрабатываются ПО ОЧЕРЕДИ (websocket-хендлер
+  // синхронный) — execCommand «warpscout version» при медленном антивирусе держал
+  // очередь десятки секунд, и ВСЕ кнопки (включая «Открыть папку») отвечали с
+  // задержкой до ~30 с. spawnProcess возвращается сразу, вывод приходит событиями,
+  // зависший процесс убивается по таймауту 8 с. Плюс кэш результата на 60 с.
+  async function checkWarpscout(force) {
     const el = $("#stWs");
+    if (!force && S.wsChecked && S.wsVersionOk && Date.now() - (S.wsCheckedAt || 0) < 60000) return true;
+    if (S.wsChecking) return S.wsChecked ? S.wsVersionOk : false;
+    S.wsChecking = true;
+    let ok = false;
     try {
-      const cmd = quoteExe() + " version";
-      const res = await os().execCommand(cmd);
-      const out = String((res && (res.stdOut != null ? res.stdOut : res.output)) || "").trim();
-      if (/^\d+\.\d+/.test(out)) {
-        S.wsVersion = out;
-        S.wsChecked = true;
-        renderStatusWs();
-        el.className = "statusline__row is-ok";
-        $("#stWs").title = S.paths.wsPath;
-        renderWsHints();
-        return true;
+      if (IS_MOCK) {
+        S.wsVersion = "0.16.0";
+        ok = true;
+      } else {
+        let proc = null;
+        try { proc = await os().spawnProcess(quoteExe() + " version"); } catch (e) { proc = null; }
+        const out = await new Promise((resolve) => {
+          let buf = "";
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(buf.trim()); } };
+          if (proc && proc.id != null) {
+            registerProc(proc.id, (d) => {
+              if (d.type === "stdout" || d.type === "stderr") buf += typeof d.data === "string" ? d.data : "";
+              else if (d.type === "exit") { unregisterProc(proc.id); finish(); }
+            });
+            setTimeout(async () => { await killProc(proc.id); unregisterProc(proc.id); finish(); }, 8000);
+          } else finish();
+        });
+        if (/^\d+\.\d+/.test(out)) {
+          S.wsVersion = out;
+          ok = true;
+        } else {
+          S.wsVersion = "";
+        }
       }
-    } catch (e) { /* падение ниже */ }
-    S.wsVersion = "";
+    } catch (e) { /* помечаем «не отвечает» ниже */ }
     S.wsChecked = true;
+    S.wsVersionOk = ok;
+    S.wsCheckedAt = Date.now();
+    S.wsChecking = false;
     renderStatusWs();
-    el.className = "statusline__row is-err";
-    renderWsHints();
-    return false;
+    el.className = ok ? "statusline__row is-ok" : "statusline__row is-err";
+    if (ok) {
+      $("#stWs").title = S.paths.wsPath;
+      renderWsHints();
+    }
+    return ok;
   }
 
   async function browseWsPath() {
@@ -4401,16 +4467,40 @@
   }
 
   /* ───────── инициализация ───────── */
+  // v2.2.0: имя нашего exe (имя веб-кэш-папки рантайм берёт ИЗ ИМЕНИ БИНАРНИКА,
+  // с расширением — см. lib/webview/webview.h: userDataFolder = %APPDATA% + PathFindFileNameW(exe))
+  function exeFileName() {
+    const a0 = window.NL_ARGS && window.NL_ARGS[0] ? String(window.NL_ARGS[0]) : "";
+    const m = a0.match(/([^\\/"']+)\.exe\s*$/i);
+    return m ? m[1] + ".exe" : "WARPScoutGUI.exe";
+  }
+
   async function computePaths() {
+    let base = "";
     if (IS_MOCK) {
-      S.paths.dataDir = "C:\\Users\\Demo\\AppData\\Roaming\\WARPScoutGUI"; // v2.1.0: как в реальном приложении (Roaming)
+      base = "C:\\Users\\Demo\\AppData\\Roaming"; // v2.1.0: как в реальном приложении (Roaming)
     } else {
       let dataDir = "";
       try { dataDir = await os().getPath("data"); } catch (e) { dataDir = ""; }
-      dataDir = (dataDir || (window.NL_PATH || "") || "").replace(/[\\/]+$/, "");
-      if (!dataDir) dataDir = "."; // крайний случай: относительно CWD
-      S.paths.dataDir = dataDir + "\\WARPScoutGUI";
+      base = (dataDir || (window.NL_PATH || "") || "").replace(/[\\/]+$/, "");
+      if (!base) base = "."; // крайний случай: относительно CWD
     }
+    S.paths.exeName = IS_MOCK ? "WARPScoutGUI.exe" : exeFileName();
+    S.paths.udfPath = base + "\\" + S.paths.exeName; // каталог веб-кэша (жёстко задан рантаймом)
+    S.paths.dataDirDefault = base + "\\WARPScoutGUI";
+    // v2.2.0: пользовательская папка данных (Настройки → «Папка данных»)
+    let root = (S.settings.dataRoot || "").trim();
+    if (root && !IS_MOCK) {
+      let ok = true;
+      try { await ensureDir(root); } catch (e) { ok = false; }
+      if (ok) { try { await fs().readDirectory(root); } catch (e) { ok = false; } }
+      if (!ok) {
+        S.settings.dataRoot = "";
+        root = "";
+        toast(t("Пользовательская папка данных недоступна — вернулись к папке по умолчанию"), "err");
+      }
+    }
+    S.paths.dataDir = root || S.paths.dataDirDefault;
     S.paths.accPath = S.paths.dataDir + "\\warpscout-account.json";
     S.paths.reportsDir = S.paths.dataDir + "\\reports";
     S.paths.wsPath = S.settings.wsPath || (window.NL_PATH ? window.NL_PATH + "\\bin\\warpscout.exe" : "bin\\warpscout.exe");
@@ -4421,6 +4511,273 @@
     $("#setWsPath").value = S.paths.wsPath;
     $("#setAccPath").value = S.paths.accPath;
     $("#setReportDir").value = S.paths.reportsDir;
+    const dr = $("#setDataRoot");
+    if (dr) dr.value = S.paths.dataDir;
+    // v2.2.0: полный путь — в подсказке каждой кнопки-папки: путаницы «какая из двух» больше нет
+    [["#btnOpenAccFolder", S.paths.dataDir], ["#btnOpenAcc", S.paths.dataDir], ["#btnOpenReports", S.paths.reportsDir], ["#btnDataRootOpen", S.paths.dataDir]]
+      .forEach(([sel, p]) => { const b = $(sel); if (b) b.title = p; });
+  }
+
+  /* ───────── v2.2.0: единая папка данных ───────── */
+  // Рантайм Neutralino жёстко кладёт веб-кэш (EBWebView) в %APPDATA%\<имя exe>,
+  // а наши данные (аккаунт, отчёты) живут в %APPDATA%\WARPScoutGUI — пользователь
+  // видит два похожих каталога. Решение: папка данных настраивается (Настройки),
+  // а веб-кэш переносится в неё junction-ссылкой: после закрытия приложения
+  // PowerShell переносит EBWebView, удаляет каталог «<имя exe>» и ставит на его
+  // место ссылку на папку данных — движок пишет кэш туда же, физически папка одна.
+
+  async function dirExists(p) {
+    if (!p) return false;
+    if (IS_MOCK) {
+      const m = window.NeutralinoMock;
+      return !!(m && m.folders && m.folders[p]);
+    }
+    try { const items = await fs().readDirectory(p); return Array.isArray(items); } catch (e) { return false; }
+  }
+
+  // где физически лежит EBWebView: в папке данных (consolidated), в каталоге «*.exe» (split) или нигде (fresh)
+  async function udfStatus() {
+    if (await dirExists(S.paths.dataDir + "\\EBWebView")) return "consolidated";
+    if (await dirExists(S.paths.udfPath + "\\EBWebView")) return "split";
+    return "fresh";
+  }
+
+  function udfStatusText(mode) {
+    if (mode === "consolidated") return { txt: "✓ всё в одной папке", cls: "is-ok" };
+    if (mode === "split") return { txt: "⚠ два каталога", cls: "is-warn" };
+    return { txt: "кэш ещё не создан", cls: "" };
+  }
+
+  async function renderDataFolder() {
+    const el = $("#udfState");
+    if (!el) return "fresh";
+    const st = await udfStatus();
+    const s = udfStatusText(st);
+    el.textContent = t(s.txt);
+    el.className = s.cls;
+    const btn = $("#btnUdfMerge");
+    if (btn) btn.hidden = st === "consolidated";
+    const hint = $("#dataRootHint");
+    if (hint) {
+      hint.textContent =
+        st === "consolidated"
+          ? t("Веб-кэш и данные — в одной папке. Каталог «<имя exe>» — это ссылка (junction) на неё, физически каталог один.")
+          : st === "split"
+          ? tF("Веб-кэш лежит отдельно: {p}. Кнопка «Объединить» перенесёт его в папку данных после закрытия приложения и поставит ссылку — останется один каталог.", { p: S.paths.udfPath })
+          : t("Веб-кэш появится при первом запуске. Можно объединить заранее — тогда кэш сразу будет создаваться в папке данных.");
+    }
+    S.udfMode = st;
+    return st;
+  }
+
+  // перенос данных (аккаунт + отчёты) между корнями при смене папки данных.
+  // EBWebView здесь НЕ трогаем: файлы кэша держит открытыми веб-движок, перенос —
+  // только через «Объединить» (после закрытия приложения).
+  async function migrateData(oldRoot, newRoot) {
+    const moved = [];
+    if (!oldRoot || !newRoot || oldRoot === newRoot) return moved;
+    await ensureDir(newRoot);
+    try {
+      const txt = await fs().readFile(oldRoot + "\\warpscout-account.json");
+      await fs().writeFile(newRoot + "\\warpscout-account.json", txt);
+      try { await fs().remove(oldRoot + "\\warpscout-account.json"); } catch (e) {}
+      moved.push("warpscout-account.json");
+    } catch (e) { /* файла нет — нечего переносить */ }
+    try {
+      const items = await fs().readDirectory(oldRoot + "\\reports");
+      if (Array.isArray(items) && items.length) {
+        await ensureDir(newRoot + "\\reports");
+        for (const it of items) {
+          if (String(it.type || "").toUpperCase() === "DIRECTORY") continue;
+          const name = String(it.path || "").split(/[\\/]/).pop();
+          if (!name) continue;
+          try {
+            const txt2 = await fs().readFile(it.path);
+            await fs().writeFile(newRoot + "\\reports\\" + name, txt2);
+            try { await fs().remove(it.path); } catch (e) {}
+            moved.push("reports/" + name);
+          } catch (e) { /* один файл не читается — переносим остальные */ }
+        }
+        try { await fs().remove(oldRoot + "\\reports"); } catch (e) {}
+      }
+    } catch (e) { /* папки отчётов нет */ }
+    return moved;
+  }
+
+  async function anyProcRunning() {
+    return Object.values(S.running || {}).some(Boolean);
+  }
+
+  async function applyDataRoot(newRoot) {
+    if (!newRoot) return;
+    if (await anyProcRunning()) {
+      toast(t("Сначала остановите скан/регистрацию/прокси — перенос данных посреди работы невозможен"), "err");
+      return;
+    }
+    if (newRoot === S.paths.dataDir) { toast(t("Данные уже хранятся в этой папке"), "ok"); return; }
+    try {
+      await ensureDir(newRoot);
+      await fs().readDirectory(newRoot); // проверка, что папка доступна
+    } catch (e) {
+      toast(t("Папка недоступна для записи — выберите другую"), "err");
+      return;
+    }
+    let moved = [];
+    try { moved = await migrateData(S.paths.dataDir, newRoot); } catch (e) { moved = []; }
+    S.settings.dataRoot = newRoot;
+    await persist();
+    await computePaths();
+    await loadAccount();
+    renderAccount();
+    renderDataFolder().catch(() => {});
+    const oldRootNote = S.udfMode === "consolidated" ? " " + t("Веб-кэш остался в предыдущей папке — нажмите «Объединить», чтобы перенести и пере-направить ссылку.") : "";
+    toast(
+      moved.length
+        ? tF("Папка данных изменена, перенесено файлов: {n} ({list})", { n: moved.length, list: moved.slice(0, 3).join(", ") + (moved.length > 3 ? "…" : "") }) + oldRootNote
+        : t("Папка данных изменена") + oldRootNote,
+      "ok"
+    );
+  }
+
+  async function pickDataRoot() {
+    if (IS_MOCK) {
+      // демо: подставляем демо-папку (реальный диалог — только в приложении)
+      const p = window.prompt(t("Демо: путь к новой папке данных:"), "C:\\Users\\Demo\\WarpData");
+      if (!p) return;
+      await applyDataRoot(String(p).replace(/[\\/]+$/, ""));
+      return;
+    }
+    let p = null;
+    try { p = await os().showFolderDialog(t("Выберите папку для данных WARPSCOUT GUI")); } catch (e) { p = null; }
+    if (!p) return;
+    await applyDataRoot(String(p).replace(/[\\/]+$/, ""));
+  }
+
+  function psq(s) {
+    return "'" + String(s).replace(/'/g, "''") + "'";
+  } // кавычки для строк PowerShell
+
+  function psEncode(cmd) {
+    const bytes = new Uint8Array(cmd.length * 2);
+    for (let i = 0; i < cmd.length; i++) {
+      const c = cmd.charCodeAt(i);
+      bytes[2 * i] = c & 255;
+      bytes[2 * i + 1] = c >> 8;
+    }
+    let bin = "";
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin); // UTF-16LE → base64: -EncodedCommand не зависит от кавычек и кодировки
+  }
+
+  function buildMergeScript(o) {
+    // o: { udf, root, exe, pid, exeName }
+    return [
+      "$ErrorActionPreference = 'Stop'",
+      "$udf  = " + psq(o.udf),
+      "$root = " + psq(o.root),
+      "$exe  = " + psq(o.exe),
+      "$exeName = " + psq(o.exeName),
+      "$pid0 = " + (o.pid || 0),
+      "$log  = Join-Path $root 'merge-folders-log.txt'",
+      "function Log($m){ try{ \"$m\" | Out-File -LiteralPath $log -Append -Encoding utf8 }catch{} }",
+      "Log \"[$(Get-Date -Format s)] merge: start\"",
+      "try {",
+      "  if ($pid0 -gt 0) { try { Wait-Process -Id $pid0 -Timeout 60 -ErrorAction SilentlyContinue } catch {} }",
+      "  else { try { Wait-Process -Name ($exeName -replace '\\.exe$','') -Timeout 60 -ErrorAction SilentlyContinue } catch {} }",
+      "  Start-Sleep -Seconds 2",
+      "  New-Item -ItemType Directory -Path $root -Force | Out-Null",
+      "  $item = Get-Item -LiteralPath $udf -Force -ErrorAction SilentlyContinue",
+      "  $isLink = $false",
+      "  if ($item) { $isLink = ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 }",
+      "  if ($isLink) {",
+      "    $tgt = ''",
+      "    try { $tgt = [String](Get-Item -LiteralPath $udf -Force).Target } catch {}",
+      "    Log \"old junction -> $tgt\"",
+      "    if ($tgt -and ($tgt -ne $root)) {",
+      "      $eb = Join-Path $tgt 'EBWebView'",
+      "      if (Test-Path -LiteralPath $eb) {",
+      "        $dest = Join-Path $root 'EBWebView'",
+      "        if (Test-Path -LiteralPath $dest) { Rename-Item -LiteralPath $dest -NewName ('EBWebView_old_' + (Get-Date -Format 'yyyyMMdd_HHmmss')) -Force -ErrorAction SilentlyContinue }",
+      "        robocopy \"$eb\" \"$dest\" /E /MOVE /R:1 /W:1 /NFL /NDL /NJH /NJS | Out-Null",
+      "        Log 'EBWebView moved from old target'",
+      "      }",
+      "      $left = @(Get-ChildItem -LiteralPath $tgt -Force -ErrorAction SilentlyContinue)",
+      "      if ($left.Count -eq 0) { Remove-Item -LiteralPath $tgt -Force -ErrorAction SilentlyContinue; Log 'old target removed (empty)' }",
+      "    }",
+      "    cmd /c rmdir \"$udf\" | Out-Null",
+      "  } elseif (Test-Path -LiteralPath $udf) {",
+      "    Log 'real dir: moving children into root'",
+      "    Get-ChildItem -LiteralPath $udf -Force | ForEach-Object {",
+      "      $dest = Join-Path $root $_.Name",
+      "      if (Test-Path -LiteralPath $dest) {",
+      "        if ($_.PSIsContainer) { robocopy \"$($_.FullName)\" \"$dest\" /E /MOVE /R:1 /W:1 /NFL /NDL /NJH /NJS | Out-Null }",
+      "        else { Copy-Item -LiteralPath $_.FullName -Destination $dest -Force; Remove-Item -LiteralPath $_.FullName -Force }",
+      "      } else { Move-Item -LiteralPath $_.FullName -Destination $dest -Force }",
+      "    }",
+      "    Start-Sleep -Milliseconds 500",
+      "    Remove-Item -LiteralPath $udf -Recurse -Force -ErrorAction SilentlyContinue",
+      "  }",
+      "  $ok = $false",
+      "  foreach ($i in 1..3) {",
+      "    if (Test-Path -LiteralPath $udf) { Start-Sleep -Seconds 2 }",
+      "    try { New-Item -ItemType Junction -Path $udf -Target $root -ErrorAction Stop | Out-Null; $ok = $true; break }",
+      "    catch { Log \"junction attempt $i failed: $_\" }",
+      "  }",
+      "  if ($ok) { Log 'junction created' } else { Log 'junction FAILED' }",
+      "} catch {",
+      "  Log (\"ERROR: \" + $_)",
+      "}",
+      "if ($exe -and (Test-Path -LiteralPath $exe)) { Start-Process -FilePath $exe | Out-Null }",
+      "Log \"[$(Get-Date -Format s)] done\"",
+    ].join("\r\n");
+  }
+
+  async function appPid() {
+    try {
+      const r = await window.Neutralino.app.getProcessId();
+      return typeof r === "number" ? r : 0;
+    } catch (e) { return 0; }
+  }
+
+  async function consolidateFolders() {
+    if (await anyProcRunning()) {
+      toast(t("Сначала остановите скан/регистрацию/прокси"), "err");
+      return;
+    }
+    const st = await udfStatus();
+    if (st === "consolidated") { toast(t("Папки уже объединены"), "ok"); return; }
+    if (IS_MOCK) {
+      // демо: имитируем результат объединения (реальный перенос — только в приложении)
+      const m = window.NeutralinoMock;
+      if (m && m.folders) {
+        delete m.folders[S.paths.udfPath + "\\EBWebView"];
+        m.folders[S.paths.dataDir + "\\EBWebView"] = true;
+      }
+      S.settings.udfMergedDemo = true;
+      await persist();
+      renderDataFolder().catch(() => {});
+      toast(t("Демо: папки объединены — в реальном приложении это делает PowerShell после закрытия"), "ok");
+      return;
+    }
+    const ok = confirm(
+      tF("Сейчас приложение закроется, веб-кэш перенесётся в папку данных ({r}), а имя «{e}» станет ссылкой на неё. Затем приложение откроется само (обычно 5–20 секунд). Продолжить?", { r: S.paths.dataDir, e: S.paths.exeName })
+    );
+    if (!ok) return;
+    toast(t("Объединяю папки — приложение сейчас закроется…"), "info");
+    const script = buildMergeScript({
+      udf: S.paths.udfPath,
+      root: S.paths.dataDir,
+      exe: (window.NL_PATH ? window.NL_PATH + "\\" : "") + S.paths.exeName,
+      exeName: S.paths.exeName,
+      pid: await appPid(),
+    });
+    try {
+      await os().spawnProcess("powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand " + psEncode(script));
+    } catch (e) {
+      toast(tF("Не удалось запустить PowerShell: {err}", { err: e && e.message ? e.message : e }), "err");
+      return;
+    }
+    setTimeout(() => { try { window.Neutralino.app.exit(); } catch (e) {} }, 1200);
   }
 
   async function restoreState() {
@@ -4638,6 +4995,18 @@
       if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
       os().open(S.paths.dataDir).catch(() => toast(t("Не удалось открыть папку"), "err"));
     });
+    // v2.2.0: папка данных (Настройки)
+    const bPick = $("#btnDataRootPick");
+    if (bPick) bPick.addEventListener("click", pickDataRoot);
+    const bReset = $("#btnDataRootReset");
+    if (bReset) bReset.addEventListener("click", () => applyDataRoot(S.paths.dataDirDefault || ""));
+    const bOpen = $("#btnDataRootOpen");
+    if (bOpen) bOpen.addEventListener("click", () => {
+      if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
+      os().open(S.paths.dataDir).catch(() => toast(t("Не удалось открыть папку"), "err"));
+    });
+    const bMerge = $("#btnUdfMerge");
+    if (bMerge) bMerge.addEventListener("click", consolidateFolders);
     // v2.1.1: перепроверка / копирование пути / помощь при «коде -1»
     $("#btnAccRecheck").addEventListener("click", async () => {
       const has = await recheckAccount();
@@ -4671,7 +5040,7 @@
       S.paths.wsPath = $("#setWsPath").value.trim() || S.paths.wsPath;
       S.settings.wsPath = S.paths.wsPath;
       persist();
-      checkWarpscout();
+      checkWarpscout(true);
     });
     $("#btnOpenAcc").addEventListener("click", () => {
       if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
@@ -4843,6 +5212,7 @@
     await loadAccount();
     renderAccount();
     adoptAccountFromPlaces().catch(() => {}); // v2.1.0: автоподхват готового аккаунта
+    renderDataFolder().catch(() => {}); // v2.2.0: статус «одна папка / два каталога»
     renderConf();
     if (IS_MOCK) {
       S.wsVersion = "0.16.0"; // демо: считаем warpscout найденным
@@ -4851,10 +5221,18 @@
       checkWarpscout();
     }
     renderAccountStatusline();
+    // v2.2.0: мягкое одноразовое предложение объединить папки (если веб-кэш отдельно)
+    renderDataFolder().then((st) => {
+      if (st === "split" && S.settings.udfToastFor !== "2.2.0") {
+        S.settings.udfToastFor = "2.2.0";
+        persist();
+        toast(t("Найдены две папки данных. Настройки → «Папка данных» → «Объединить» — останется одна"), "info");
+      }
+    }).catch(() => {});
   }
 
   // отладочный хук (безвредно): помогает диагностике через консоль
-  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, validateAccountJson };
+  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, validateAccountJson, udfStatus, renderDataFolder, consolidateFolders, applyDataRoot, buildMergeScript, psEncode };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {

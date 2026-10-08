@@ -330,6 +330,9 @@
       showOpenDialog() {
         return Promise.resolve(window.prompt("Демо: путь к файлу:", "C:\\Users\\Demo\\Downloads\\warp.conf") || "");
       },
+      showFolderDialog(title) {
+        return Promise.resolve(window.prompt("Демо: " + (title || "выбор папки:"), "C:\\Users\\Demo\\WarpData") || "");
+      },
       open() { return Promise.resolve(); },
       getPath(kind) {
         return Promise.resolve("C:\\Users\\Demo\\" + (kind === "data" ? "AppData\\Local" : kind || "Documents"));
@@ -347,6 +350,9 @@
       },
       createDirectory() { return Promise.resolve(); },
       readDirectory() { return Promise.resolve([]); },
+      // v2.2.0: демо-заглушки для переноса данных и объединения папок
+      move() { return Promise.resolve(); },
+      remove() { return Promise.resolve(); },
     },
     storage: {
       setData(k, v) { LS.set(k, v); return Promise.resolve(); },
@@ -380,4 +386,9 @@
   window.NL_CWD = window.NL_PATH;
   window.NL_OS = "Windows";
   window.NL_APPVERSION = "1.0.0";
+  // v2.2.0: виртуальные папки для статуса «одна папка / два каталога»:
+  // в демо считаем, что веб-кэш лежит в %APPDATA%\WARPScoutGUI.exe\EBWebView (split)
+  window.NeutralinoMock.folders = {
+    "C:\\Users\\Demo\\AppData\\Roaming\\WARPScoutGUI.exe\\EBWebView": true,
+  };
 })();

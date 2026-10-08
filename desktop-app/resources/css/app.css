@@ -1719,3 +1719,21 @@ html[data-theme="light"] .batch-bar__go { color: #fff6ee; }
   .batch-bar, .qcj__row, .batch-bar__meta.is-run::before { animation: none !important; }
   .batch-bar__go:hover { transform: none; }
 }
+
+/* ══════════ v2.2.0: единая папка данных (Настройки) ══════════ */
+#udfState { font-weight: 600; font-size: 13px; white-space: nowrap; }
+#udfState.is-ok { color: var(--ok); }
+#udfState.is-warn { color: var(--warn); }
+#udfState.is-err { color: var(--err); }
+#dataRootHint { margin-top: 8px; display: block; }
+#btnUdfMerge { border-style: dashed; transition: transform 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+#btnUdfMerge:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+#setDataRoot { font-family: var(--mono); font-size: 12px; }
+.form-grid .field > div { flex-wrap: wrap; }
+@media (max-width: 720px) {
+  #btnUdfMerge { width: 100%; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #btnUdfMerge { transition: none; }
+  #btnUdfMerge:hover { transform: none; }
+}
