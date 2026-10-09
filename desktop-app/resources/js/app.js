@@ -121,6 +121,7 @@
     cfg: {
       ver: "awg31",
       dns: "cloudflare",
+      dnsV6: true, // v2.4.3: использовать IPv6-адреса DNS (по умолчанию включено)
       dnsCustom: "",
       endpoint: "",
       mtu: 1280,
@@ -826,6 +827,9 @@
     "Не удалось снять ссылку «<имя exe>» — данные доступны, папка осталась ссылкой. Закройте приложение и удалите ссылку вручную (Проводник удаляет только ссылку), затем запустите снова.": "Could not remove the «<exe name>» link — data is accessible, the folder remained a link. Close the app and delete the link manually (Explorer removes only the link), then start the app again.",
     "Ссылка «<имя exe>» разобрана: аккаунт и отчёты снова в обычной папке, рядом с кэшем движка": "The «<exe name>» link has been dismantled: account and reports are back in a regular folder, next to the engine cache",
     "Данные перенесены рядом с кэшем движка ({n}): {list}": "Data moved next to the engine cache ({n}): {list}",
+    /* — v2.4.3: IPv6-адреса DNS — */
+    "Использовать IPv6": "Use IPv6",
+    "Добавляет v6-адреса выбранного DNS-провайдера к IPv4 (отключите, если у сети нет IPv6-маршрута)": "Adds the selected DNS provider's v6 addresses to IPv4 (turn off if your network has no IPv6 route)",
   };
 
   let LANG = "ru";
@@ -1849,13 +1853,20 @@
   }
 
   /* ───────── конфиг-генератор ───────── */
+  /* v2.4.3: пресеты с IPv6-адресами (Яндекс убран по запросу); dnsV6 (по умолчанию вкл) добавляет v6-адреса в строку DNS */
   const DNS_PRESETS = {
-    cloudflare: "1.1.1.1, 1.0.0.1",
-    quad9: "9.9.9.9, 149.112.112.112",
-    google: "8.8.8.8, 8.8.4.4",
-    adguard: "94.140.14.14, 94.140.15.15",
-    yandex: "77.88.8.8, 77.88.8.1",
+    cloudflare: { v4: "1.1.1.1, 1.0.0.1", v6: "2606:4700:4700::1111, 2606:4700:4700::1001" },
+    quad9: { v4: "9.9.9.9, 149.112.112.112", v6: "2620:fe::fe, 2620:fe::9" },
+    google: { v4: "8.8.8.8, 8.8.4.4", v6: "2001:4860:4860::8888, 2001:4860:4860::8844" },
+    adguard: { v4: "94.140.14.14, 94.140.15.15", v6: "2a10:50c0::ad1:ff, 2a10:50c0::ad2:ff" },
   };
+
+  /* v2.4.3: строка DNS по пресету с учётом тумблера IPv6 */
+  function dnsLineOf(key, withV6) {
+    const p = DNS_PRESETS[key];
+    if (!p) return "";
+    return withV6 ? p.v4 + ", " + p.v6 : p.v4;
+  }
 
   const VER_HINTS = {
     wg: "Чистый WireGuard без обфускации — для сетей, где WARP не режут.",
@@ -1890,7 +1901,7 @@
     } else {
       kv("Address", "172.16.0.2, 2606:4700:110:xxxx:xxxx:xxxx:xxxx:xxxx");
     }
-    const dns = c.dns === "custom" ? c.dnsCustom : DNS_PRESETS[c.dns];
+    const dns = c.dns === "custom" ? c.dnsCustom : dnsLineOf(c.dns, c.dnsV6 !== false); // v2.4.3: dnsV6 undefined у старых состояний → трактуем как вкл
     if (dns && dns.trim()) kv("DNS", dns);
     if (c.mtu) kv("MTU", c.mtu);
 
@@ -3326,8 +3337,13 @@
     // Interface
     if (has("dns")) {
       const d = all.dns.replace(/\s+/g, " ").trim();
-      const preset = Object.keys(DNS_PRESETS).find((k) => DNS_PRESETS[k].replace(/\s+/g, " ") === d);
-      if (preset) { S.cfg.dns = preset; applied.push("DNS " + preset); }
+      /* v2.4.3: распознаём пресет в обеих формах — только v4 и v4+v6 (старые конфиги без v6 тоже понимаем) */
+      let preset = null, presetV6 = false;
+      for (const k of Object.keys(DNS_PRESETS)) {
+        if (d === dnsLineOf(k, true)) { preset = k; presetV6 = true; break; }
+        if (d === dnsLineOf(k, false)) { preset = k; presetV6 = false; break; }
+      }
+      if (preset) { S.cfg.dns = preset; S.cfg.dnsV6 = presetV6; applied.push("DNS " + preset + (presetV6 ? " v4+v6" : " v4")); }
       else { S.cfg.dns = "custom"; S.cfg.dnsCustom = d; applied.push(t("DNS свои")); }
     }
     if (has("mtu")) { const m = num("mtu"); if (m && m > 0 && m <= 10000) { S.cfg.mtu = m; applied.push("MTU " + m); } }
@@ -4427,6 +4443,7 @@
   function syncCfgFromInputs() {
     const c = S.cfg;
     const o = c.obf;
+    c.dnsV6 = $("#cfgDnsV6").checked; // v2.4.3
     c.dnsCustom = $("#cfgDnsCustom").value;
     c.endpoint = $("#cfgEndpoint").value.trim();
     c.mtu = +$("#cfgMtu").value || 0;
@@ -4461,6 +4478,7 @@
     const c = S.cfg;
     const o = c.obf;
     $("#cfgDnsCustom").value = c.dnsCustom;
+    $("#cfgDnsV6").checked = c.dnsV6 !== false; // v2.4.3: у старых сохранённых состояний поля нет → включено
     $("#cfgEndpoint").value = c.endpoint;
     $("#cfgMtu").value = c.mtu;
     $("#cfgKeepalive").value = c.keepalive;
@@ -5333,7 +5351,7 @@
       if (!confirm(t("Сбросить все настройки и данные приложения?"))) return;
       S.scan = Object.assign({}, DEFAULT_SCAN);
       S.cfg = {
-        ver: "awg31", dns: "cloudflare", dnsCustom: "", endpoint: "", mtu: 1280,
+        ver: "awg31", dns: "cloudflare", dnsV6: true, dnsCustom: "", endpoint: "", mtu: 1280,
         keepalive: 0, allowed: "both", allowedCustom: "", tableOff: false,
         obf: {
           jc: 4, jmin: 40, jmax: 70, s1: 0, s2: 0, s3: 0, s4: 0,

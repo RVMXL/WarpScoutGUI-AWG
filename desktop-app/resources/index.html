@@ -54,7 +54,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светлую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v2.4.2 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v2.4.3 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -384,10 +384,17 @@
                 <button class="seg__btn" data-dns="quad9" type="button">Quad9</button>
                 <button class="seg__btn" data-dns="google" type="button">Google</button>
                 <button class="seg__btn" data-dns="adguard" type="button">AdGuard</button>
-                <button class="seg__btn" data-dns="yandex" type="button">Яндекс</button>
                 <button class="seg__btn" data-dns="custom" type="button">Свой</button>
               </div>
               <input type="text" id="cfgDnsCustom" placeholder="9.9.9.9, 149.112.112.112" class="hidden" style="margin-top:8px" />
+              <!-- v2.4.3: тумблер IPv6-адресов DNS (по умолчанию включён) -->
+              <label class="switch-row" for="cfgDnsV6" style="margin-top:10px">
+                <div>
+                  <div class="switch-row__title">Использовать IPv6</div>
+                  <div class="hint">Добавляет v6-адреса выбранного DNS-провайдера к IPv4 (отключите, если у сети нет IPv6-маршрута)</div>
+                </div>
+                <span class="switch"><input type="checkbox" id="cfgDnsV6" checked /><i></i></span>
+              </label>
             </div>
 
             <div class="card">
