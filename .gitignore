@@ -1,45 +1,21 @@
-# build / runtime artifacts
+# dependencies / build
 node_modules/
 .next/
-*.log
-.DS_Store
+out/
+build/
 
 # desktop-app build output
 desktop-app/dist/
 desktop-app/.tmp/
 
-# sandbox-only workspace (landing site & internal tooling — not part of the program repo)
-/src/
-/public/
-/prisma/
-/materials/
-/upload/
-/download/
-/tests/
-/examples/
-/mini-services/
-/scripts/
-/db/
-/.zscripts/
-/tool-results/
-/.claude/
-/skills/
-/.env
-worklog.md
-backup_all.sh
-Caddyfile
-package.json
-bun.lock
-tsconfig.json
-tailwind.config.ts
-postcss.config.mjs
-next.config.ts
-eslint.config.mjs
-components.json
-prompt
-local-*
-test
-false
+# misc
+.DS_Store
+*.log
+*.pem
 
-# next.js generated
+# env files
+.env*
+
+# typescript
+*.tsbuildinfo
 next-env.d.ts
