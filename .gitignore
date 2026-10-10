@@ -40,3 +40,6 @@ prompt
 local-*
 test
 false
+
+# next.js generated
+next-env.d.ts
