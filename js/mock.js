@@ -396,7 +396,7 @@
   window.NL_PATH = "C:\\Users\\Demo\\Apps\\WARPScoutGUI";
   window.NL_CWD = window.NL_PATH;
   window.NL_OS = "Windows";
-  window.NL_APPVERSION = "2.4.4";
+  window.NL_APPVERSION = "2.4.5";
   // v2.3.0: демо показывает только статус «всё в одной папке» —
   // виртуальные папки v2.2.0 больше не нужны
 })();
