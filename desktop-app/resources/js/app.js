@@ -111,7 +111,7 @@
     scan: Object.assign({}, DEFAULT_SCAN),
     results: [],        // {endpoint, ping, tunPing, loss, seenAs, node, loc, torn}
     sortByPing: false,
-    sortKey: "report",  // v1.6.0: report|ping|endpoint|loss|node|loc
+    sortKey: "report",  // v1.6.0: report|ping|tunPing|endpoint|loss|node|loc
     sortDir: 1,         // v1.6.0: 1 = asc, -1 = desc
     selected: "",
     filter: "",         // подстрока фильтра результатов (ip, узел, страна, локация)
@@ -1389,7 +1389,8 @@
     const sortDir = S.sortDir || 1;
     if (sortKey !== "report") {
       const cmp = {
-        ping: (a, b) => pingMs(a.tunPing || a.ping) - pingMs(b.tunPing || b.ping),
+        ping: (a, b) => pingMs(a.ping) - pingMs(b.ping),
+        tunPing: (a, b) => pingMs(a.tunPing || a.ping) - pingMs(b.tunPing || b.ping),
         loss: (a, b) => (parseFloat(a.loss) || 0) - (parseFloat(b.loss) || 0),
         endpoint: (a, b) => String(a.endpoint).localeCompare(String(b.endpoint), undefined, { numeric: true }),
         node: (a, b) => String(a.node || "").localeCompare(String(b.node || "")),
@@ -1431,9 +1432,12 @@
     // v1.6.0: кликабельная сортировка. Каждый столбец: {label, key}
     const cols = [
       { label: t("Эндпоинт"), key: "endpoint" },
-      { label: S.sortKey === "ping" ? "TUN PING" : "PING", key: "ping" },
+      { label: "PING", key: "ping" },
     ];
-    if (withP) cols.push({ label: "LOSS", key: "loss" });
+    // fix: при withP у warpscout ДВЕ пинговые колонки — добавляем заголовок TUN PING.
+    // Раньше он отсутствовал в шапке, и все колонки после PING съезжали влево на одну:
+    // в LOSS попадал TUN PING (ms), в SEEN AS — LOSS (%), в NODE — страна и т.д.
+    if (withP) cols.push({ label: "TUN PING", key: "tunPing" }, { label: "LOSS", key: "loss" });
     if (withSpeed) cols.push({ label: "SPEED", key: "" });
     cols.push({ label: "SEEN AS", key: "" }, { label: "NODE", key: "node" }, { label: t("Локация узла"), key: "loc" }, { label: "", key: "" });
 
@@ -1513,7 +1517,7 @@
             esc(ep) +
             (isNew ? '<span class="new-badge" title="' + t("Появился в этом скане") + '">new</span>' : "") +
           "</td>",
-          "<td>" + pingCell(S.sortKey === "ping" ? (r.tunPing || r.ping) : r.ping) + "</td>",
+          "<td>" + pingCell(r.ping) + "</td>",
           withP ? "<td>" + pingCell(r.tunPing) + "</td><td>" + lossCell(r.loss) + "</td>" : "",
           withSpeed ? "<td>" + esc(r.speed || "—") + "</td>" : "",
           '<td class="seen">' + flagEmoji(r.seenAs) + " " + esc(r.seenAs || "—") + "</td>",
