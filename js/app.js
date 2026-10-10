@@ -1339,15 +1339,19 @@
     const lines = text.split(/\r?\n/);
     const results = [];
     let zone = "head";
+    // v2.4.6 (F28): наличие колонки SPEED определяем по ФАКТИЧЕСКОМУ заголовку —
+    // CLI добавляет её только при ненулевых замерах (report.go:333), а не по флагам;
+    // иначе при всех нулевых замерах колонки съезжают (страна принимается за speed)
+    let speedCols = withSpeed;
     for (const raw of lines) {
       const line = raw.trimEnd();
       if (/^#\s+\d+ torn down/.test(line)) { zone = "torn"; continue; }
       if (/^#/.test(line)) { continue; }
       if (!line.trim()) { continue; }
-      if (/^ENDPOINT\s/.test(line) && zone !== "nodebest" && zone !== "torn") { zone = "rows"; continue; }
-      if (/^NODE\s+ENDPOINT/.test(line)) { zone = "nodebest"; continue; }
+      if (/^ENDPOINT\s/.test(line) && zone !== "nodebest" && zone !== "torn") { speedCols = /\bSPEED\b/.test(line); zone = "rows"; continue; }
+      if (/^NODE\s+ENDPOINT/.test(line)) { speedCols = /\bSPEED\b/.test(line); zone = "nodebest"; continue; }
       if (zone === "rows" || zone === "torn") {
-        const row = parseRowTokens(line, withP, withSpeed);
+        const row = parseRowTokens(line, withP, speedCols);
         if (row) {
           row.torn = zone === "torn";
           results.push(row);
