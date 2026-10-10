@@ -236,7 +236,7 @@
         { delay: 800, data: "attempt 2: jc=6 jmin=12 jmax=63 gen-i1=random -> 2/8 endpoints work\r\n" },
         { delay: 800, data: "attempt 3: jc=4 jmin=40 jmax=70 gen-i1=quic -> 8/8 endpoints work\r\n" },
         { delay: 200, data: "\r\nWorking junk set found. Command:\r\n" },
-        { delay: 50, data: "warpscout scan -p awg -P -n 10 -gen-i1 quic -jc 4 -jmin 40 -jmax 70\r\n" },
+        { delay: 50, data: "warpscout.exe scan -proto awg -P -n 10 -gen-i1 quic -jc 4 -jmin 40 -jmax 70\r\n" }, // v2.4.6 (F44): формат как у реального CLI на Windows
         { delay: 100, type: "exit", data: "0" },
       ];
     },
@@ -245,7 +245,7 @@
         { delay: 300, data: "SNI consumer-masque.cloudflareclient.com -> 0/6 endpoints work\r\n" },
         { delay: 800, data: "SNI www.apple.com -> 6/6 endpoints work\r\n" },
         { delay: 200, data: "\r\nWorking SNI found. Command:\r\n" },
-        { delay: 50, data: "warpscout scan -proto masque -masque-sni www.apple.com\r\n" },
+        { delay: 50, data: "warpscout.exe scan -proto masque -masque-sni www.apple.com\r\n" }, // v2.4.6 (F44): как у реального CLI
         { delay: 100, type: "exit", data: "0" },
       ];
     },
