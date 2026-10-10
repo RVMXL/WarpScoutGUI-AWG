@@ -1,0 +1,27 @@
+WarpScoutGUI-AWG
+Copyright 2026 RVMXL
+
+This product includes software developed as part of the
+WarpScoutGUI-AWG project (https://github.com/RVMXL/WarpScoutGUI-AWG):
+a desktop GUI for the warpscout CLI utility, built on Neutralino.
+
+Third-party components distributed with the built application
+(each under the MIT License; full texts are included in every
+release archive):
+
+  * warpscout v0.16.0
+    https://github.com/vernette/warpscout  (c) Nikita S.
+  * Neutralino core and client, v6.10.0
+    https://github.com/neutralinojs/neutralinojs
+    (c) Neutralinojs and contributors; the full LICENSE-neutralino.txt
+    also covers the C++ libraries bundled inside the Neutralino core
+  * QR Code Generator for JavaScript
+    https://github.com/kazuhikoarase/qrcode-generator  (c) 2009 Kazuhiko Arase
+
+The AWG protocol support in warpscout is based on amneziawg-go
+(MIT, https://github.com/amnezia-vpn/amneziawg-go), which is in turn
+based on wireguard-go (MIT, (c) Jason A. Donenfeld).
+
+"QR Code" is a registered trademark of DENSO WAVE INCORPORATED.
+WARP is a trademark of Cloudflare, Inc. This project is not
+affiliated with Cloudflare, Amnezia, or DENSO WAVE.

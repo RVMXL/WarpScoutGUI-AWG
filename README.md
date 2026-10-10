@@ -14,7 +14,7 @@
 
 ## Скачать
 
-Готовые portable-сборки (Windows x64, без установки) — в разделе **[Releases](https://github.com/RVMXL/WarpScoutGUI-AWG/releases)**: `WARPScoutGUI-<версия>-win64.zip`. В архиве: `WARPScoutGUI.exe`, `resources.neu`, `bin/warpscout.exe`, `README.txt` и тексты лицензий всех сторонних компонентов (`LICENSE-warpscout.txt`, `LICENSE-neutralino.txt`, `LICENSE-qrcode.txt`).
+Готовые portable-сборки (Windows x64, без установки) — в разделе **[Releases](https://github.com/RVMXL/WarpScoutGUI-AWG/releases)**: `WARPScoutGUI-<версия>-win64.zip`. В архиве: `WARPScoutGUI.exe`, `resources.neu`, `bin/warpscout.exe`, `README.txt`, тексты лицензий (`LICENSE-AWG.txt` — Apache-2.0 для самой программы; `LICENSE-warpscout.txt`, `LICENSE-neutralino.txt`, `LICENSE-qrcode.txt` — MIT для сторонних компонентов; в релизах до v2.4.5 — только три MIT-текста).
 
 Текущая версия: **v2.4.4**. История изменений — в описаниях релизов.
 
@@ -49,7 +49,9 @@ npx --yes @neutralinojs/neu@11 build --release
 
 ## Авторство и лицензии
 
-WarpScoutGUI — независимая графическая оболочка. В состав распространяемых архивов входят сторонние компоненты; все они — под лицензией **MIT**, полные тексты прикладываются к каждому релизу:
+**Сам WarpScoutGUI-AWG** (код GUI: `resources/`, конфигурация, упаковка) — © 2026 RVMXL, лицензия **[Apache License 2.0](LICENSE)** (текст — [`LICENSE`](LICENSE), атрибуция — [`NOTICE`](NOTICE); в архивах релизов — `LICENSE-AWG.txt`).
+
+В состав распространяемых архивов входят сторонние компоненты; все они — под лицензией **MIT**, полные тексты прикладываются к каждому релизу:
 
 | Компонент | Источник | Лицензия | Текст в архиве |
 |---|---|---|---|

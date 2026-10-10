@@ -354,6 +354,7 @@
  WARPScoutGUI.exe  — приложение (WebView2, встроен в Windows 10/11)
  resources.neu     — ресурсы интерфейса (нужен, лежит рядом)
  bin\warpscout.exe — сама утилита warpscout v0.16.0 (MIT)
+ LICENSE-AWG.txt          — лицензия самой программы (Apache-2.0)
  LICENSE-warpscout.txt    — лицензия warpscout
  LICENSE-neutralino.txt   — лицензия Neutralino (+ встроенные библиотеки)
  LICENSE-qrcode.txt       — лицензия QR Code Generator (qrcode.js)
@@ -376,9 +377,13 @@
    уберётся). Обновление с v2.1–2.2 без объединения: аккаунт и
    отчёты сами перенесутся из старой папки WARPScoutGUI.
 
+ ЛИЦЕНЗИИ
+ Сам WarpScoutGUI-AWG — независимая графическая оболочка,
+ © 2026 RVMXL, лицензия Apache License 2.0 — текст: LICENSE-AWG.txt
+ (исходники: github.com/RVMXL/WarpScoutGUI-AWG).
+
  ЛИЦЕНЗИИ СТОРОННИХ КОМПОНЕНТОВ
- WarpScoutGUI — независимая графическая оболочка. В её состав
- входят сторонние компоненты, каждый под лицензией MIT:
+ В состав входят сторонние компоненты, каждый под лицензией MIT:
  - bin\warpscout.exe — warpscout v0.16.0
    (github.com/vernette/warpscout) — текст: LICENSE-warpscout.txt;
  - WARPScoutGUI.exe и resources/js/neutralino.js — Neutralino
