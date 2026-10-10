@@ -146,6 +146,8 @@
     compact: false,      // компактная таблица
     paths: { dataDir: "", dataDirDefault: "", legacyDataDir: "", udfPath: "", exeName: "", appDir: "", accPath: "", reportsDir: "", wsPath: "", wsFound: false, wsTried: [] },
     wsVersion: "",
+    qrPages: null,        // v2.4.4: страницы многостраничного QR (формат AmneziaVPN), null = одиночный
+    qrPage: 0,            // v2.4.4: текущая страница QR в модалке
     wsFileThere: false,  // v2.4.0: файл warpscout.exe существует (даже если версию получить не удалось)
     account: null,
     accountError: "", // v2.1.0: причина, почему файл аккаунта не принят ("parse" | "not-account")
@@ -638,6 +640,11 @@
     "I2–I5 отсутствуют в полях GUI": "I2–I5 have no fields in the GUI",
     /* — qr — */
     "QR-модуль не загружен": "QR module not loaded",
+    "страница {i} из {n}": "page {i} of {n}",
+    "Предыдущая страница": "Previous page",
+    "Следующая страница": "Next page",
+    "Отсканируйте камерой в AmneziaVPN («Сканировать QR-код») — конфиг перенесётся без файлов. Длинный конфиг разбивается на страницы: сканируйте их по очереди, пока все не соберутся, порядок не важен. В WireGuard длинный конфиг вносится файлом.": "Scan with the camera in AmneziaVPN (“Scan QR code”) — the config transfers without files. A long config is split into pages: scan them one by one until all are collected — the order doesn't matter. In WireGuard, import a long config from a file.",
+    "QR-код конфига": "Config QR code",
     "Конфиг {n} симв. — не помещается в QR (лимит 2953). Обычно виноват длинный I1: уберите его или сохраните конфиг файлом.":
       "The config is {n} chars — too big for QR (limit 2953). Usually a long I1 is to blame: drop it or save the config as a file.",
     "PNG скачан: ": "PNG downloaded: ",
@@ -2348,31 +2355,100 @@
     toast(S.compact ? "Компактная таблица включена" : "Обычная таблица", "info");
   }
 
-  /* ───────── QR-код конфига (v1.4.0) ───────── */
+  /* ───────── QR-код конфига (v1.4.0; v2.4.4: многостраничный QR для длинных конфигов — формат AmneziaVPN) ───────── */
+  const QR_CHUNK = 850;      // байт данных на страницу — ровно как в qrCodeUtils.cpp Amnezia (k = 850)
+  const QR_SINGLE_LIMIT = 2953; // байтовая ёмкость максимальной версии QR (40-L) — одиночный код
+
   function toggleQr(open) {
     const m = $("#qrModal");
     if (m) m.classList.toggle("hidden", !open);
   }
 
+  function qrB64url(bytes) {
+    let bin = "";
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  /* Страница многостраничного QR в формате, который понимает импорт AmneziaVPN
+     (importController.parseQrCodeChunk): base64url( int16be 1984 ‖ uint8 всего ‖ uint8 № ‖ uint32be длина ‖ данные ).
+     Источник формата: amnezia-client core/utils/qrCodeUtils.cpp (QDataStream = big-endian,
+     QByteArray сериализуется как uint32-длина + байты). */
+  function qrPagesFor(conf) {
+    const data = new TextEncoder().encode(conf);
+    const total = Math.ceil(data.length / QR_CHUNK);
+    if (total > 255) return null; // номер количества страниц — quint8
+    const pages = [];
+    for (let p = 0; p < total; p++) {
+      const chunk = data.slice(p * QR_CHUNK, (p + 1) * QR_CHUNK);
+      const buf = new Uint8Array(8 + chunk.length);
+      const dv = new DataView(buf.buffer);
+      dv.setInt16(0, 1984, false);          // qrMagicCode = 1984
+      dv.setUint8(2, total);                // chunksCount
+      dv.setUint8(3, p);                    // chunkId
+      dv.setUint32(4, chunk.length, false); // длина чанка (QByteArray)
+      buf.set(chunk, 8);
+      pages.push(qrB64url(buf));
+    }
+    return pages;
+  }
+
+  function qrMake(text) {
+    const qr = window.qrcode(0, "L"); // L — максимальная ёмкость (2953 байта)
+    qr.addData(text);
+    qr.make();
+    return qr;
+  }
+
+  function renderQrPage() {
+    if (!S.qrPages) return;
+    const qr = qrMake(S.qrPages[S.qrPage]);
+    $("#qrBox").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 3, scalable: true });
+    $("#qrPageLabel").textContent = tF("страница {i} из {n}", { i: S.qrPage + 1, n: S.qrPages.length });
+    $("#btnQrPrev").disabled = S.qrPage === 0;
+    $("#btnQrNext").disabled = S.qrPage === S.qrPages.length - 1;
+  }
+
   function showConfQr() {
     if (typeof window.qrcode !== "function") { toast(t("QR-модуль не загружен"), "err"); return; }
     const conf = buildConf();
+    const tooBigErr = () => toast(tF("Конфиг {n} симв. — не помещается в QR (лимит 2953). Обычно виноват длинный I1: уберите его или сохраните конфиг файлом.", { n: conf.length }), "err");
     try {
-      const qr = window.qrcode(0, "L"); // L — максимальная ёмкость (2953 байта)
-      qr.addData(conf);
-      qr.make();
-      $("#qrBox").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 3, scalable: true });
+      if (new TextEncoder().encode(conf).length <= QR_SINGLE_LIMIT) {
+        // одиночный QR — как раньше (plain-текст конфига, его же читает и WireGuard)
+        S.qrPages = null; S.qrPage = 0;
+        $("#qrPager").classList.add("hidden");
+        $("#qrBox").innerHTML = qrMake(conf).createSvgTag({ cellSize: 4, margin: 3, scalable: true });
+      } else {
+        // конфиг длиннее одного QR — многостраничный в формате AmneziaVPN
+        const pages = qrPagesFor(conf);
+        if (!pages) { tooBigErr(); return; }
+        S.qrPages = pages; S.qrPage = 0;
+        $("#qrPager").classList.remove("hidden");
+        renderQrPage();
+      }
       toggleQr(true);
     } catch (e) {
-      toast(tF("Конфиг {n} симв. — не помещается в QR (лимит 2953). Обычно виноват длинный I1: уберите его или сохраните конфиг файлом.", { n: conf.length }), "err");
+      tooBigErr();
     }
   }
 
   async function saveQrPng() {
     if (typeof window.qrcode !== "function") return;
     try {
-      const qr = window.qrcode(0, "M");
-      qr.addData(buildConf());
+      // v2.4.4: пересобираем страницы из АКТУАЛЬНОГО конфига (модалка могла устать от правок)
+      const conf = buildConf();
+      const multi = new TextEncoder().encode(conf).length > QR_SINGLE_LIMIT;
+      let text = conf, pageIdx = 0, pageCount = 1;
+      if (multi) {
+        const pages = qrPagesFor(conf);
+        if (!pages) { toast(tF("Конфиг {n} симв. — не помещается в QR (лимит 2953). Обычно виноват длинный I1: уберите его или сохраните конфиг файлом.", { n: conf.length }), "err"); return; }
+        pageIdx = Math.min(S.qrPage || 0, pages.length - 1);
+        text = pages[pageIdx];
+        pageCount = pages.length;
+      }
+      const qr = window.qrcode(0, multi ? "L" : "M");
+      qr.addData(text);
       qr.make();
       const cell = 6, margin = 4, count = qr.getModuleCount();
       const size = (count + margin * 2) * cell;
@@ -2389,7 +2465,8 @@
         }
       }
       const dataUrl = canvas.toDataURL("image/png");
-      const name = ($( "#cfgFileName").textContent || "warp.conf").replace(/\.conf$/, "") + "-qr.png";
+      const base = ($( "#cfgFileName").textContent || "warp.conf").replace(/\.conf$/, "");
+      const name = multi ? base + "-qr-" + (pageIdx + 1) + "of" + pageCount + ".png" : base + "-qr.png";
       if (IS_MOCK) {
         const a = document.createElement("a");
         a.href = dataUrl;
@@ -5178,6 +5255,9 @@
     $("#btnExportCsv").addEventListener("click", exportCsv);
     $("#btnCopyEps").addEventListener("click", copyEndpoints); // v1.5.0
     $("#btnConfQr").addEventListener("click", showConfQr);
+    // v2.4.4: пейджер многостраничного QR
+    $("#btnQrPrev").addEventListener("click", () => { if (S.qrPages && S.qrPage > 0) { S.qrPage--; renderQrPage(); } });
+    $("#btnQrNext").addEventListener("click", () => { if (S.qrPages && S.qrPage < S.qrPages.length - 1) { S.qrPage++; renderQrPage(); } });
     $("#btnQrPng").addEventListener("click", saveQrPng);
     $("#btnQrCopy").addEventListener("click", () => copyText(buildConf(), t("Конфиг скопирован")));
     $("#btnExportState").addEventListener("click", exportState);
@@ -5524,7 +5604,7 @@
   }
 
   // отладочный хук (безвредно): помогает диагностике через консоль
-  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, validateAccountJson, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath };
+  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, validateAccountJson, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {

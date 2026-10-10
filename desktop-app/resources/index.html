@@ -54,7 +54,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светлую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v2.4.3 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v2.4.4 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -779,8 +779,14 @@
         <button class="modal__close" type="button" data-close-qr aria-label="Закрыть">✕</button>
       </div>
       <div class="modal__body modal__body--qr">
+        <!-- v2.4.4: пейджер многостраничного QR (формат AmneziaVPN) -->
+        <div class="qr-pager hidden" id="qrPager">
+          <button class="btn btn--ghost btn--sm" id="btnQrPrev" type="button" aria-label="Предыдущая страница" title="Предыдущая страница">‹</button>
+          <span class="qr-pager__label" id="qrPageLabel">страница 1 из 2</span>
+          <button class="btn btn--ghost btn--sm" id="btnQrNext" type="button" aria-label="Следующая страница" title="Следующая страница">›</button>
+        </div>
         <div class="qr-box" id="qrBox" aria-label="QR-код с текстом конфига"></div>
-        <p class="modal__note">Отсканируйте камерой в WireGuard (Сканировать QR-код) или AmneziaVPN — конфиг перенесётся без файлов. Слишком длинный конфиг может не поместиться — тогда сохраните его файлом.</p>
+        <p class="modal__note">Отсканируйте камерой в AmneziaVPN («Сканировать QR-код») — конфиг перенесётся без файлов. Длинный конфиг разбивается на страницы: сканируйте их по очереди, пока все не соберутся, порядок не важен. В WireGuard длинный конфиг вносится файлом.</p>
         <div class="row-buttons row-buttons--center">
           <button class="btn btn--ghost btn--sm" id="btnQrPng" type="button">⬇ Сохранить PNG</button>
           <button class="btn btn--ghost btn--sm" id="btnQrCopy" type="button">⧉ Скопировать конфиг</button>
