@@ -354,6 +354,9 @@
  WARPScoutGUI.exe  — приложение (WebView2, встроен в Windows 10/11)
  resources.neu     — ресурсы интерфейса (нужен, лежит рядом)
  bin\warpscout.exe — сама утилита warpscout v0.16.0 (MIT)
+ LICENSE-warpscout.txt    — лицензия warpscout
+ LICENSE-neutralino.txt   — лицензия Neutralino (+ встроенные библиотеки)
+ LICENSE-qrcode.txt       — лицензия QR Code Generator (qrcode.js)
  Данные приложения (аккаунт, отчёты) хранятся в
  %APPDATA%\WARPScoutGUI.exe\ (AppData\Roaming) — в той же папке,
  что и веб-кэш движка EBWebView. Папку можно сменить:
@@ -373,8 +376,24 @@
    уберётся). Обновление с v2.1–2.2 без объединения: аккаунт и
    отчёты сами перенесутся из старой папки WARPScoutGUI.
 
+ ЛИЦЕНЗИИ СТОРОННИХ КОМПОНЕНТОВ
+ WarpScoutGUI — независимая графическая оболочка. В её состав
+ входят сторонние компоненты, каждый под лицензией MIT:
+ - bin\warpscout.exe — warpscout v0.16.0
+   (github.com/vernette/warpscout) — текст: LICENSE-warpscout.txt;
+ - WARPScoutGUI.exe и resources/js/neutralino.js — Neutralino
+   core и client v6.10.0 (github.com/neutralinojs/neutralinojs) —
+   полный текст со всеми встроенными библиотеками:
+   LICENSE-neutralino.txt;
+ - resources/js/qrcode.js — QR Code Generator for JavaScript
+   © 2009 Kazuhiko Arase (github.com/kazuhikoarase/qrcode-generator)
+   — текст: LICENSE-qrcode.txt. «QR Code» — зарегистрированный
+   товарный знак DENSO WAVE INCORPORATED.
+ Протокол AWG в warpscout реализован на базе amneziawg-go
+ (github.com/amnezia-vpn/amneziawg-go, MIT), который в свою очередь
+ основан на wireguard-go (copyright © Jason A. Donenfeld, MIT).
+
  ПРИМЕЧАНИЯ
  - Скан выполняется локально с вашей машины, без посредников.
- - warpscout распространяется по лицензии MIT (github.com/vernette/warpscout).
  - Приложение — независимая графическая оболочка, используйте на свой риск.
 ════════════════════════════════════════════════════════════

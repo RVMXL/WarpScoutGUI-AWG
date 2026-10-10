@@ -14,7 +14,7 @@
 
 ## Скачать
 
-Готовые portable-сборки (Windows x64, без установки) — в разделе **[Releases](https://github.com/7uRr6O/WarpScoutGUI-AWG/releases)**: `WARPScoutGUI-<версия>-win64.zip`. В архиве: `WARPScoutGUI.exe`, `resources.neu`, `bin/warpscout.exe`, `README.txt`, `LICENSE-warpscout.txt`.
+Готовые portable-сборки (Windows x64, без установки) — в разделе **[Releases](https://github.com/RVMXL/WarpScoutGUI-AWG/releases)**: `WARPScoutGUI-<версия>-win64.zip`. В архиве: `WARPScoutGUI.exe`, `resources.neu`, `bin/warpscout.exe`, `README.txt` и тексты лицензий всех сторонних компонентов (`LICENSE-warpscout.txt`, `LICENSE-neutralino.txt`, `LICENSE-qrcode.txt`).
 
 Текущая версия: **v2.4.4**. История изменений — в описаниях релизов.
 
@@ -49,6 +49,15 @@ npx --yes @neutralinojs/neu@11 build --release
 
 ## Авторство и лицензии
 
-- **warpscout** — CLI-утилита [vernette/warpscout](https://github.com/vernette/warpscout) (Go, MIT © Nikita S.). GUI распространяет её бинарник в релизных архивах; полная лицензия прикладывается в каждом архиве (`LICENSE-warpscout.txt`).
+WarpScoutGUI — независимая графическая оболочка. В состав распространяемых архивов входят сторонние компоненты; все они — под лицензией **MIT**, полные тексты прикладываются к каждому релизу:
+
+| Компонент | Источник | Лицензия | Текст в архиве |
+|---|---|---|---|
+| **warpscout** (CLI, `bin/warpscout.exe`) | [vernette/warpscout](https://github.com/vernette/warpscout) (Go, © Nikita S.) | MIT | `LICENSE-warpscout.txt` |
+| **Neutralino** — ядро (`WARPScoutGUI.exe`) и клиент (`neutralino.js` v6.10.0 внутри `resources.neu`) | [neutralinojs/neutralinojs](https://github.com/neutralinojs/neutralinojs) | MIT © Neutralinojs and contributors | `LICENSE-neutralino.txt` (включая лицензии встроенных в ядро C++-библиотек: asio, websocketpp, mbedTLS, nlohmann/json, webview и др.) |
+| **QR Code Generator for JavaScript** (`resources/js/qrcode.js`) | [kazuhikoarase/qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) (© 2009 Kazuhiko Arase) | MIT | `LICENSE-qrcode.txt` |
+
+- Протокол **AmneziaWG** внутри warpscout реализован на базе [amneziawg-go](https://github.com/amnezia-vpn/amneziawg-go) (MIT), который в свою очередь основан на [wireguard-go](https://github.com/WireGuard/wireguard-go) (© Jason A. Donenfeld, MIT).
+- Слово «QR Code» — зарегистрированный товарный знак **DENSO WAVE INCORPORATED**.
 - **Этот репозиторий — не форк**: это независимый проект (Neutralino.js GUI), написанный с нуля вокруг CLI-утилиты; общей истории коммитов с апстримом нет.
-- Не аффилировано с Cloudflare и Amnezia. WARP — товарный знак Cloudflare, Inc.
+- Не аффилировано с Cloudflare, Amnezia и DENSO WAVE. WARP — товарный знак Cloudflare, Inc.
