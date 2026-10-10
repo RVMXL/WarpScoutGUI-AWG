@@ -1,6 +1,8 @@
-# WarpScout
+# WARPScoutGUI-AWG
 
-Набор утилит для работы с Cloudflare WARP-конфигурациями в формате **AmneziaWG**:
+Графическая оболочка для [**warpscout**](https://github.com/vernette/warpscout) — CLI-сканера WARP-эндпоинтов от [vernette](https://github.com/vernette) (Go, MIT). Суффикс **-AWG** отличает этот GUI от прочих обёрток: проект работает с конфигурациями в формате **AmneziaWG** (awg31).
+
+Набор утилит:
 
 - **WARPScout GUI** (`desktop-app/`) — десктопное приложение (Neutralino.js) вокруг CLI-утилиты `bin/warpscout.exe`: регистрация WARP-аккаунтов, генерация `.conf` в формате AmneziaWG (awg31), импорт/валидация конфигов, QR-коды (включая многостраничный формат AmneziaVPN для длинных конфигов), сканер статуса аккаунтов.
 - **Лендинг** (`src/`) — сайт на Next.js 16 + Tailwind + shadcn/ui: описание проекта, демо интерфейса, changelog и эндпоинт `/api/download` для отдачи релизного zip-архива.
@@ -49,6 +51,12 @@ npx --yes @neutralinojs/neu@11 build --release
 - QR-код конфига: одиночный (до 2953 байт) или **многостраничный** в формате AmneziaVPN (побайтово совместим с их импортером, порядок страниц не важен)
 - Сканирование статуса аккаунтов с настраиваемым concurrency
 - Локальное состояние в localStorage, тёмная/светлая тема
+
+## Авторство и лицензии
+
+- **warpscout** — CLI-утилита [vernette/warpscout](https://github.com/vernette/warpscout) (Go, MIT © Nikita S.). GUI распространяет её бинарник в релизных архивах; полная лицензия прикладывается в каждом архиве (`LICENSE-warpscout.txt`).
+- **Этот репозиторий — не форк**: это независимый проект (Neutralino.js GUI + Next.js лендинг), написанный с нуля вокруг CLI-утилиты; общей истории коммитов с апстримом нет.
+- Лендинг: не аффилирован с Cloudflare и Amnezia. WARP — товарный знак Cloudflare, Inc.
 
 ## Примечания
 
