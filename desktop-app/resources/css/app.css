@@ -13,7 +13,7 @@
   --border-soft: #1d232b;
   --text: #e8e6e3;
   --text-dim: #9aa3ad;
-  --text-faint: #66707a;
+  --text-faint: #7f8993; /* v2.4.6 (F52): ≥4.5:1 на карточках и сайдбаре (было #66707a — 3.4:1) */
   --accent: #f27c20;
   --accent-soft: rgba(242, 124, 32, 0.14);
   --accent-line: rgba(242, 124, 32, 0.35);
@@ -572,6 +572,13 @@ textarea { resize: vertical; min-height: 40px; line-height: 1.4; }
   transition: opacity 0.12s, background 0.12s, color 0.12s, border-color 0.12s;
 }
 .rtable tr:hover td.row-actions button { opacity: 1; }
+/* v2.4.6 (F49): Tab не должен вести к невидимым кнопкам */
+.rtable tr:focus-within td.row-actions button { opacity: 1; }
+.rtable td.row-actions button:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .rtable td.row-actions button:hover {
   background: var(--accent-soft);
   border-color: var(--accent-line);
@@ -715,7 +722,7 @@ html[data-theme="light"] {
   --border-soft: #e2ddd2;
   --text: #28241e;
   --text-dim: #5d574d;
-  --text-faint: #8b8478;
+  --text-faint: #6b655b; /* v2.4.6 (F52): ≥4.5:1 на светлом фоне (было #8b8478 — 3.7:1) */
   --accent: #e0700f;
   --accent-soft: rgba(224, 112, 15, 0.12);
   --accent-line: rgba(224, 112, 15, 0.45);

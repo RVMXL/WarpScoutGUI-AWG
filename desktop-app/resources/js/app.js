@@ -67,8 +67,11 @@
       ta.value = text;
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand("copy"); toast(okMsg || t("Скопировано"), "ok"); } catch (e2) { toast(t("Не удалось скопировать"), "err"); }
+      let ok = false;
+      try { ok = document.execCommand("copy"); } catch (e2) { ok = false; } // v2.4.6 (F55): false — тоже неудача
       ta.remove();
+      if (ok) toast(okMsg || t("Скопировано"), "ok");
+      else toast(t("Не удалось скопировать"), "err");
     }
   }
 
@@ -76,6 +79,23 @@
   // I1 из эталонного конфиг-примера (маскировка под iCloud-запрос)
   const EXAMPLE_I1 =
     "<b 0xce000000010897a297ecc34cd6dd000044d0ec2e2e1ea2991f467ace4222129b5a098823784694b4897b9986ae0b7280135fa85e196d9ad980b150122129ce2a9379531b0fd3e871ca5fdb883c369832f730e272d7b8b74f393f9f0fa43f11e510ecb2219a52984410c204cf875585340c62238e14ad04dff382f2c200e0ee22fe743b9c6b8b043121c5710ec289f471c91ee414fca8b8be8419ae8ce7ffc53837f6ade262891895f3f4cecd31bc93ac5599e18e4f01b472362b8056c3172b513051f8322d1062997ef4a383b01706598d08d48c221d30e74c7ce000cdad36b706b1bf9b0607c32ec4b3203a4ee21ab64df336212b9758280803fcab14933b0e7ee1e04a7becce3e2633f4852585c567894a5f9efe9706a151b615856647e8b7dba69ab357b3982f554549bef9256111b2d67afde0b496f16962d4957ff654232aa9e845b61463908309cfd9de0a6abf5f425f577d7e5f6440652aa8da5f73588e82e9470f3b21b27b28c649506ae1a7f5f15b876f56abc4615f49911549b9bb39dd804fde182bd2dcec0c33bad9b138ca07d4a4a1650a2c2686acea05727e2a78962a840ae428f55627516e73c83dd8893b02358e81b524b4d99fda6df52b3a8d7a5291326e7ac9d773c5b43b8444554ef5aea104a738ed650aa979674bbed38da58ac29d87c29d387d80b526065baeb073ce65f075ccb56e47533aef357dceaa8293a523c5f6f790be90e4731123d3c6152a70576e90b4ab5bc5ead01576c68ab633ff7d36dcde2a0b2c68897e1acfc4d6483aaaeb635dd63c96b2b6a7a2bfe042f6aed82e5363aa850aace12ee3b1a93f30d8ab9537df483152a5527faca21efc9981b304f11fc95336f5b9637b174c5a0659e2b22e159a9fed4b8e93047371175b1d6d9cc8ab745f3b2281537d1c75fb9451871864efa5d184c38c185fd203de206751b92620f7c369e031d2041e152040920ac2c5ab5340bfc9d0561176abf10a147287ea90758575ac6a9f5ac9f390d0d5b23ee12af583383d994e22c0cf42383834bcd3ada1b3825a0664d8f3fb678261d57601ddf94a8a68a7c273a18c08aa99c7ad8c6c42eab67718843597ec9930457359dfdfbce024afc2dcf9348579a57d8d3490b2fa99f278f1c37d87dad9b221acd575192ffae1784f8e60ec7cee4068b6b988f0433d96d6a1b1865f4e155e9fe020279f434f3bf1bd117b717b92f6cd1cc9bea7d45978bcc3f24bda631a36910110a6ec06da35f8966c9279d130347594f13e9e07514fa370754d1424c0a1545c5070ef9fb2acd14233e8a50bfc5978b5bdf8bc1714731f798d21e2004117c61f2989dd44f0cf027b27d4019e81ed4b5c31db347c4a3a4d85048d7093cf16753d7b0d15e078f5c7a5205dc2f87e330a1f716738dce1c6180e9d02869b5546f1c4d2748f8c90d9693cba4e0079297d22fd61402dea32ff0eb69ebd65a5d0b687d87e3a8b2c42b648aa723c7c7daf37abcc4bb85caea2ee8f55bec20e913b3324ab8f5c3304f820d42ad1b9f2ffc1a3af9927136b4419e1e579ab4c2ae3c776d293d397d575df181e6cae0a4ada5d67ecea171cca3288d57c7bbdaee3befe745fb7d634f70386d873b90c4d6c6596bb65af68f9e5121e67ebf0d89d3c909ceedfb32ce9575a7758ff080724e1ab5d5f43074ecb53a479af21ed03d7b6899c36631c0166f9d47e5e1d4528a5d3d3f744029c4b1c190cbfbad06f5f83f7ad0429fa9a2719c56ffe3783460e166de2d8>";
+
+  // v2.4.6 (F08/F24): канонический cfg — единый источник дефолтов для инициализации,
+  // сброса и санитизации импорта
+  function defaultCfg() {
+    return {
+      ver: "awg31", dns: "cloudflare", dnsV6: true, dnsCustom: "", endpoint: "",
+      mtu: 1280, keepalive: 0, allowed: "both", allowedCustom: "", tableOff: false,
+      obf: {
+        jc: 4, jmin: 40, jmax: 70,
+        s1: 0, s2: 0, s3: 0, s4: 0,
+        h1: "1", h2: "2", h3: "3", h4: "4",
+        i1: EXAMPLE_I1, i2: "", i3: "", i4: "", i5: "", // v2.4.6 (F26): I2–I5 больше не теряются
+        cpa: "27-97", rekeyAfter: "116-131", rekeyTo: "6-9", rejectAfter: "171-196",
+        keepaliveTo: "9-16", maxHs: "18-26", trailers: "on", noCookies: "on", hpk: "",
+      },
+    };
+  }
 
   const DEFAULT_SCAN = {
     proto: "awg",
@@ -118,26 +138,9 @@
     history: [],        // последние 10 сканов {ts, label, results, withP, withSpeed}
     viewMeta: { withP: true, withSpeed: false }, // колонки текущей таблицы
     historyOpen: false,
-    cfg: {
-      ver: "awg31",
-      dns: "cloudflare",
-      dnsV6: true, // v2.4.3: использовать IPv6-адреса DNS (по умолчанию включено)
-      dnsCustom: "",
-      endpoint: "",
-      mtu: 1280,
-      keepalive: 0,
-      allowed: "both",
-      allowedCustom: "",
-      tableOff: false,
-      obf: {
-        jc: 4, jmin: 40, jmax: 70,
-        s1: 0, s2: 0, s3: 0, s4: 0,
-        h1: "1", h2: "2", h3: "3", h4: "4",
-        i1: EXAMPLE_I1,
-        cpa: "27-97", rekeyAfter: "116-131", rekeyTo: "6-9", rejectAfter: "171-196",
-        keepaliveTo: "9-16", maxHs: "18-26", trailers: "on", noCookies: "on", hpk: "",
-      },
-    },
+    cfg: defaultCfg(),
+    lastRunParams: null,  // v2.4.6 (F18/F30): снимок эффективных параметров последнего запуска
+    scanSession: 0,       // v2.4.6 (F31): id текущей сессии скана
     settings: { wsPath: "", dataRoot: "" }, // v2.3.0: dataRoot — своя папка данных (пусто = Roaming\WARPScoutGUI.exe)
     wsVersionOk: false,   // v2.2.0: последняя проверка warpscout успешна
     wsCheckedAt: 0,       // v2.2.0: время последней проверки (кэш 60 с)
@@ -1200,7 +1203,11 @@
 
   function buildScanArgs(s) {
     const a = [];
-    a.push("-p " + s.proto);
+    // v2.4.6 (F01): enum-валидация на границе команды (см. SCAN_ENUMS выше)
+    const proto = enumOf(s.proto, SCAN_ENUMS.proto, "awg");
+    const isAwg = proto === "awg";
+    const isMasque = proto === "masque" || proto === "masque-h2";
+    a.push("-p " + proto);
     if (s.tunPing) {
       a.push("-P");
       if (s.pingTarget && s.pingTarget.trim()) a.push("-ping-target " + safeVal(s.pingTarget));
@@ -1213,18 +1220,18 @@
     if (s.timeout && +s.timeout !== 2) a.push("-t " + Math.min(30, Math.max(1, Math.round(+s.timeout))));
     if (s.ipv6) a.push("-6");
     if (s.target && s.target.trim()) a.push("-target " + safeVal(s.target));
-    const isMasque = s.proto === "masque" || s.proto === "masque-h2";
     if (s.node && s.node.trim() && !isMasque) a.push("-node " + safeVal(s.node));
     if (s.country && s.country.trim() && !isMasque) a.push("-country " + safeVal(s.country));
     if (s.exclNode && s.exclNode.trim() && !isMasque) a.push("-exclude-node " + safeVal(s.exclNode));
     if (s.exclCountry && s.exclCountry.trim() && !isMasque) a.push("-exclude-country " + safeVal(s.exclCountry));
     if (s.through && s.through.trim()) {
       a.push("-through " + safeVal(s.through));
-      if (s.innerProto) a.push("-inner-proto " + s.innerProto);
+      if (s.innerProto) a.push("-inner-proto " + enumOf(s.innerProto, SCAN_ENUMS.innerProto, "wg"));
     }
-    if (s.proto === "awg") {
-      if (s.genI1) {
-        a.push("-gen-i1 " + s.genI1);
+    if (isAwg) {
+      const gi1 = enumOf(s.genI1, SCAN_ENUMS.genI1, "");
+      if (gi1) {
+        a.push("-gen-i1 " + gi1);
         if (s.i1Sni && s.i1Sni.trim()) a.push("-i1-sni " + safeVal(s.i1Sni)); // валиден только вместе с -gen-i1
       }
       if (s.genJunk) a.push("-gen-junk");
@@ -1234,7 +1241,7 @@
         if (s.jmax !== "" && s.jmax != null && +s.jmax !== 50) a.push("-jmax " + Math.min(5000, Math.max(0, Math.round(+s.jmax))));
       }
     }
-    if (s.proto === "masque" || s.proto === "masque-h2") {
+    if (isMasque) {
       if (s.masqueSni && s.masqueSni.trim()) a.push("-masque-sni " + safeVal(s.masqueSni));
       if (s.masqueAttempts && +s.masqueAttempts !== 3) a.push("-masque-attempts " + Math.min(10, Math.max(1, Math.round(+s.masqueAttempts))));
     }
@@ -1253,12 +1260,62 @@
   }
 
   // ── R1/R3: безопасные значения флагов для Windows cmd ──
+  // v2.4.6 (аудит F07): каждое значение обязано быть ОДНИМ argv-токеном.
+  // Раньше вырезались только shell-символы, а пробелы оставались —
+  // «1.1.1.1 -f -n 256» превращался в дополнительные CLI-флаги.
+  // Пробелы легитимны ни в одном из этих полей (IP/CIDR, коды узлов, SNI),
+  // поэтому вырезаем их ЦЕЛИКОМ вместе с опасными символами.
   function safeVal(v) {
     if (v == null) return "";
     return String(v)
-      .replace(/\s*,\s*/g, ",")            // «DME, FRA» -> «DME,FRA»
-      .replace(/["'&|^%!<>()*?~;]/g, "")   // опасные для cmd/argv символы
+      .replace(/\s+/g, "")                 // «1.1.1.1 -f -n 256» -> «1.1.1.1-f-n256» (мусор, но один токен)
+      .replace(/["'&|^%!<>()*?~;`,]/g, "") // опасные для cmd/argv символы
       .trim();
+  }
+
+  /* ── v2.4.6 (аудит F01/F02/F22): строгие enum'ы и разбор endpoint на границе команды ──
+     Ни одно поле импортированного JSON (backup, пресеты, история) не должно уметь
+     менять структуру shell-команды. Проверяем enum'ы ЗДЕСЬ, в месте построения команды,
+     независимо от того, откуда пришёл объект (форма, пресет, импорт, storage). */
+  const SCAN_ENUMS = {
+    proto: ["wg", "awg", "masque", "masque-h2"],
+    innerProto: ["", "wg", "awg"], // CLI: «-inner-proto wg|awg» (flags.go:104)
+    genI1: ["", "quic", "dns", "sip", "stun", "random"], // flags.go:118
+  };
+
+  function enumOf(v, allowed, fallback) {
+    return allowed.indexOf(v) !== -1 ? v : fallback;
+  }
+
+  function clampInt(v, min, max, fallback) {
+    const n = Math.round(+v);
+    if (!isFinite(n)) return fallback != null ? fallback : min;
+    return Math.min(max, Math.max(min, n));
+  }
+
+  // Единый разбор «endpoint» (host:port). Возвращает { host, port } или null.
+  // host — IPv4/IPv6/имя БЕЗ скобок (скобки снимаем), port — 1..65535.
+  // Пробелы и shell-символы не проходят по определению символьного класса —
+  // поэтому импортированная история не может протащить «1.1.1.1 & echo …» в -target.
+  function parseEndpoint(ep) {
+    const raw = String(ep == null ? "" : ep).trim();
+    if (!raw || /[\s"'&|^%!<>()*?~;`,\\/]/.test(raw)) return null;
+    let host = "", portStr = "";
+    const br = /^\[(.+)\]:(\d{1,5})$/.exec(raw); // [IPv6]:port
+    if (br) {
+      host = br[1];
+      portStr = br[2];
+    } else {
+      const i = raw.lastIndexOf(":");
+      if (i < 1) return null;
+      host = raw.slice(0, i);
+      portStr = raw.slice(i + 1);
+    }
+    if (!/^\d{1,5}$/.test(portStr)) return null;
+    const port = parseInt(portStr, 10);
+    if (port < 1 || port > 65535) return null;
+    if (!host || !/^[0-9A-Za-z.:\-_]+$/.test(host)) return null; // IPv4/IPv6/hostname
+    return { host: host, port: port };
   }
 
   function quoteExe() {
@@ -1453,8 +1510,10 @@
           const active = c.key && c.key === sortKey && sortKey !== "report";
           const arrow = active ? (sortDir === 1 ? ' <span class="th-arrow">▲</span>' : ' <span class="th-arrow">▼</span>') : "";
           const pingArrow = c.key === "ping" && sortKey === "report" && S.sortByPing ? ' <span class="th-arrow">▲</span>' : "";
+          // v2.4.6 (F48): сортируемые заголовки доступны с клавиатуры и сообщают направление (aria-sort)
           return (
-            '<th' + (c.key ? ' class="th-sort" data-sort="' + c.key + '" title="' + t("Сортировать") + '"' : "") + ">" +
+            '<th' + (c.key ? ' class="th-sort" tabindex="0" data-sort="' + c.key + '" title="' + t("Сортировать") + '"' +
+              (active ? ' aria-sort="' + (sortDir === 1 ? "ascending" : "descending") + '"' : "") : "") + ">" +
             esc(c.label) + arrow + pingArrow + "</th>"
           );
         })
@@ -1465,8 +1524,7 @@
     if (selAll) selAll.addEventListener("change", selectAllVisible);
     // v1.6.0: клик по заголовку — сортировка (повторный клик меняет направление)
     $$("#resultsHead .th-sort").forEach((th) => {
-      th.addEventListener("click", (e) => {
-        e.stopPropagation();
+      const doSort = () => {
         const key = th.getAttribute("data-sort");
         if (!key) return;
         if (S.sortKey === key) {
@@ -1477,6 +1535,13 @@
         }
         S.sortByPing = S.sortKey === "ping" && S.sortDir === 1;
         renderResults();
+      };
+      th.addEventListener("click", (e) => {
+        e.stopPropagation();
+        doSort();
+      });
+      th.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); doSort(); } // v2.4.6 (F48)
       });
     });
 
@@ -1580,10 +1645,26 @@
           const act = b.getAttribute("data-act");
           if (act === "copy") { copyText(ep, t("Эндпоинт скопирован")); return; }
           if (act === "cfg") {
+            // v2.4.6 (F19): для MASQUE нет WG/AWG .conf — честный отказ вместо профиля не того протокола
+            if (S.viewProto === "masque" || S.viewProto === "masque-h2") {
+              toast(t("MASQUE-эндпоинт нельзя упаковать в WG/AWG .conf — используйте SOCKS-прокси или CLI warpscout"), "warn");
+              return;
+            }
             S.cfg.endpoint = ep;
+            // v2.4.6 (F18): junk-параметры ИЗ ПАРАМЕТРОВ СКАНА — конфиг воспроизводит проверенный туннель,
+            // а не дефолтные 4/40/70 при скане с 6/10/50
+            const lp = S.lastRunParams;
+            if (lp && lp.proto === "awg" && !lp.genJunk) {
+              S.cfg.obf.jc = clampInt(lp.jc !== "" && lp.jc != null ? lp.jc : 6, 1, 128, 4);
+              let jmin = clampInt(lp.jmin !== "" && lp.jmin != null ? lp.jmin : 10, 0, 1280, 40);
+              const jmax = clampInt(lp.jmax !== "" && lp.jmax != null ? lp.jmax : 50, 0, 1280, 70);
+              if (jmin > jmax) jmin = jmax;
+              S.cfg.obf.jmin = jmin;
+              S.cfg.obf.jmax = jmax;
+            }
             syncCfgInputsFromState();
             switchTab("config");
-            toast(tF("Эндпоинт подставлен в конфиг: {ep}", { ep: ep }), "ok");
+            toast(tF("Эндпоинт и junk-параметры скана подставлены в конфиг: {ep}", { ep: ep }), "ok");
             return;
           }
           if (act === "socks") {
@@ -1711,6 +1792,7 @@
   }
 
   /* ───────── прогон скана ───────── */
+  let scanSeq = 0; // v2.4.6 (F31): счётчик запусков — id сессии
   function setScanRunning(run) {
     S.running.scan = run;
     $("#btnRunScan").hidden = run;
@@ -1738,6 +1820,18 @@
     S.running.scan = true;
     setScanRunning(true);
     const s = S.scan;
+    // v2.4.6 (F01): невалидные enum'ы из импорта — явный отказ, а не молчаливая подмена
+    if (
+      SCAN_ENUMS.proto.indexOf(s.proto) === -1 ||
+      SCAN_ENUMS.genI1.indexOf(s.genI1 || "") === -1 ||
+      (s.innerProto && SCAN_ENUMS.innerProto.indexOf(s.innerProto) === -1)
+    ) {
+      S.running.scan = false;
+      setScanRunning(false);
+      toast(t("Импортированные параметры содержат недопустимые значения (протокол / генератор I1 / inner-proto) — проверьте форму скана"), "err");
+      switchTab("scan");
+      return;
+    }
     // для masque фильтры -node/-country/-exclude-* не применяются — buildScanArgs их вырезает
     if (!S.account && !IS_MOCK) {
       S.running.scan = false;
@@ -1748,11 +1842,20 @@
     }
     const withP = !!s.tunPing;
     const withSpeed = !!(s.speed || s.bestBySpeed);
-    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    // v2.4.6 (F31): идентификатор запуска — устаревшие колбэки не трогают новую сессию;
+    // v2.4.6 (F32): флаг отмены для Stop ДО появления процесса
+    const runId = ++scanSeq;
+    S.scanSession = runId;
+    S.scanCancelRequested = false;
+    // v2.4.6 (F18/F30): снимок ЭФФЕКТИВНЫХ параметров запуска — история, quick-check
+    // и SOCKS используют ЕГО, а не текущие поля формы (протокол уже не «уедет»)
+    const runParams = sanitizeScan(s);
+    S.lastRunParams = runParams;
+    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + "-" + String(runId);
     S.paths.reportPath = S.paths.reportsDir + "/warpscout-report-" + ts + ".txt";
     await ensureDir(S.paths.reportsDir);
 
-    const cmd = buildScanCmd(s);
+    const cmd = buildScanCmd(runParams);
     resetFilterSilently();
     $("#scanLog").textContent = "";
     switchSubtab("log");
@@ -1770,6 +1873,15 @@
       // ответ приходит одним куском ПОСЛЕ завершения. spawnProcess даёт живой
       // стриминг, реальный id для Stop-кнопок и настоящий exit-код.
       const proc = await os().spawnProcess(cmd);
+      // v2.4.6 (F32): Stop успели нажать ДО возврата spawn — убиваем немедленно
+      if (S.scanCancelRequested || S.scanSession !== runId) {
+        try { await os().killProcess(proc.id); } catch (e) {}
+        S.running.scan = false;
+        setScanRunning(false);
+        stopScanLive();
+        toast(t("Скан остановлен"), "ok");
+        return;
+      }
       S.procIds.scan = proc.id;
       let buf = "";
       registerProc(proc.id, (d) => {
@@ -1778,6 +1890,7 @@
           appendLog($("#scanLog"), data);
           scanLiveFeed(data);
           buf += data;
+          if (buf.length > 300000) buf = buf.slice(-150000); // v2.4.6 (F36): внутренний буфер ограничен — квадратичный рост исключён
           // прогресс
           const mPhase1 = /Phase 1: probing reachable WARP ports: (\d+)\.\.\./.exec(buf);
           const mPhase2 = /Phase 2: verifying tunnels \(proto=(\w+)\): (\d+)\.\.\./.exec(buf);
@@ -1792,10 +1905,25 @@
           }
         } else if (d.type === "exit") {
           unregisterProc(proc.id);
-          setScanRunning(false);
+          // v2.4.6 (F31): устаревшая сессия не трогает UI
+          if (S.scanSession !== runId) return;
           setPhase(S.scanStopped ? t("Остановлено") : t("Читаем отчёт…"), 100);
-          if (!S.scanStopped) finishScan(withP, withSpeed, exitCodeOf(d.data));
-          else toast(t("Скан остановлен"), "ok");
+          if (!S.scanStopped) {
+            // v2.4.6 (F31): running.scan держится true, ПОКА не дочитан отчёт —
+            // новый скан не сможет вклиниться в финализацию старого
+            finishScan(withP, withSpeed, exitCodeOf(d.data), runParams)
+              .catch(() => {})
+              .then(() => {
+                if (S.scanSession === runId) {
+                  S.running.scan = false;
+                  setScanRunning(false);
+                }
+              });
+          } else {
+            S.running.scan = false;
+            setScanRunning(false);
+            toast(t("Скан остановлен"), "ok");
+          }
         }
       });
     } catch (e) {
@@ -1807,7 +1935,7 @@
     }
   }
 
-  async function finishScan(withP, withSpeed, exitCode) {
+  async function finishScan(withP, withSpeed, exitCode, runParams) {
     let text = "";
     try {
       text = await fs().readFile(S.paths.reportPath);
@@ -1816,6 +1944,7 @@
       if (IS_MOCK && window.NeutralinoMock) text = window.NeutralinoMock.lastReport || window.NeutralinoMock.report;
     }
     if (!text) {
+      stopScanLive(); // v2.4.6 (F35): live-панель и таймер гасим во ВСЕХ ветках выхода
       appendLog($("#scanLog"), "\n[GUI] " + t("Отчёт не найден — смотрим конец лога.") + "\n");
       if (exitCode !== 0) {
         toast(tF("warpscout завершился с ошибкой (код {code}). Смотрите лог — часто не хватает аккаунта или фильтры слишком строгие.", { code: exitCode }), "err");
@@ -1828,7 +1957,7 @@
     }
     S.results = parseReport(text, withP, withSpeed);
     S.viewMeta = { withP, withSpeed };
-    S.viewProto = S.scan.proto;
+    S.viewProto = (runParams && runParams.proto) || S.scan.proto; // v2.4.6 (F30): протокол ИМЕННО этого запуска
     // diff с прошлым сканом
     if (S.prevEndpoints) {
       const curSet = new Set(S.results.map((r) => r.endpoint));
@@ -1839,7 +1968,7 @@
       S.diff = null;
     }
     S.selected = S.results.find((r) => !r.torn) ? S.results.find((r) => !r.torn).endpoint : "";
-    pushHistory(S.scan.proto);
+    pushHistory(S.viewProto);
     S.staggerNext = true; // v1.7.0: строки таблицы появятся каскадом
     stopScanLive(); // v1.8.0: прячем живую панель
     renderResults();
@@ -1847,6 +1976,11 @@
     switchSubtab("results");
     const working = S.results.filter((r) => !r.torn).length;
     const torn = S.results.length - working;
+    // v2.4.6 (F35): отчёт есть, но exit ненулевой — честно показываем фактический код
+    if (exitCode !== 0) {
+      appendLog($("#scanLog"), "\n[GUI] " + tF("warpscout завершился с кодом {c} — отчёт мог сохраниться не полностью.", { c: exitCode }) + "\n");
+      toast(tF("Скан завершён с кодом {c} — результаты ниже, но отчёт может быть неполным.", { c: exitCode }), "warn");
+    }
     if (working > 0) {
       toast(torn ? tF("Скан завершён: рабочих эндпоинтов — {n}, разорванных — {t}", { n: working, t: torn }) : tF("Скан завершён: рабочих эндпоинтов — {n}", { n: working }), "ok");
     } else {
@@ -1856,9 +1990,11 @@
 
   async function stopScan() {
     S.scanStopped = true;
+    S.scanCancelRequested = true; // v2.4.6 (F32): процесс мог ещё не появиться
     stopScanLive(); // v1.8.0: прячем живую панель
     await killProc(S.procIds.scan);
     S.procIds.scan = null;
+    S.running.scan = false;
     setScanRunning(false);
     toast(t("Скан остановлен"), "ok");
   }
@@ -1902,7 +2038,9 @@
     const o = c.obf;
     const lines = [];
     const sec = (name) => lines.push("[" + name + "]");
-    const kv = (k, v) => lines.push(k + " = " + v);
+    // v2.4.6 (F06): значения не могут содержать переводы строк/табуляции —
+    // инъекция директив (PostUp и т.п.) в экспортируемый .conf невозможна
+    const kv = (k, v) => lines.push(k + " = " + String(v).replace(/[\r\n\t]+/g, " ").trim());
 
     sec("Interface");
     kv("PrivateKey", acc ? acc.private_key : t("<запустите регистрацию на вкладке «Аккаунт»>"));
@@ -1914,15 +2052,24 @@
     }
     const dns = c.dns === "custom" ? c.dnsCustom : dnsLineOf(c.dns, c.dnsV6 !== false); // v2.4.3: dnsV6 undefined у старых состояний → трактуем как вкл
     if (dns && dns.trim()) kv("DNS", dns);
-    if (c.mtu) kv("MTU", c.mtu);
+    if (c.mtu) kv("MTU", clampInt(c.mtu, 576, 1500, 1280)); // v2.4.6 (F27)
 
     if (ver !== "wg") {
-      kv("Jc", o.jc);
-      kv("Jmin", o.jmin);
-      kv("Jmax", o.jmax);
+      // v2.4.6 (F27): лимиты CLI (flags.go): jc 1..128, jmin <= jmax, jmax <= 1280
+      kv("Jc", clampInt(o.jc, 1, 128, 4));
+      let jmin = clampInt(o.jmin, 0, 1280, 40);
+      const jmax = clampInt(o.jmax, 0, 1280, 70);
+      if (jmin > jmax) jmin = jmax;
+      kv("Jmin", jmin);
+      kv("Jmax", jmax);
       kv("S1", o.s1); kv("S2", o.s2); kv("S3", o.s3); kv("S4", o.s4);
       kv("H1", o.h1); kv("H2", o.h2); kv("H3", o.h3); kv("H4", o.h4);
-      if ((o.i1 || "").trim()) kv("I1", o.i1.trim());
+      if ((o.i1 || "").trim()) kv("I1", String(o.i1).replace(/\s+/g, "").trim());
+      // v2.4.6 (F26): I2–I5 больше не теряются (нужны профилям AWG 2.0)
+      if ((o.i2 || "").trim()) kv("I2", String(o.i2).replace(/\s+/g, "").trim());
+      if ((o.i3 || "").trim()) kv("I3", String(o.i3).replace(/\s+/g, "").trim());
+      if ((o.i4 || "").trim()) kv("I4", String(o.i4).replace(/\s+/g, "").trim());
+      if ((o.i5 || "").trim()) kv("I5", String(o.i5).replace(/\s+/g, "").trim());
     }
     if (ver === "awg31") {
       kv("ContentPaddingAddition", o.cpa);
@@ -1942,7 +2089,7 @@
     kv("PublicKey", acc ? acc.peer_public_key : "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=");
     kv("AllowedIPs", cfgAllowedIps());
     kv("Endpoint", c.endpoint || "8.47.69.43:2408");
-    if (c.keepalive > 0) kv("PersistentKeepalive", c.keepalive);
+    if (c.keepalive > 0) kv("PersistentKeepalive", clampInt(c.keepalive, 0, 65535, 0)); // v2.4.6 (F27)
 
     return lines.join("\n") + "\n";
   }
@@ -2001,6 +2148,7 @@
       torn,
       withP: S.viewMeta.withP,
       withSpeed: S.viewMeta.withSpeed,
+      params: sanitizeScan(S.lastRunParams && S.lastRunParams.proto === proto ? S.lastRunParams : S.scan), // v2.4.6 (F18/F30)
       results: S.results.map((r) => Object.assign({}, r)),
     });
     S.history = S.history.slice(0, 10);
@@ -2223,6 +2371,7 @@
     let m = /(\d+)\/(\d+)\s*$/.exec(String(data).trim());
     if (m) {
       live.steps.push({ t: Date.now() - live.t0, done: +m[1], total: +m[2] });
+      if (live.steps.length > 600) live.steps = live.steps.slice(-400); // v2.4.6 (F36): точки графика ограничены
       drawScanLive();
     }
     // узлы "node: HK HKG (188.114.98.58:2408)"
@@ -2356,7 +2505,7 @@
     S.compact = !S.compact;
     applyCompact();
     persist();
-    toast(S.compact ? "Компактная таблица включена" : "Обычная таблица", "info");
+    toast(t(S.compact ? "Компактная таблица включена" : "Обычная таблица"), "info");
   }
 
   /* ───────── QR-код конфига (v1.4.0; v2.4.4: многостраничный QR для длинных конфигов — формат AmneziaVPN) ───────── */
@@ -2364,8 +2513,7 @@
   const QR_SINGLE_LIMIT = 2953; // байтовая ёмкость максимальной версии QR (40-L) — одиночный код
 
   function toggleQr(open) {
-    const m = $("#qrModal");
-    if (m) m.classList.toggle("hidden", !open);
+    setModal($("#qrModal"), open); // v2.4.6 (F47)
   }
 
   function qrB64url(bytes) {
@@ -2398,6 +2546,11 @@
   }
 
   function qrMake(text) {
+    // v2.4.6 (F29): UTF-8 энкодер — одиночный QR больше не теряет не-ASCII символы
+    // (дефолтный энкодер библиотеки оставляет только младший байт символа)
+    if (window.qrcode && window.qrcode.stringToBytesFuncs && window.qrcode.stringToBytesFuncs["UTF-8"]) {
+      window.qrcode.stringToBytes = window.qrcode.stringToBytesFuncs["UTF-8"];
+    }
     const qr = window.qrcode(0, "L"); // L — максимальная ёмкость (2953 байта)
     qr.addData(text);
     qr.make();
@@ -2415,6 +2568,7 @@
 
   function showConfQr() {
     if (typeof window.qrcode !== "function") { toast(t("QR-модуль не загружен"), "err"); return; }
+    if (!confExportReady()) return; // v2.4.6 (F27)
     const conf = buildConf();
     const tooBigErr = () => toast(tF("Конфиг {n} симв. — не помещается в QR (лимит 2953). Обычно виноват длинный I1: уберите его или сохраните конфиг файлом.", { n: conf.length }), "err");
     try {
@@ -2439,6 +2593,7 @@
 
   async function saveQrPng() {
     if (typeof window.qrcode !== "function") return;
+    if (!confExportReady()) return; // v2.4.6 (F27)
     try {
       // v2.4.4: пересобираем страницы из АКТУАЛЬНОГО конфига (модалка могла устать от правок)
       const conf = buildConf();
@@ -2451,7 +2606,7 @@
         text = pages[pageIdx];
         pageCount = pages.length;
       }
-      const qr = window.qrcode(0, multi ? "L" : "M");
+      const qr = window.qrcode(0, "L"); // v2.4.6 (F29): тот же уровень ECC, что в preview — 2332..2953 байт больше не «показывается, но не сохраняется»
       qr.addData(text);
       qr.make();
       const cell = 6, margin = 4, count = qr.getModuleCount();
@@ -2535,18 +2690,171 @@
       .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
   }
 
+  /* ── v2.4.6 (аудит F03/F05/F08/F10): схема и санитизация импортируемых данных ──
+     Импорт (backup/пресеты/история) и restoreState прогоняют ВСЁ через эти
+     функции: типы, лимиты, управляющие символы. Ни HTML, ни shell-токены,
+     ни прототипное загрязнение из чужого файла не проходят дальше. */
+  function strField(v, max) {
+    if (typeof v !== "string") return "";
+    // вырезаем управляющие символы (вкл. \r\n — защита от инъекции директив, F06)
+    return v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").slice(0, max || 200);
+  }
+
+  function intField(v, max) {
+    const n = Math.floor(+v);
+    return isFinite(n) && n >= 0 ? Math.min(max || 1000000, n) : 0;
+  }
+
+  function sanitizeScan(src) {
+    const s = Object.assign({}, DEFAULT_SCAN);
+    if (!src || typeof src !== "object" || Array.isArray(src)) return s;
+    ["tunPing", "full", "genJunk", "ipv6", "speed", "bestBySpeed"].forEach((k) => { s[k] = !!src[k]; });
+    s.proto = enumOf(strField(src.proto, 20), SCAN_ENUMS.proto, "awg");
+    s.innerProto = enumOf(strField(src.innerProto, 20), SCAN_ENUMS.innerProto, "");
+    s.genI1 = enumOf(strField(src.genI1, 20), SCAN_ENUMS.genI1, "");
+    s.sample = clampInt(src.sample, 1, 256, 10);
+    s.jt = clampInt(src.jt, 1, 100, 10);
+    s.timeout = clampInt(src.timeout, 1, 30, 2);
+    s.tunPingCount = clampInt(src.tunPingCount, 5, 50, 10);
+    s.masqueAttempts = clampInt(src.masqueAttempts, 1, 10, 3);
+    s.port = src.port === "" || src.port == null ? "" : clampInt(src.port, 0, 65535, "");
+    s.jc = src.jc === "" || src.jc == null ? "" : clampInt(src.jc, 0, 255, "");
+    s.jmin = src.jmin === "" || src.jmin == null ? "" : clampInt(src.jmin, 0, 5000, "");
+    s.jmax = src.jmax === "" || src.jmax == null ? "" : clampInt(src.jmax, 0, 5000, "");
+    ["exclNode", "exclCountry", "node", "country", "i1Sni", "masqueSni", "through", "target", "pingTarget"].forEach((k) => {
+      s[k] = strField(src[k], 300);
+    });
+    return s;
+  }
+
+  function sanitizeCfg(src) {
+    const c = defaultCfg();
+    if (!src || typeof src !== "object" || Array.isArray(src)) return c;
+    c.ver = enumOf(strField(src.ver, 10), ["wg", "awg15", "awg20", "awg31"], "awg31");
+    c.dns = enumOf(strField(src.dns, 20), ["cloudflare", "quad9", "google", "adguard", "custom"], "cloudflare");
+    c.dnsV6 = src.dnsV6 !== false;
+    c.dnsCustom = strField(src.dnsCustom, 300);
+    c.endpoint = strField(src.endpoint, 120);
+    c.mtu = clampInt(src.mtu, 576, 10000, 1280);
+    c.keepalive = clampInt(src.keepalive, 0, 65535, 0);
+    c.allowed = enumOf(strField(src.allowed, 10), ["both", "v4", "v6", "custom"], "both");
+    c.allowedCustom = strField(src.allowedCustom, 300);
+    c.tableOff = !!src.tableOff;
+    const o = src.obf && typeof src.obf === "object" && !Array.isArray(src.obf) ? src.obf : {};
+    c.obf.jc = clampInt(o.jc, 0, 255, 4);
+    c.obf.jmin = clampInt(o.jmin, 0, 5000, 40);
+    c.obf.jmax = clampInt(o.jmax, 0, 5000, 70);
+    if (c.obf.jmin > c.obf.jmax) c.obf.jmin = c.obf.jmax; // CLI: jmin <= jmax (flags.go:536)
+    ["s1", "s2", "s3", "s4"].forEach((k) => { c.obf[k] = clampInt(o[k], 0, 65535, 0); });
+    const hdef = ["1", "2", "3", "4"];
+    ["h1", "h2", "h3", "h4"].forEach((k, i) => {
+      const v = strField(o[k], 60).replace(/\s+/g, "");
+      c.obf[k] = v || hdef[i];
+    });
+    c.obf.i1 = strField(o.i1, 6000).replace(/[\r\n]/g, "");
+    ["i2", "i3", "i4", "i5"].forEach((k) => { c.obf[k] = strField(o[k], 6000).replace(/[\r\n]/g, ""); });
+    const dObf = defaultCfg().obf;
+    ["cpa", "rekeyAfter", "rekeyTo", "rejectAfter", "keepaliveTo", "maxHs", "trailers", "noCookies", "hpk"].forEach((k) => {
+      const v = strField(o[k], 120);
+      c.obf[k] = v || dObf[k];
+    });
+    return c;
+  }
+
+  function sanitizeHistoryItem(h) {
+    if (!h || typeof h !== "object" || Array.isArray(h)) return null;
+    const results = Array.isArray(h.results)
+      ? h.results.slice(0, 3000).map((r) => ({
+          endpoint: strField(r && r.endpoint, 100),
+          ping: strField(r && r.ping, 30),
+          tunPing: strField(r && r.tunPing, 30),
+          loss: strField(r && r.loss, 30),
+          speed: strField(r && r.speed, 30),
+          seenAs: strField(r && r.seenAs, 30),
+          node: strField(r && r.node, 30),
+          loc: strField(r && r.loc, 120),
+          torn: !!(r && r.torn),
+        })).filter((r) => r.endpoint)
+      : [];
+    return {
+      ts: intField(h.ts, Date.now() + 86400000),
+      proto: enumOf(strField(h.proto, 20), SCAN_ENUMS.proto, "awg"),
+      label: strField(h.label, 300),
+      working: intField(h.working, 100000), // v2.4.6 (F03): числа, а не HTML-строки
+      torn: intField(h.torn, 100000),
+      withP: !!h.withP,
+      withSpeed: !!h.withSpeed,
+      params: sanitizeScan(h.params),
+      results: results,
+    };
+  }
+
+  function sanitizeQcItem(q) {
+    if (!q || typeof q !== "object" || Array.isArray(q)) return null;
+    const ep = strField(q.ep, 120);
+    if (!ep) return null;
+    return {
+      ts: intField(q.ts, Date.now() + 86400000),
+      ep: ep,
+      proto: enumOf(strField(q.proto, 20), SCAN_ENUMS.proto, "awg"),
+      kind: ["ok", "torn", "noanswer", "error"].indexOf(q.kind) !== -1 ? q.kind : "error",
+      ping: strField(q.ping, 30),
+      loss: strField(q.loss, 30),
+      node: strField(q.node, 30),
+      code: typeof q.code === "number" && isFinite(q.code) ? Math.max(-1000, Math.min(10000, Math.round(q.code))) : undefined,
+    };
+  }
+
+  function sanitizePresets(list) {
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter((p) => p && typeof p.name === "string" && p.name.trim())
+      .slice(0, 20)
+      .map((p) => ({ name: strField(p.name, 60), scan: sanitizeScan(p.scan) }));
+  }
+
+  // v2.4.6 (F10, OWASP CSV Injection): ячейка, начинающаяся с =,+,-,@ или TAB,
+  // не должна становиться формулой в Excel/LibreOffice — префиксуем апострофом
+  function csvSafe(v) {
+    let s = String(v == null ? "" : v).replace(/"/g, '""');
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return '"' + s + '"';
+  }
+
   function applyImportedState(st) {
     if (!st || typeof st !== "object" || (!st.scan && !st.cfg)) {
       toast(t("Файл не похож на резервную копию WARPSCOUT GUI"), "err");
       return;
     }
-    if (st.scan) S.scan = Object.assign({}, DEFAULT_SCAN, st.scan);
-    if (st.cfg) S.cfg = deepMerge(S.cfg, st.cfg);
-    if (st.settings) S.settings = Object.assign({}, S.settings, st.settings);
-    if (Array.isArray(st.customPresets)) S.customPresets = st.customPresets.filter((p) => p && p.name && p.scan).slice(0, 20);
-    S.compact = !!st.compact;
-    if (Array.isArray(st.history)) S.history = st.history.slice(0, 10);
-    if (Array.isArray(st.qcHistory)) S.qcHistory = st.qcHistory.filter((q) => q && q.ep && q.kind).slice(0, 50);
+    // v2.4.6 (F08): собираем и валидируем ВСЁ в отдельный объект — состояние
+    // меняется только после успешной схемы. Частичный импорт невозможен.
+    let next;
+    try {
+      next = {
+        scan: st.scan ? sanitizeScan(st.scan) : null,
+        cfg: st.cfg ? sanitizeCfg(st.cfg) : null,
+        customPresets: Array.isArray(st.customPresets) ? sanitizePresets(st.customPresets) : null,
+        compact: !!st.compact,
+        history: Array.isArray(st.history) ? st.history.map(sanitizeHistoryItem).filter(Boolean).slice(0, 10) : null,
+        qcHistory: Array.isArray(st.qcHistory) ? st.qcHistory.map(sanitizeQcItem).filter(Boolean).slice(0, 50) : null,
+        settings: null,
+      };
+      if (st.settings && typeof st.settings === "object") {
+        // v2.4.6 (F05): путь к EXE из backup НЕ восстанавливаем — переносимые
+        // настройки не должны влиять на выбор исполняемого кода
+        next.settings = { wsPath: "", dataRoot: strField(st.settings.dataRoot, 500) };
+      }
+    } catch (e) {
+      toast(tF("Импорт отклонён: некорректные данные ({err})", { err: e && e.message ? e.message : e }), "err");
+      return;
+    }
+    if (next.scan) S.scan = next.scan;
+    if (next.cfg) S.cfg = next.cfg;
+    if (next.settings) S.settings = Object.assign({}, S.settings, next.settings);
+    if (next.customPresets) S.customPresets = next.customPresets;
+    S.compact = next.compact;
+    if (next.history) S.history = next.history;
+    if (next.qcHistory) S.qcHistory = next.qcHistory;
     applyTheme(S.settings.theme || "dark");
     applyCompact();
     syncInputsFromState();
@@ -2569,6 +2877,8 @@
           if (!picked) return;
           try {
             const text = await fs().readFile(picked);
+            // v2.4.6 (F08): лимит размера ДО парсинга — гигантский файл не блокирует UI
+            if (String(text).length > 2000000) { toast(t("Файл слишком большой для резервной копии (>2 МБ)"), "err"); return; }
             applyImportedState(JSON.parse(text));
           } catch (e) {
             toast(tF("Не удалось прочитать файл: {err}", { err: e && e.message ? e.message : e }), "err");
@@ -2588,7 +2898,9 @@
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          applyImportedState(JSON.parse(String(reader.result)));
+          const text = String(reader.result);
+          if (text.length > 2000000) { toast(t("Файл слишком большой для резервной копии (>2 МБ)"), "err"); return; } // v2.4.6 (F08)
+          applyImportedState(JSON.parse(text));
         } catch (err) {
           toast(tF("Некорректный JSON: {err}", { err: err && err.message ? err.message : err }), "err");
         }
@@ -2598,15 +2910,66 @@
   }
 
   function toggleKbd(open) {
-    const m = $("#kbdModal");
-    if (m) m.classList.toggle("hidden", !open);
+    setModal($("#kbdModal"), open); // v2.4.6 (F47)
+  }
+
+  /* ── v2.4.6 (F47): модалки — фокус сохраняем/возвращаем, фон inert,
+     глобальные хоткеи не срабатывают под открытым диалогом ── */
+  const MODAL_SEL = ["#kbdModal", "#qrModal", "#qcModal", "#cmpModal"];
+  function openModalOf() {
+    return MODAL_SEL.map((s) => $(s)).find((m) => m && !m.classList.contains("hidden")) || null;
+  }
+  let modalLastFocus = null;
+  function setModal(el, open) {
+    if (!el) return;
+    el.classList.toggle("hidden", !open);
+    const app = $("#app");
+    const any = openModalOf();
+    if (app && "inert" in app) app.inert = !!any; // фон недоступен для Tab/скринридера
+    if (any) {
+      if (!modalLastFocus || !any.contains(modalLastFocus)) modalLastFocus = document.activeElement;
+      const card = $(".modal__card", any) || any;
+      if (!card.hasAttribute("tabindex")) card.setAttribute("tabindex", "-1");
+      try { card.focus({ preventScroll: true }); } catch (e) { card.focus(); }
+    } else if (modalLastFocus && modalLastFocus.focus) {
+      try { modalLastFocus.focus({ preventScroll: true }); } catch (e) {}
+      modalLastFocus = null;
+    }
+  }
+
+  // v2.4.6 (F50): сегментные кнопки = настоящая радиогруппа
+  // (role=radio, aria-checked, roving tabindex, стрелки)
+  function setupSegGroup(group) {
+    if (!group) return;
+    const btns = $$(".seg__btn", group);
+    btns.forEach((b) => {
+      b.setAttribute("role", "radio");
+      const sync = () => {
+        const on = b.classList.contains("is-active");
+        b.setAttribute("aria-checked", on ? "true" : "false");
+        b.setAttribute("tabindex", on ? "0" : "-1");
+      };
+      sync();
+      if (window.MutationObserver) new MutationObserver(sync).observe(b, { attributes: true, attributeFilter: ["class"] });
+    });
+    group.addEventListener("keydown", (e) => {
+      if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].indexOf(e.key) === -1) return;
+      const cur = btns.indexOf(document.activeElement);
+      if (cur === -1) return;
+      e.preventDefault();
+      const dir = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1;
+      const next = btns[(cur + dir + btns.length) % btns.length];
+      next.focus();
+      next.click();
+    });
   }
 
   /* ───────── тема (v1.3.0) ───────── */
-  function applyTheme(t) {
-    document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
+  // v2.4.6 (F54): параметр переименован (тень имени translator ломала переводы)
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "dark");
     const b = $("#btnTheme");
-    if (b) b.textContent = t === "light" ? "🌙 Тёмная тема" : "☀ Светлая тема";
+    if (b) b.textContent = t(theme === "light" ? "🌙 Тёмная тема" : "☀ Светлая тема");
   }
 
   function toggleTheme() {
@@ -2615,7 +2978,7 @@
     S.settings.theme = next;
     applyTheme(next);
     persist();
-    toast(next === "light" ? "Светлая тема включена" : "Тёмная тема включена", "ok");
+    toast(t(next === "light" ? "Светлая тема включена" : "Тёмная тема включена"), "ok");
   }
 
   function toggleHistory(force) {
@@ -2623,10 +2986,8 @@
     const panel = $("#historyPanel");
     panel.classList.toggle("hidden", !S.historyOpen);
     if (!S.historyOpen) return;
-    if (!S.history.length) {
-      panel.innerHTML = '<div class="history__empty">' + t("История пуста — выполните первый скан.") + "</div>";
-      return;
-    }
+    // v2.4.6 (F53): журнал ⚡-проверок независим от истории сканов — рендерим
+    // голову и его ВСЕГДА, placeholder относится только к истории сканов
     panel.innerHTML =
       '<div class="history__head">' +
         '<span class="history__head-title">' + t("Последние сканы (хранятся локально, до 10)") + "</span>" +
@@ -2637,22 +2998,24 @@
           '<button type="button" id="btnHistClear" class="history__clear" title="' + t("Удалить всю историю") + '">' + t("🗑 Очистить") + "</button>" +
         "</span>" +
       "</div>" +
-      renderPingTrend() +
-      S.history
-        .map(
-          (h, i) =>
-            '<button type="button" class="history__item" data-hi="' + i + '">' +
-              "<span class=\"history__ts\">" + fmtTime(h.ts) + "</span>" +
-              "<span class=\"history__proto\">" + esc(h.proto.toUpperCase()) + "</span>" +
-              "<span class=\"history__label\">" + esc(h.label) + "</span>" +
-              '<span class="history__cnt ' + (h.working ? "is-ok" : "is-err") + '">' +
-                h.working + " " + t("рабочих") + (h.torn ? " / " + h.torn + " " + t("разорвано") : "") +
-              "</span>" +
-              '<span class="history__cmp-btn" role="button" tabindex="0" data-cmp="' + i +
-              '" title="' + t("Δ сравнить с текущей таблицей (без загрузки)") + '">Δ</span>' +
-            "</button>"
-        )
-        .join("");
+      (S.history.length
+        ? renderPingTrend() +
+          S.history
+            .map(
+              (h, i) =>
+                '<button type="button" class="history__item" data-hi="' + i + '">' +
+                  '<span class="history__ts">' + fmtTime(h.ts) + "</span>" +
+                  '<span class="history__proto">' + esc(String(h.proto).toUpperCase()) + "</span>" +
+                  '<span class="history__label">' + esc(h.label) + "</span>" +
+                  '<span class="history__cnt ' + (h.working ? "is-ok" : "is-err") + '">' +
+                    esc(h.working) + " " + t("рабочих") + (h.torn ? " / " + esc(h.torn) + " " + t("разорвано") : "") + // v2.4.6 (F03): счётчики — только как текст
+                  "</span>" +
+                  '<span class="history__cmp-btn" role="button" tabindex="0" data-cmp="' + i +
+                  '" title="' + t("Δ сравнить с текущей таблицей (без загрузки)") + '">Δ</span>' +
+                "</button>"
+            )
+            .join("")
+        : '<div class="history__empty">' + t("История сканов пуста — выполните первый скан.") + "</div>");
     const bExp = $("#btnHistExport");
     if (bExp) bExp.addEventListener("click", exportHistory);
     const bCsv = $("#btnHistCsv");
@@ -2673,12 +3036,20 @@
         loadHistory(+b.getAttribute("data-hi"));
       })
     );
-    $$("[data-cmp]", panel).forEach((c) =>
+    $$("[data-cmp]", panel).forEach((c) => {
       c.addEventListener("click", (e) => {
         e.stopPropagation();
         compareWithHistory(+c.getAttribute("data-cmp"));
-      })
-    );
+      });
+      // v2.4.6 (F48): Δ управляется и с клавиатуры (Enter/Space)
+      c.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          compareWithHistory(+c.getAttribute("data-cmp"));
+        }
+      });
+    });
     $$("[data-trend]", panel).forEach((d) => {
       const go = (e) => {
         e.stopPropagation();
@@ -2720,7 +3091,7 @@
   /* ───────── итоги истории в CSV (v1.6.0) ───────── */
   function exportHistoryCsv() {
     if (!S.history.length) { toast(t("История пуста — нечего выгружать"), "err"); return; }
-    const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+    const q = csvSafe; // v2.4.6 (F10): формулы Excel не проходят
     const rows = ["datetime,proto,params,working,torn,best_ping_ms"];
     for (let i = S.history.length - 1; i >= 0; i--) {
       const h = S.history[i];
@@ -2771,7 +3142,7 @@
       if (b !== Infinity) pts.push({ ts: S.history[i].ts, ping: b });
     }
     if (pts.length < 1) { toast(t("Нет сканов с пингами — тренд пуст"), "err"); return; }
-    const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+    const q = csvSafe; // v2.4.6 (F10)
     const rows = ["datetime,best_ping_ms"];
     pts.forEach((p) => rows.push([new Date(p.ts).toISOString(), p.ping].map(q).join(",")));
     const csv = "\ufeff" + rows.join("\r\n");
@@ -3146,8 +3517,7 @@
 
   /* ───────── модалка ⇅-сравнения двух сканов (v1.7.0) ───────── */
   function toggleCmp(open) {
-    const m = $("#cmpModal");
-    if (m) m.classList.toggle("hidden", !open);
+    setModal($("#cmpModal"), open); // v2.4.6 (F47)
   }
 
   function histOptionLabel(h) {
@@ -3269,6 +3639,8 @@
     const h = S.history[i];
     if (!h) return;
     S.results = h.results.map((r) => Object.assign({}, r));
+    // v2.4.6 (F18/F30): действия над загруженным сканом используют ЕГО параметры
+    S.lastRunParams = h.params ? sanitizeScan(h.params) : null;
     S.prevEndpoints = null;
     S.diff = null;
     S.viewMeta = { withP: h.withP, withSpeed: h.withSpeed };
@@ -3287,10 +3659,10 @@
   }
 
   function exportCsv() {
-    if (!S.results.length) { toast("Нет результатов для экспорта", "err"); return; }
+    if (!S.results.length) { toast(t("Нет результатов для экспорта"), "err"); return; }
     const { withP, withSpeed } = S.viewMeta;
     const head = ["endpoint", "endpoint_ping", ...(withP ? ["tun_ping", "loss"] : []), ...(withSpeed ? ["speed"] : []), "seen_as", "node", "node_location", "torn"];
-    const escCell = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+    const escCell = csvSafe; // v2.4.6 (F10)
     const lines = [head.join(",")];
     for (const r of S.results) {
       const cells = [
@@ -3311,7 +3683,7 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-      toast("CSV скачан: " + name, "ok");
+      toast(t("CSV скачан: ") + name, "ok");
       return;
     }
     os()
@@ -3319,16 +3691,27 @@
       .then(async (path) => {
         if (!path) return;
         await fs().writeFile(path, csv);
-        toast("CSV сохранён: " + path, "ok");
+        toast(t("CSV сохранён: ") + path, "ok");
       })
-      .catch((e) => toast("Ошибка экспорта: " + (e && e.message ? e.message : e), "err"));
+      .catch((e) => toast(t("Ошибка экспорта: ") + (e && e.message ? e.message : e), "err"));
   }
 
   function selectedRowInfo() {
     return S.results.find((r) => r.endpoint === S.cfg.endpoint) || null;
   }
 
+  // v2.4.6 (F27): экспорт/копия/QR — только для ГОТОВОГО профиля (с аккаунтом).
+  // Раньше сохранялся шаблон-заглушка с «xxxx» вместо адресов.
+  function confExportReady() {
+    if (!S.account) {
+      toast(t("Сначала создайте аккаунт — в превью сейчас шаблон без ключей, такой профиль работать не будет"), "err");
+      return false;
+    }
+    return true;
+  }
+
   async function saveConf() {
+    if (!confExportReady()) return; // v2.4.6 (F27)
     const name = $("#cfgFileName").textContent;
     let path;
     try {
@@ -3371,8 +3754,10 @@
   }
 
   /* ───────── полный импорт .conf (v1.5.0) ───────── */
+  // v2.4.6 (F25): peers собираются в МАССИВ (а не сливаются в один объект),
+  // неизвестные секции и директивы — в явный список потерь
   function parseConfText(text) {
-    const out = { interface: {}, peer: {}, other: {} };
+    const out = { interface: {}, peer: {}, other: {}, peers: [], unknown: [] };
     let cur = null;
     for (const rawLine of String(text).split(/\r?\n/)) {
       let line = rawLine;
@@ -3383,7 +3768,9 @@
       const sec = /^\[\s*([A-Za-z0-9_-]+)\s*\]$/.exec(line);
       if (sec) {
         const name = sec[1].toLowerCase();
-        cur = name === "interface" ? out.interface : name === "peer" ? out.peer : out.other;
+        if (name === "interface") cur = out.interface;
+        else if (name === "peer") { cur = {}; out.peers.push(cur); }
+        else cur = out.other;
         continue;
       }
       const eq = line.indexOf("=");
@@ -3392,13 +3779,17 @@
       let val = line.slice(eq + 1).trim();
       if (/^".*"$/.test(val)) val = val.slice(1, -1);
       if (cur) cur[key] = val;
+      else out.unknown.push(key);
     }
+    out.peer = out.peers[0] || {};
     return out;
   }
 
   function applyImportedConf(text) {
     const c = parseConfText(text);
-    const all = Object.assign({}, c.other, c.interface, c.peer);
+    // v2.4.6 (F25): несколько [Peer] не представимы — берём первый, честно сообщаем
+    const peer = c.peers.length ? c.peers[0] : {};
+    const all = Object.assign({}, c.other, c.interface, peer);
     const has = (k) => all[k] != null && String(all[k]).trim() !== "";
     if (!Object.keys(all).length) { toast(t("Не удалось разобрать файл: нет пар «ключ = значение»"), "err"); return; }
 
@@ -3412,8 +3803,13 @@
     const hasI2plus = has("i2") || has("i3") || has("i4") || has("i5");
     const hasAwg = has31 || hasI2plus ||
       ["jc", "jmin", "jmax", "s1", "s2", "s3", "s4", "h1", "h2", "h3", "h4", "i1"].some(has);
-    S.cfg.ver = has31 ? "awg31" : hasI2plus ? "awg20" : hasAwg ? "awg15" : "wg";
-    applied.push({ wg: "WireGuard", awg15: "AWG 1.5", awg20: "AWG 2.0", awg31: "AWG 3.1" }[S.cfg.ver]);
+
+    // v2.4.6 (F24): импорт .conf — ЗАМЕНА профиля: строим новый cfg ОТ ДЕФОЛТОВ.
+    // Прежние Table/keepalive/I1/DNS больше не протекают в новый профиль,
+    // а «Table = auto» (или отсутствие строки) честно снимает tableOff.
+    const nc = defaultCfg();
+    nc.ver = has31 ? "awg31" : hasI2plus ? "awg20" : hasAwg ? "awg15" : "wg";
+    applied.push({ wg: "WireGuard", awg15: "AWG 1.5", awg20: "AWG 2.0", awg31: "AWG 3.1" }[nc.ver]);
 
     // Interface
     if (has("dns")) {
@@ -3424,59 +3820,75 @@
         if (d === dnsLineOf(k, true)) { preset = k; presetV6 = true; break; }
         if (d === dnsLineOf(k, false)) { preset = k; presetV6 = false; break; }
       }
-      if (preset) { S.cfg.dns = preset; S.cfg.dnsV6 = presetV6; applied.push("DNS " + preset + (presetV6 ? " v4+v6" : " v4")); }
-      else { S.cfg.dns = "custom"; S.cfg.dnsCustom = d; applied.push(t("DNS свои")); }
+      if (preset) { nc.dns = preset; nc.dnsV6 = presetV6; applied.push("DNS " + preset + (presetV6 ? " v4+v6" : " v4")); }
+      else { nc.dns = "custom"; nc.dnsCustom = d; applied.push(t("DNS свои")); }
     }
-    if (has("mtu")) { const m = num("mtu"); if (m && m > 0 && m <= 10000) { S.cfg.mtu = m; applied.push("MTU " + m); } }
-    if (has("table") && /off/i.test(all.table)) { S.cfg.tableOff = true; applied.push("Table off"); }
+    if (has("mtu")) { const m = num("mtu"); if (m && m > 0 && m <= 10000) { nc.mtu = m; applied.push("MTU " + m); } }
+    if (has("table")) { nc.tableOff = /off/i.test(all.table); if (nc.tableOff) applied.push("Table off"); } // v2.4.6 (F24)
 
     // Peer
     if (has("endpoint") && /^[A-Za-z0-9.\[\]:-]+:\d+$/.test(all.endpoint.trim())) {
-      S.cfg.endpoint = all.endpoint.trim();
+      nc.endpoint = all.endpoint.trim();
       applied.push(t("эндпоинт"));
     }
-    if (has("persistentkeepalive")) { const k = num("persistentkeepalive"); if (k != null && k >= 0 && k <= 65535) { S.cfg.keepalive = k; applied.push("keepalive " + k); } }
+    if (has("persistentkeepalive")) { const k = num("persistentkeepalive"); if (k != null && k >= 0 && k <= 65535) { nc.keepalive = k; applied.push("keepalive " + k); } }
     if (has("allowedips")) {
       const a = all.allowedips.replace(/\s+/g, "");
-      if (a === "0.0.0.0/0,::/0" || a === "::/0,0.0.0.0/0") { S.cfg.allowed = "both"; applied.push(t("AllowedIPs весь")); }
-      else if (a === "0.0.0.0/0") { S.cfg.allowed = "v4"; applied.push("AllowedIPs v4"); }
-      else if (a === "::/0") { S.cfg.allowed = "v6"; applied.push("AllowedIPs v6"); }
-      else { S.cfg.allowed = "custom"; S.cfg.allowedCustom = all.allowedips.trim(); applied.push(t("AllowedIPs свои")); }
+      if (a === "0.0.0.0/0,::/0" || a === "::/0,0.0.0.0/0") { nc.allowed = "both"; applied.push(t("AllowedIPs весь")); }
+      else if (a === "0.0.0.0/0") { nc.allowed = "v4"; applied.push("AllowedIPs v4"); }
+      else if (a === "::/0") { nc.allowed = "v6"; applied.push("AllowedIPs v6"); }
+      else { nc.allowed = "custom"; nc.allowedCustom = all.allowedips.trim(); applied.push(t("AllowedIPs свои")); }
     }
 
     // Обфускация AWG
     if (hasAwg) {
-      const o = S.cfg.obf;
+      const o = nc.obf;
       const junks = [];
-      if (has("jc")) { const v = num("jc"); if (v != null) { o.jc = v; junks.push("Jc"); } }
-      if (has("jmin")) { const v = num("jmin"); if (v != null) { o.jmin = v; junks.push("Jmin"); } }
-      if (has("jmax")) { const v = num("jmax"); if (v != null) { o.jmax = v; junks.push("Jmax"); } }
+      if (has("jc")) { const v = num("jc"); if (v != null) { o.jc = clampInt(v, 0, 255, 4); junks.push("Jc"); } }
+      if (has("jmin")) { const v = num("jmin"); if (v != null) { o.jmin = clampInt(v, 0, 5000, 40); junks.push("Jmin"); } }
+      if (has("jmax")) { const v = num("jmax"); if (v != null) { o.jmax = clampInt(v, 0, 5000, 70); junks.push("Jmax"); } }
+      if (o.jmin > o.jmax) o.jmin = o.jmax; // CLI: jmin <= jmax
       if (junks.length) applied.push("junk (" + junks.join("/") + ")");
       const heads = [];
-      ["s1", "s2", "s3", "s4"].forEach((k, idx) => { if (has(k)) { const v = num(k); if (v != null) { o["s" + (idx + 1)] = v; heads.push("S" + (idx + 1)); } } });
-      ["h1", "h2", "h3", "h4"].forEach((k, idx) => { if (has(k)) { o["h" + (idx + 1)] = String(all[k]).trim(); heads.push("H" + (idx + 1)); } });
+      ["s1", "s2", "s3", "s4"].forEach((k, idx) => { if (has(k)) { const v = num(k); if (v != null) { o["s" + (idx + 1)] = clampInt(v, 0, 65535, 0); heads.push("S" + (idx + 1)); } } });
+      ["h1", "h2", "h3", "h4"].forEach((k, idx) => { if (has(k)) { o["h" + (idx + 1)] = strField(all[k], 60).replace(/\s+/g, "") || String(idx + 1); heads.push("H" + (idx + 1)); } });
       if (heads.length) applied.push(tF("заголовки ({n})", { n: heads.length }));
-      if (has("i1")) { o.i1 = String(all.i1).trim(); applied.push("I1"); }
+      if (has("i1")) { o.i1 = strField(all.i1, 6000).replace(/[\r\n]/g, "").trim(); applied.push("I1"); }
       if (has31) {
-        if (has("contentpaddingaddition")) { o.cpa = String(all.contentpaddingaddition).trim(); applied.push("CPA"); }
-        if (has("rekeyaftertime")) { o.rekeyAfter = String(all.rekeyaftertime).trim(); }
-        if (has("rekeytimeout")) { o.rekeyTo = String(all.rekeytimeout).trim(); }
-        if (has("rejectaftertime")) { o.rejectAfter = String(all.rejectaftertime).trim(); }
-        if (has("keepalivetimeout")) { o.keepaliveTo = String(all.keepalivetimeout).trim(); }
-        if (has("maxhandshakeattempts")) { o.maxHs = String(all.maxhandshakeattempts).trim(); }
+        if (has("contentpaddingaddition")) { o.cpa = strField(all.contentpaddingaddition, 60).trim(); applied.push("CPA"); }
+        if (has("rekeyaftertime")) { o.rekeyAfter = strField(all.rekeyaftertime, 60).trim(); }
+        if (has("rekeytimeout")) { o.rekeyTo = strField(all.rekeytimeout, 60).trim(); }
+        if (has("rejectaftertime")) { o.rejectAfter = strField(all.rejectaftertime, 60).trim(); }
+        if (has("keepalivetimeout")) { o.keepaliveTo = strField(all.keepalivetimeout, 60).trim(); }
+        if (has("maxhandshakeattempts")) { o.maxHs = strField(all.maxhandshakeattempts, 60).trim(); }
         if (has("randomtrailers")) { o.trailers = /on|true|1/i.test(all.randomtrailers) ? "on" : "off"; }
         if (has("disablecookies")) { o.noCookies = /on|true|1/i.test(all.disablecookies) ? "on" : "off"; }
-        if (has("headerprotectionkey")) { o.hpk = String(all.headerprotectionkey).trim(); }
+        if (has("headerprotectionkey")) { o.hpk = strField(all.headerprotectionkey, 200).trim(); }
         applied.push(t("тайминги 3.1"));
       }
+    }
+    // v2.4.6 (F26): I2–I5 больше не теряются
+    if (hasI2plus) {
+      ["i2", "i3", "i4", "i5"].forEach((k) => { if (has(k)) nc.obf[k] = strField(all[k], 6000).replace(/[\r\n]/g, "").trim(); });
+      applied.push("I2–I5");
     }
 
     // что не переносится
     if (has("privatekey") || has("address")) skipped.push(t("PrivateKey/Address берутся из аккаунта"));
     if (has("publickey")) skipped.push(t("PublicKey берётся из аккаунта"));
     if (has("presharedkey")) skipped.push(t("PresharedKey не поддерживается"));
-    if (hasI2plus) skipped.push(t("I2–I5 отсутствуют в полях GUI"));
+    if (c.peers.length > 1) skipped.push(tF("peers: {n} — перенесён только первый", { n: c.peers.length })); // v2.4.6 (F25)
+    // v2.4.6: неизвестные директивы — явным списком, а не молча
+    const KNOWN = new Set(["dns", "mtu", "table", "endpoint", "persistentkeepalive", "allowedips",
+      "jc", "jmin", "jmax", "s1", "s2", "s3", "s4", "h1", "h2", "h3", "h4",
+      "i1", "i2", "i3", "i4", "i5",
+      "contentpaddingaddition", "rekeyaftertime", "rekeytimeout", "rejectaftertime",
+      "keepalivetimeout", "maxhandshakeattempts", "randomtrailers", "disablecookies", "headerprotectionkey",
+      "privatekey", "address", "publickey", "presharedkey"]);
+    Object.keys(all).forEach((k) => { if (!KNOWN.has(k)) skipped.push(k); });
+    if (c.unknown.length) skipped.push(tF("директивы вне секций: {n}", { n: c.unknown.length }));
 
+    S.cfg = nc;
     syncCfgInputsFromState();
     renderConf();
     persist();
@@ -3526,17 +3938,36 @@
   /* ───────── быстрая проверка одного эндпоинта (v1.9.0) ───────── */
   // Честный маппинг на warpscout: scan -p PROTO -target IP -port PORT -P
   // (-port пропускает фазу 1 и проверяет только указанный порт, -target снимает пулы)
+  // v2.4.6 (F02/F22): единый строгий разбор host:port через parseEndpoint —
+  // IPv6-скобки снимаются, порт валидируется (1..65535), shell-синтаксис не проходит
   function splitEpPort(ep) {
-    const m = /^(.+):(\d+)$/.exec(ep || "");
-    return m ? { ip: m[1], port: m[2] } : null;
+    const p = parseEndpoint(ep);
+    return p ? { ip: p.host, port: String(p.port) } : null;
   }
 
   function buildCheckCmd(ip, port, proto) {
-    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    // v2.4.6: метка времени с мс + случайный хвост — быстрые запуски больше не делят один файл отчёта (F31)
+    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 21) + "-" + Math.floor(Math.random() * 1000);
     const report = (S.paths.reportsDir || ".") + "/warpscout-check-" + ts + ".txt";
+    const pr = enumOf(proto, SCAN_ENUMS.proto, "awg");
     const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
+    // v2.4.6 (F18): воспроизводим параметры туннеля из последнего запуска (AWG)
+    let awgArgs = "";
+    const lp = S.lastRunParams;
+    if (pr === "awg" && lp && lp.proto === "awg") {
+      if (lp.genI1) {
+        awgArgs += " -gen-i1 " + lp.genI1;
+        if (lp.i1Sni && lp.i1Sni.trim()) awgArgs += " -i1-sni " + safeVal(lp.i1Sni);
+      } else if (lp.genJunk) {
+        awgArgs += " -gen-junk";
+      } else {
+        if (lp.jc !== "" && lp.jc != null && +lp.jc !== 6) awgArgs += " -jc " + clampInt(lp.jc, 1, 128, 6);
+        if (lp.jmin !== "" && lp.jmin != null && +lp.jmin !== 10) awgArgs += " -jmin " + clampInt(lp.jmin, 0, 5000, 10);
+        if (lp.jmax !== "" && lp.jmax != null && +lp.jmax !== 50) awgArgs += " -jmax " + clampInt(lp.jmax, 0, 5000, 50);
+      }
+    }
     const cmd =
-      quoteExe() + " scan -p " + proto +
+      quoteExe() + " scan -p " + pr + awgArgs +
       " -target " + ip +
       " -port " + port +
       " -P -plain" +
@@ -3545,8 +3976,7 @@
   }
 
   function toggleQc(open) {
-    const m = $("#qcModal");
-    if (m) m.classList.toggle("hidden", !open);
+    setModal($("#qcModal"), open); // v2.4.6 (F47)
   }
 
   function qcLogData(data) {
@@ -3579,13 +4009,23 @@
 
   async function checkOne(ep, opts) {
     const batch = !!(opts && opts.batch);
+    // v2.4.6 (F33): пакетная очередь обязана получать результат в ЛЮБОЙ ветке —
+    // иначе await checkOneP() зависает навсегда
+    const batchFail = (kind) => {
+      if (batch && S.qcBatch && S.qcBatch.curResolve) {
+        const r = S.qcBatch.curResolve;
+        S.qcBatch.curResolve = null;
+        r({ kind: kind, ping: "", loss: "", node: "" });
+      }
+    };
     if (!batch) {
       if (S.running.check) { toast(t("Уже идёт проверка — подождите"), "warn"); return; }
       if (S.running.scan) { toast(t("Проверка недоступна во время скана"), "warn"); return; }
     }
     const parts = splitEpPort(ep);
-    if (!parts) { toast(t("Не удалось разобрать адрес"), "err"); return; }
+    if (!parts) { batchFail("error"); toast(t("Не удалось разобрать адрес"), "err"); return; }
     if (!S.account && !IS_MOCK) {
+      batchFail("error");
       toast(t("Сначала создайте аккаунт WARP — вкладка «Аккаунт»"), "err");
       switchTab("account");
       return;
@@ -3618,6 +4058,7 @@
         if (d.type === "stdout" || d.type === "stderr") {
           const data = typeof d.data === "string" ? d.data : "";
           S.qcBuf += data;
+          if (S.qcBuf.length > 100000) S.qcBuf = S.qcBuf.slice(-50000); // v2.4.6 (F36)
           qcLogData(data);
         } else if (d.type === "exit") {
           unregisterProc(proc.id);
@@ -3699,7 +4140,7 @@
 
   function exportQcjCsv() {
     if (!S.qcHistory.length) { toast(t("Журнал пуст — запустите ⚡-проверку эндпоинта"), "err"); return; }
-    const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+    const q = csvSafe; // v2.4.6 (F10)
     const rows = ["datetime,endpoint,proto,verdict,tun_ping_ms,loss,node"];
     for (let i = S.qcHistory.length - 1; i >= 0; i--) {
       const e = S.qcHistory[i];
@@ -3828,7 +4269,7 @@
     updateBatchMeta();
     const results = [];
     for (let i = 0; i < list.length; i++) {
-      if (!S.qcBatch) break; // очередь отменена
+      if (!S.qcBatch || S.qcBatch.cancelled) break; // v2.4.6 (F33): очередь отменена
       S.qcBatch.idx = i;
       const v = await checkOneP(list[i]);
       results.push({ ep: list[i], v: v });
@@ -3836,7 +4277,11 @@
     const b = S.qcBatch;
     S.qcBatch = null;
     updateBatchMeta();
-    if (b) {
+    if (b && b.cancelled) {
+      // v2.4.6 (F33): честный вердикт отмены вместо «Готово»
+      qcSetVerdict("warn", t("Пакетная проверка отменена"), {}, "");
+      toast(t("Пакетная проверка отменена"), "warn");
+    } else if (b) {
       const summary = tF("Готово: {ok} рабочих, {torn} разорванных, {other} без ответа из {n}", { ok: b.ok, torn: b.torn, other: b.other, n: b.total });
       qcSetVerdict(b.ok && !b.other ? "ok" : b.ok ? "warn" : "err", summary, {}, "");
       toast(t("Пакетная проверка завершена") + " — " + summary, b.ok ? "ok" : "warn");
@@ -3992,19 +4437,34 @@
   }
 
   /* ───────── аккаунт ───────── */
+  // v2.4.6 (F06): ключ WireGuard/AWG — ровно 32 байта в base64. Это отсекает
+  // переносы строк («key\nPostUp = …») и любую инъекцию директив через ключи
+  function isWgKey(s) {
+    if (typeof s !== "string" || !/^[A-Za-z0-9+/]{43}=$/.test(s)) return false;
+    try { return atob(s).length === 32; } catch (e) { return false; }
+  }
+
   // v2.1.0: валидация JSON-аккаунта warpscout — нужны private_key и peer_public_key
   function validateAccountJson(obj) {
     if (!obj || typeof obj !== "object" || Array.isArray(obj)) return "not-json";
-    // мягкие алиасы: некоторые утилиты пишут public_key вместо peer_public_key
+    // v2.4.6 (F23): public_key может означать собственный ключ устройства —
+    // безусловно подменять им серверный peer_public_key нельзя
+    if (
+      typeof obj.public_key === "string" && obj.public_key &&
+      typeof obj.peer_public_key === "string" && obj.peer_public_key &&
+      obj.public_key !== obj.peer_public_key
+    ) return "ambiguous";
+    // мягкий алиас: некоторые утилиты пишут public_key вместо peer_public_key
     if (!obj.peer_public_key && typeof obj.public_key === "string" && obj.public_key) obj.peer_public_key = obj.public_key;
-    if (typeof obj.private_key !== "string" || !obj.private_key) return "not-account";
-    if (typeof obj.peer_public_key !== "string" || !obj.peer_public_key) return "not-account";
+    if (typeof obj.private_key !== "string" || !isWgKey(obj.private_key)) return "not-account";
+    if (typeof obj.peer_public_key !== "string" || !isWgKey(obj.peer_public_key)) return "not-account";
     return null;
   }
 
   function accountImportErrorText(kind) {
     if (kind === "parse") return t("Это не JSON-файл. Нужен аккаунт warpscout: JSON с ключами private_key и peer_public_key.");
-    if (kind === "not-account") return t("В файле нет ключей аккаунта (private_key/peer_public_key) — это не warpscout-account.json. Возможно, вы выбрали .conf-конфиг или файл другой программы.");
+    if (kind === "not-account") return t("В файле нет корректных ключей аккаунта (private_key/peer_public_key в формате base64, 32 байта) — это не warpscout-account.json. Возможно, вы выбрали .conf-конфиг или файл другой программы.");
+    if (kind === "ambiguous") return t("В файле есть и public_key, и peer_public_key с разными значениями — неоднозначно. Переименуйте нужный ключ в peer_public_key и попробуйте снова.");
     return t("Не удалось распознать файл аккаунта.");
   }
 
@@ -4113,11 +4573,22 @@
     appendLog(log, "$ " + cmd + "\n"); // v2.1.1: полная команда с путями — для диагностики
     let logTail = "";
     // v2.1.1: помним, какой аккаунт был ДО запуска — чтобы отличить «появился
-    // новый» от «старый так и лежит» при ненулевом коде выхода
+    // новый» от «старый так и лежит» при ненулевом коде выхода.
+    // v2.4.6 (F40): ротация ключей сохраняет id — сравниваем и отпечаток ключа
     const preId = S.account && S.account.id ? String(S.account.id) : "";
+    const preKey = S.account && typeof S.account.private_key === "string" ? S.account.private_key.slice(-12) : "";
+    S.registerCancelRequested = false; // v2.4.6 (F32): Stop до появления процесса
     try {
       // v2.4.2 FIX: execCommand в 6.10 не стримит и не даёт id — см. комментарий в runScan
       const proc = await os().spawnProcess(cmd);
+      // v2.4.6 (F32): Stop успели нажать ДО возврата spawn — убиваем немедленно
+      if (S.registerCancelRequested) {
+        try { await os().killProcess(proc.id); } catch (e) {}
+        S.running.register = false;
+        registerUi();
+        appendLog(log, "\n[GUI] " + t("Остановлено пользователем.") + "\n");
+        return;
+      }
       S.procIds.register = proc.id;
       registerProc(proc.id, (d) => {
         if (d.type === "stdout" || d.type === "stderr") {
@@ -4145,7 +4616,10 @@
       try { await loadAccount(); } catch (e) {}
       renderAccount();
       const newId = S.account && S.account.id ? String(S.account.id) : "";
-      const accountAppeared = !!S.account && (!preId || newId !== preId);
+      // v2.4.6 (F40): ротация меняет КЛЮЧИ, сохраняя id — неизменный id больше
+      // не считается доказательством неудачи
+      const newKey = S.account && typeof S.account.private_key === "string" ? S.account.private_key.slice(-12) : "";
+      const accountAppeared = !!S.account && (!preId || newId !== preId || (!!preKey && !!newKey && preKey !== newKey));
       if (code === 0) {
         appendLog(log, "\n[GUI] " + t("Готово.") + "\n");
         toast(t("Аккаунт готов"), "ok");
@@ -4179,6 +4653,19 @@
       try {
         await ensureDir(S.paths.dataDir);
         if (text == null) text = await fs().readFile(source);
+        // v2.4.6 (F23): пишем НОРМАЛИЗОВАННЫЙ объект (алиас переименован в
+        // peer_public_key) — иначе GUI показывает «готов», а CLI файл не принимает
+        const r = accountFromText(String(text));
+        if (!r.error) text = JSON.stringify(r.account, null, 2);
+        // v2.4.6 (F16): прежний аккаунт не теряем — резервная копия рядом
+        try {
+          const old = await fs().readFile(S.paths.accPath);
+          if (old) {
+            const bak = S.paths.accPath + ".bak-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+            await fs().writeFile(bak, old);
+            toast(tF("Прежний аккаунт сохранён как {f}", { f: bak.split(/[\\/]/).pop() }), "info");
+          }
+        } catch (e) { /* прежнего аккаунта нет */ }
         await fs().writeFile(S.paths.accPath, String(text));
       } catch (e) {
         toast(tF("Не удалось сохранить файл аккаунта: {err}", { err: e && e.message ? e.message : e }), "err");
@@ -4272,8 +4759,9 @@
   function bindExeHelpers() {
     $("#btnAccUnblock").addEventListener("click", async () => {
       if (IS_MOCK || !HAS_NL) { toast(t("Доступно только в приложении Windows"), "err"); return; }
-      const p = String(S.paths.wsPath || "").replace(/"/g, "");
-      if (!p) return;
+      const raw = String(S.paths.wsPath || "").replace(/["%!<>|&^`]/g, "");
+      if (!raw.trim()) return;
+      const p = raw.replace(/'/g, "''"); // v2.4.6 (F04): апостроф удваивается — PowerShell-литерал не разорвать
       appendLog($("#accLog"), "\n$ powershell Unblock-File <warpscout.exe>\n");
       try {
         await os().execCommand("powershell -NoProfile -ExecutionPolicy Bypass -Command \"Unblock-File -LiteralPath '" + p + "'\"");
@@ -4306,6 +4794,7 @@
   /* ───────── SOCKS ───────── */
   async function socksToggle() {
     if (S.running.socks) {
+      S.socksCancelRequested = true; // v2.4.6 (F32): процесс мог ещё не появиться
       await killProc(S.procIds.socks);
       S.procIds.socks = null;
       S.running.socks = false;
@@ -4313,16 +4802,37 @@
       return;
     }
     S.running.socks = true;
+    S.socksCancelRequested = false;
     socksUi();
-    const ep = $("#socksEndpoint").value.trim();
-    if (!/^\[?[0-9a-zA-Z.:]+\]?:\d{1,5}$/.test(ep)) { toast(t("Укажите эндпоинт в формате ip:порт (например 188.114.98.58:2408)"), "err"); S.running.socks = false; socksUi(); return; }
-    const port = $("#socksPort").value || "1080";
-    const proto = $("#socksProto").value;
+    // v2.4.6 (F39): прикладная валидация эндпоинта и порта (была только грубая regexp-проверка)
+    const epParsed = parseEndpoint($("#socksEndpoint").value);
+    if (!epParsed) {
+      S.running.socks = false;
+      socksUi();
+      toast(t("Укажите эндпоинт в формате ip:порт (например 188.114.98.58:2408)"), "err");
+      return;
+    }
+    const socksPort = clampInt($("#socksPort").value || "1080", 1, 65535, 1080);
+    const proto = enumOf($("#socksProto").value, SCAN_ENUMS.proto, "awg");
     const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
-    const cmd = quoteExe() + " socks -e " + ep + " -p " + proto + " -P " + port + acc;
+    // v2.4.6 (F18): генератор I1 из параметров скана — SOCKS воспроизводит проверенный туннель
+    let awgArgs = "";
+    const lp = S.lastRunParams;
+    if (proto === "awg" && lp && lp.proto === "awg" && lp.genI1) {
+      awgArgs = " -gen-i1 " + lp.genI1 + (lp.i1Sni && lp.i1Sni.trim() ? " -i1-sni " + safeVal(lp.i1Sni) : "");
+    }
+    // v2.4.6 (F02): endpoint идёт через parseEndpoint — без скобок и shell-символов
+    const cmd = quoteExe() + " socks -e " + epParsed.host + ":" + epParsed.port + " -p " + proto + awgArgs + " -P " + socksPort + acc;
     $("#socksLog").textContent = "";
     let proc;
     try { proc = await os().spawnProcess(cmd); } catch (e) { S.running.socks = false; socksUi(); toast(t("Не удалось запустить"), "err"); return; }
+    // v2.4.6 (F32): Stop успели нажать ДО возврата spawn — убиваем немедленно
+    if (S.socksCancelRequested) {
+      try { await os().killProcess(proc.id); } catch (e) {}
+      S.running.socks = false;
+      socksUi();
+      return;
+    }
     if (proc && proc.id != null) registerProc(proc.id, () => {});
     S.procIds.socks = proc.id;
     registerProc(proc.id, (d) => {
@@ -4331,10 +4841,14 @@
         unregisterProc(proc.id);
         S.running.socks = false;
         socksUi();
+        // v2.4.6 (F39): после exit прокси больше не слушает — прячем адрес и инфоблок
+        $("#socksAddr").textContent = "";
+        $("#socksInfo").hidden = true;
         appendLog($("#socksLog"), "\n[GUI] " + t("Прокси остановлен.") + "\n");
       }
     });
-    $("#socksAddr").textContent = "socks5h://127.0.0.1:" + port;
+    // v2.4.6 (F39): адрес показываем только после успешного запуска процесса
+    $("#socksAddr").textContent = "socks5h://127.0.0.1:" + socksPort;
     $("#socksInfo").hidden = false;
   }
 
@@ -4375,18 +4889,28 @@
       // v2.4.2 FIX: execCommand в 6.10 не стримит и не даёт id — см. комментарий в runScan
       const proc = await os().spawnProcess(cmd);
       S.procIds[key] = proc.id;
+      // v2.4.6 (F20): вывод приходит кусками — матчим только ЦЕЛЫЕ строки,
+      // хвост храним до следующего куска; имя exe и оба алиаса флага принимаются
+      let lineBuf = "";
+      const tryMatch = (line) => {
+        const m = /warpscout(?:\.exe)?\s+(scan\s+(?:-p|-proto)\s\S+.*)/.exec(line);
+        if (m && S.running[key]) {
+          $("#foundCmdBadge").classList.remove("hidden");
+          S.foundCmd = "warpscout " + m[1].trim();
+          appendLog(log, "\n[GUI] " + t("Нажмите «Применить к скану».") + "\n");
+        }
+      };
       registerProc(proc.id, (d) => {
         if (d.type === "stdout" || d.type === "stderr") {
           const data = typeof d.data === "string" ? d.data : "";
           appendLog(log, data);
-          const m = /warpscout (scan -p \S+.*)/.exec(data);
-          if (m && S.running[key]) {
-            $("#foundCmdBadge").classList.remove("hidden");
-            S.foundCmd = "warpscout " + m[1].trim();
-            appendLog(log, "\n[GUI] " + t("Нажмите «Применить к скану».") + "\n");
-          }
+          lineBuf += data;
+          const lines = lineBuf.split(/\r?\n/);
+          lineBuf = lines.pop() || "";
+          lines.forEach(tryMatch);
         } else if (d.type === "exit") {
           unregisterProc(proc.id);
+          if (lineBuf.trim()) tryMatch(lineBuf); // последняя строка без \n
           S.running[key] = false;
           toolsUi(key);
         }
@@ -4406,39 +4930,54 @@
   }
 
   function applyFoundCmd() {
-    const cmd = S.foundCmd;
+    const cmd = strField(S.foundCmd, 1000);
     if (!cmd) { toast(t("Сначала найдите команду"), "err"); return; }
-    const s = S.scan;
+    // v2.4.6 (F21): строим НОВЫЙ согласованный профиль с нуля, а не подмешиваем
+    // найденные флаги в текущую форму (старые through/target/gen-junk искажали смысл)
+    const s = Object.assign({}, DEFAULT_SCAN);
     const flags = {
       "-p": (v) => (s.proto = v),
       "-proto": (v) => (s.proto = v),
       "-P": () => (s.tunPing = true),
-      "-n": (v) => (s.sample = +v || 5),
+      "-n": (v) => (s.sample = clampInt(v, 1, 256, 10)),
       "-gen-i1": (v) => (s.genI1 = v),
-      "-jc": (v) => (s.jc = +v),
-      "-jmin": (v) => (s.jmin = +v),
-      "-jmax": (v) => (s.jmax = +v),
-      "-masque-sni": (v) => (s.masqueSni = v),
+      "-jc": (v) => (s.jc = clampInt(v, 0, 255, 6)),
+      "-jmin": (v) => (s.jmin = clampInt(v, 0, 5000, 10)),
+      "-jmax": (v) => (s.jmax = clampInt(v, 0, 5000, 50)),
+      "-masque-sni": (v) => (s.masqueSni = strField(v, 200)),
       "-threshold": () => {},
     };
     const tokens = cmd.split(/\s+/);
+    let sawRawI1 = false;
     for (let i = 0; i < tokens.length; i++) {
       const f = tokens[i];
-      if (flags[f]) {
-        if (f === "-P") flags[f]();
-        else { flags[f](tokens[i + 1]); i++; }
+      if (!Object.prototype.hasOwnProperty.call(flags, f)) {
+        // v2.4.6 (F21): CLI сохраняет найденный пакет сырым флагом -i1 (findjunk.go:155) —
+        // конкретный I1 в GUI не представим, честно сообщаем ниже
+        if (f === "-i1") { sawRawI1 = true; i++; }
+        continue;
       }
+      if (f === "-P") { flags[f](); continue; }
+      const v = tokens[i + 1];
+      if (v == null) continue;
+      flags[f](v);
+      i++;
     }
-    // MASQUE несовместим с фильтрами узлов — сбрасываем, иначе warpscout вернёт ошибку
-    if (s.proto === "masque" || s.proto === "masque-h2") {
-      s.node = ""; s.country = ""; s.exclNode = ""; s.exclCountry = "";
-    }
-    S.foundCmd = ""; // применена — не даём переиспользовать устаревшую
+    s.proto = enumOf(s.proto, SCAN_ENUMS.proto, "awg");
+    s.genI1 = enumOf(s.genI1, SCAN_ENUMS.genI1, "");
+    // найденные конкретные jc/jmin/jmax несовместимы с генератором junk
+    if (s.jc !== "" || s.jmin !== "" || s.jmax !== "") s.genJunk = false;
+    S.scan = s;
+    S.lastRunParams = null; // применён новый профиль — старый снимок больше не источник параметров
     syncInputsFromState();
     updateCmdPreview();
     persist();
     switchTab("scan");
-    toast(t("Параметры применены к скану"), "ok");
+    if (sawRawI1) {
+      toast(t("Найден конкретный I1 — GUI применяет генераторы; raw-I1 задаётся командой из вкладки «Поиск параметров»"), "warn");
+    } else {
+      toast(t("Параметры применены к скану"), "ok");
+    }
   }
 
   /* ───────── вкладки/интерфейс ───────── */
@@ -4579,18 +5118,27 @@
     $("#cfgAllowedCustom").classList.toggle("hidden", c.allowed !== "custom");
   }
 
-  const persist = debounce(() => {
-    if (!HAS_NL) return;
+  function stateJson() {
+    return JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, customPresets: S.customPresets, compact: S.compact, foundCmd: S.foundCmd || "", history: S.history.slice(0, 10), qcHistory: S.qcHistory.slice(0, 50) });
+  }
+
+  function writeStateNow() {
+    if (!HAS_NL) return Promise.resolve();
     try {
-      store()
-        .setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, customPresets: S.customPresets, compact: S.compact, foundCmd: S.foundCmd || "", history: S.history.slice(0, 10), qcHistory: S.qcHistory.slice(0, 50) }))
-        .catch(() => {});
-    } catch (e) {}
-  }, 400);
+      return store().setData("state", stateJson()).catch(() => {});
+    } catch (e) { return Promise.resolve(); }
+  }
+
+  const persist = debounce(writeStateNow, 400);
+
+  // v2.4.6 (F17): явный flush — запись БЕЗ дебаунса; после значимых операций
+  // (смена папки данных, сброс) вызываем flushSave() и ДОЖИДАЕМСЯ записи
+  async function flushSave() {
+    await writeStateNow();
+  }
 
   window.addEventListener("beforeunload", () => {
-    if (!HAS_NL) return;
-    try { store().setData("state", JSON.stringify({ scan: S.scan, cfg: S.cfg, settings: S.settings, customPresets: S.customPresets, compact: S.compact, foundCmd: S.foundCmd || "", history: S.history.slice(0, 10), qcHistory: S.qcHistory.slice(0, 50) })); } catch (e) {}
+    writeStateNow();
   });
 
   /* ───────── проверка warpscout ───────── */
@@ -4651,6 +5199,7 @@
         ok = true;
       } else if (fileThere) {
         let proc = null;
+        let exitCode = null; // v2.4.6 (F37)
         try { proc = await os().spawnProcess(quoteExe() + " version"); } catch (e) { proc = null; }
         const out = await new Promise((resolve) => {
           let buf = "";
@@ -4659,12 +5208,14 @@
           if (proc && proc.id != null) {
             registerProc(proc.id, (d) => {
               if (d.type === "stdout" || d.type === "stderr") buf += typeof d.data === "string" ? d.data : "";
-              else if (d.type === "exit") { unregisterProc(proc.id); finish(); }
+              else if (d.type === "exit") { exitCode = exitCodeOf(d.data); unregisterProc(proc.id); finish(); }
             });
             setTimeout(async () => { await killProc(proc.id); unregisterProc(proc.id); finish(); }, 8000);
           } else finish();
         });
-        if (/^\d+\.\d+/.test(out)) {
+        // v2.4.6 (F37): версия принимается только при чистом завершении процесса.
+        // 143/потерянный exit прощаем (это наш таймаут/синтетика), ненулевой настоящий код — нет.
+        if (/^\d+\.\d+/.test(out) && (exitCode === 0 || exitCode === 143 || exitCode === -1)) {
           S.wsVersion = out;
           ok = true;
         } else {
@@ -4919,38 +5470,74 @@
     return custom ? "custom" : "default";
   }
 
+  // v2.4.6 (F12): каноническое сравнение путей Windows — регистр букв и вид
+  // разделителей НЕ делают папки разными («C:\Warp» и «c:\warp» — одна папка)
+  function normWinPath(p) {
+    return String(p || "").trim().replace(/[\\/]+$/, "").replace(/[\\/]+/g, "\\").toLowerCase();
+  }
+  function isSameWinPath(a, b) {
+    return !!a && !!b && normWinPath(a) === normWinPath(b);
+  }
+  // v2.4.6 (F13): destination внутри source — миграцию запускать НЕЛЬЗЯ
+  function isWinPathInside(child, parent) {
+    const c = normWinPath(child), p = normWinPath(parent);
+    return !!c && !!p && c !== p && c.indexOf(p + "\\") === 0;
+  }
+
   // перенос данных (аккаунт + отчёты) между корнями при смене папки данных.
   // EBWebView здесь НЕ трогаем: файлы кэша держит открытыми веб-движок, перенос —
   // только через «Объединить» (после закрытия приложения).
+  // v2.4.6 (F12–F15): копируем ВСЁ → проверяем запись → удаляем только успешно
+  // скопированные файлы; конфликты НЕ перезаписывают destination; старый каталог
+  // удаляется только если опустел; при вложенности/ошибке — явный отказ.
   async function migrateData(oldRoot, newRoot) {
     const moved = [];
-    if (!oldRoot || !newRoot || oldRoot === newRoot) return moved;
+    const conflicts = [];
+    if (!oldRoot || !newRoot || isSameWinPath(oldRoot, newRoot)) return { moved, conflicts };
+    if (isWinPathInside(newRoot, oldRoot)) throw new Error(t("новая папка находится внутри старой — выберите папку вне её"));
     await ensureDir(newRoot);
-    try {
-      const txt = await fs().readFile(oldRoot + "\\warpscout-account.json");
-      await fs().writeFile(newRoot + "\\warpscout-account.json", txt);
-      try { await fs().remove(oldRoot + "\\warpscout-account.json"); } catch (e) {}
-      moved.push("warpscout-account.json");
-    } catch (e) { /* файла нет — нечего переносить */ }
+    // аккаунт
+    let accText = "";
+    try { accText = await fs().readFile(oldRoot + "\\warpscout-account.json"); } catch (e) { accText = ""; }
+    if (accText) {
+      let destExists = false;
+      try { await fs().readFile(newRoot + "\\warpscout-account.json"); destExists = true; } catch (e) {}
+      if (destExists) {
+        conflicts.push("warpscout-account.json (в новой папке уже есть аккаунт — сохранён он)"); // F15
+      } else {
+        await fs().writeFile(newRoot + "\\warpscout-account.json", accText);
+        let verified = false;
+        try { verified = (await fs().readFile(newRoot + "\\warpscout-account.json")) === accText; } catch (e) { verified = false; }
+        if (!verified) throw new Error("аккаунт не прошёл проверку записи — перенос отменён, старая папка не тронута");
+        try { await fs().remove(oldRoot + "\\warpscout-account.json"); } catch (e) { /* удалим при следующем переносе */ }
+        moved.push("warpscout-account.json");
+      }
+    }
+    // отчёты
     try {
       const items = await fs().readDirectory(oldRoot + "\\reports");
       if (Array.isArray(items) && items.length) {
         await ensureDir(newRoot + "\\reports");
         for (const it of items) {
-          if (String(it.type || "").toUpperCase() === "DIRECTORY") continue;
+          if (String(it.type || "").toUpperCase() === "DIRECTORY") continue; // подкаталоги не трогаем (F14)
           const name = String(it.path || "").split(/[\\/]/).pop();
-          if (!name) continue;
-          try {
-            const txt2 = await fs().readFile(it.path);
-            await fs().writeFile(newRoot + "\\reports\\" + name, txt2);
-            try { await fs().remove(it.path); } catch (e) {}
-            moved.push("reports/" + name);
-          } catch (e) { /* один файл не читается — переносим остальные */ }
+          if (!name || !/^[\w.\- ()\[\]]+$/.test(name)) continue; // только имена отчётов нашего формата
+          let txt2 = "";
+          try { txt2 = await fs().readFile(it.path); } catch (e) { continue; } // не читается — остаётся на месте
+          let destExists = false;
+          try { await fs().readFile(newRoot + "\\reports\\" + name); destExists = true; } catch (e) {}
+          if (destExists) { conflicts.push("reports/" + name); continue; } // F15: имя занято — файл остаётся в старой папке
+          try { await fs().writeFile(newRoot + "\\reports\\" + name, txt2); } catch (e) { continue; } // не скопировался — НЕ удаляем источник
+          moved.push("reports/" + name);
         }
-        try { await fs().remove(oldRoot + "\\reports"); } catch (e) {}
+        // v2.4.6 (F14): старый reports удаляем ТОЛЬКО если он опустел
+        try {
+          const rest = await fs().readDirectory(oldRoot + "\\reports");
+          if (Array.isArray(rest) && !rest.length) { try { await fs().remove(oldRoot + "\\reports"); } catch (e) {} }
+        } catch (e) {}
       }
     } catch (e) { /* папки отчётов нет */ }
-    return moved;
+    return { moved, conflicts };
   }
 
   async function anyProcRunning() {
@@ -4972,9 +5559,19 @@
       return;
     }
     let moved = [];
-    try { moved = await migrateData(S.paths.dataDir, newRoot); } catch (e) { moved = []; }
+    let conflicts = [];
+    try {
+      const r = await migrateData(S.paths.dataDir, newRoot);
+      moved = r.moved;
+      conflicts = r.conflicts;
+    } catch (e) {
+      // v2.4.6 (F14/F15): при ошибке переноса активный корень НЕ меняем —
+      // «половина данных там, половина здесь» хуже явного отказа
+      toast(tF("Перенос данных не выполнен: {err}. Активной осталась прежняя папка.", { err: e && e.message ? e.message : e }), "err");
+      return;
+    }
     S.settings.dataRoot = newRoot;
-    await persist();
+    await flushSave(); // v2.4.6 (F17): ждём ФАКТИЧЕСКУЮ запись, а не дебаунс
     await computePaths();
     await loadAccount();
     renderAccount();
@@ -4985,6 +5582,9 @@
         : t("Папка данных изменена"),
       "ok"
     );
+    if (conflicts.length) {
+      toast(tF("Не перенесены — уже есть в новой папке: {n}", { n: conflicts.length }) + ": " + conflicts.slice(0, 3).join("; ") + (conflicts.length > 3 ? "…" : ""), "warn");
+    }
   }
 
   async function pickDataRoot() {
@@ -5155,20 +5755,28 @@
       const raw = await store().getData("state");
       if (!raw) return;
       const st = JSON.parse(raw);
-      if (st.scan) S.scan = Object.assign({}, DEFAULT_SCAN, st.scan);
-      if (st.cfg) S.cfg = deepMerge(S.cfg, st.cfg);
-      if (st.settings) S.settings = Object.assign({}, S.settings, st.settings);
-      if (Array.isArray(st.customPresets)) S.customPresets = st.customPresets.filter((p) => p && p.name && p.scan).slice(0, 20);
+      // v2.4.6 (F08): собственный storage тоже прогоняем через схему —
+      // повреждённая запись не должна ронять следующий запуск
+      if (st.scan) S.scan = sanitizeScan(st.scan);
+      if (st.cfg) S.cfg = sanitizeCfg(st.cfg);
+      if (st.settings && typeof st.settings === "object") {
+        S.settings = Object.assign({}, S.settings, {
+          wsPath: strField(st.settings.wsPath, 500),
+          dataRoot: strField(st.settings.dataRoot, 500),
+        });
+      }
+      if (Array.isArray(st.customPresets)) S.customPresets = sanitizePresets(st.customPresets);
       S.compact = !!st.compact;
-      if (Array.isArray(st.history)) S.history = st.history.slice(0, 10);
-      if (Array.isArray(st.qcHistory)) S.qcHistory = st.qcHistory.filter((q) => q && q.ep && q.kind).slice(0, 50);
-      S.foundCmd = st.foundCmd || "";
+      if (Array.isArray(st.history)) S.history = st.history.map(sanitizeHistoryItem).filter(Boolean).slice(0, 10);
+      if (Array.isArray(st.qcHistory)) S.qcHistory = st.qcHistory.map(sanitizeQcItem).filter(Boolean).slice(0, 50);
+      S.foundCmd = strField(st.foundCmd, 500);
     } catch (e) {}
   }
 
   function deepMerge(base, extra) {
     const out = Object.assign({}, base);
     for (const k of Object.keys(extra || {})) {
+      if (k === "__proto__" || k === "constructor" || k === "prototype") continue; // v2.4.6 (F08): pollution guard
       if (extra[k] && typeof extra[k] === "object" && !Array.isArray(extra[k]) && base[k] && typeof base[k] === "object") {
         out[k] = deepMerge(base[k], extra[k]);
       } else out[k] = extra[k];
@@ -5263,7 +5871,7 @@
     $("#btnQrPrev").addEventListener("click", () => { if (S.qrPages && S.qrPage > 0) { S.qrPage--; renderQrPage(); } });
     $("#btnQrNext").addEventListener("click", () => { if (S.qrPages && S.qrPage < S.qrPages.length - 1) { S.qrPage++; renderQrPage(); } });
     $("#btnQrPng").addEventListener("click", saveQrPng);
-    $("#btnQrCopy").addEventListener("click", () => copyText(buildConf(), t("Конфиг скопирован")));
+    $("#btnQrCopy").addEventListener("click", () => { if (confExportReady()) copyText(buildConf(), t("Конфиг скопирован")); }); // v2.4.6 (F27)
     $("#btnExportState").addEventListener("click", exportState);
     $("#btnImportState").addEventListener("click", importState);
     bindImportStateFile();
@@ -5282,7 +5890,21 @@
     $("#btnToConfig").addEventListener("click", () => {
       const best = S.results.find((r) => !r.torn);
       if (!best) { toast(t("Сначала выполните скан"), "err"); return; }
+      if (S.viewProto === "masque" || S.viewProto === "masque-h2") {
+        // v2.4.6 (F19): для MASQUE нет WG/AWG .conf — честный отказ
+        toast(t("MASQUE-эндпоинт нельзя упаковать в WG/AWG .conf — используйте SOCKS-прокси или CLI warpscout"), "warn");
+        return;
+      }
       S.cfg.endpoint = best.endpoint;
+      const lp = S.lastRunParams;
+      if (lp && lp.proto === "awg" && !lp.genJunk) {
+        S.cfg.obf.jc = clampInt(lp.jc !== "" && lp.jc != null ? lp.jc : 6, 1, 128, 4);
+        let jmin = clampInt(lp.jmin !== "" && lp.jmin != null ? lp.jmin : 10, 0, 1280, 40);
+        const jmax = clampInt(lp.jmax !== "" && lp.jmax != null ? lp.jmax : 50, 0, 1280, 70);
+        if (jmin > jmax) jmin = jmax;
+        S.cfg.obf.jmin = jmin;
+        S.cfg.obf.jmax = jmax;
+      }
       syncCfgInputsFromState();
       switchTab("config");
       toast(tF("Лучший эндпоинт из скана: {ep}", { ep: best.endpoint }), "ok");
@@ -5348,7 +5970,7 @@
     $("#btnImportI1").addEventListener("click", importI1);
     $("#btnImportConf").addEventListener("click", importConf); // v1.5.0
     bindImportConfFile(); // v1.5.0
-    $("#btnCopyConf").addEventListener("click", () => copyText(buildConf(), t("Конфиг скопирован")));
+    $("#btnCopyConf").addEventListener("click", () => { if (confExportReady()) copyText(buildConf(), t("Конфиг скопирован")); }); // v2.4.6 (F27)
     $("#btnSaveConf").addEventListener("click", saveConf);
 
     // аккаунт
@@ -5357,6 +5979,7 @@
       if (confirm("Создать новый аккаунт WARP с нуля? Текущие ключи будут заменены.")) runRegister(true);
     });
     $("#btnRegisterStop").addEventListener("click", async () => {
+      S.registerCancelRequested = true; // v2.4.6 (F32): процесс мог ещё не появиться
       await killProc(S.procIds.register);
       S.procIds.register = null;
       S.running.register = false;
@@ -5432,18 +6055,15 @@
       os().open(S.paths.reportsDir).catch(() => {});
     });
     $("#btnResetStorage").addEventListener("click", async () => {
-      if (!confirm(t("Сбросить все настройки и данные приложения?"))) return;
+      if (await anyProcRunning()) {
+        // v2.4.6 (F34/F38): сброс посреди активных операций запрещён
+        toast(t("Сначала остановите скан/регистрацию/прокси — сброс посреди работы невозможен"), "err");
+        return;
+      }
+      // v2.4.6 (F38): честный scope сброса — указан в подтверждении
+      if (!confirm(t("Сбросить настройки скана/конфига, историю, журнал проверок и пресеты? Аккаунт и файлы в папке данных останутся."))) return;
       S.scan = Object.assign({}, DEFAULT_SCAN);
-      S.cfg = {
-        ver: "awg31", dns: "cloudflare", dnsV6: true, dnsCustom: "", endpoint: "", mtu: 1280,
-        keepalive: 0, allowed: "both", allowedCustom: "", tableOff: false,
-        obf: {
-          jc: 4, jmin: 40, jmax: 70, s1: 0, s2: 0, s3: 0, s4: 0,
-          h1: "1", h2: "2", h3: "3", h4: "4", i1: EXAMPLE_I1,
-          cpa: "27-97", rekeyAfter: "116-131", rekeyTo: "6-9", rejectAfter: "171-196",
-          keepaliveTo: "9-16", maxHs: "18-26", trailers: "on", noCookies: "on", hpk: "",
-        },
-      };
+      S.cfg = defaultCfg();
       S.results = [];
       S.sortByPing = false;
       S.sortKey = "report";
@@ -5453,8 +6073,12 @@
       S.customPresets = [];
       S.compact = false;
       S.history = []; // БАГФИКС 1.4.0: «Сбросить настройки и данные» теперь чистит и историю
+      S.qcHistory = []; // v2.4.6 (F38): журнал проверок тоже сбрасываем
+      S.foundCmd = ""; // v2.4.6 (F38): найденная команда тоже — иначе переживёт сброс в storage
+      S.lastRunParams = null; // v2.4.6: снимок параметров тоже сбрасываем
       resetFilterSilently();
       try { await store().setData("state", "{}"); } catch (e) {}
+      await flushSave(); // v2.4.6 (F17/F38): гарантируем запись пустого состояния
       syncInputsFromState();
       syncCfgInputsFromState();
       updateCmdPreview();
@@ -5463,12 +6087,19 @@
       renderCustomPresets();
       applyCompact();
       renderHistoryBtn();
+      renderQcJournal(); // v2.4.6: если панель истории открыта — обновить и журнал
       toast(t("Настройки сброшены"), "ok");
     });
+
+    // v2.4.6 (F50): сегменты — радиогруппы
+    ["#protoSeg", "#i1Seg", "#cfgVerSeg", "#cfgDnsSeg"].forEach((s) => setupSegGroup($(s)));
 
     // горячие клавиши
     const TAB_ORDER = ["scan", "config", "account", "socks", "tools", "settings"];
     document.addEventListener("keydown", (e) => {
+      // v2.4.6 (F47): под модалкой глобальные хоткеи отключены (Tab работает —
+      // фон inert, фокус не выходит за пределы диалога; Escape закрывает ниже)
+      if (openModalOf() && e.key !== "Escape" && e.key !== "Tab") return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && !e.shiftKey && !e.altKey && e.key >= "1" && e.key <= "6") {
         e.preventDefault();
@@ -5537,7 +6168,21 @@
     const bBatch = $("#btnBatchCheck");
     if (bBatch) bBatch.addEventListener("click", () => { runBatchCheck().catch((e) => console.error("batch:", e)); });
     const bBatchCancel = $("#btnBatchCancel");
-    if (bBatchCancel) bBatchCancel.addEventListener("click", () => toggleQcSelMode(false));
+    if (bBatchCancel)
+      bBatchCancel.addEventListener("click", () => {
+        // v2.4.6 (F33): «Отмена» останавливает ОЧЕРЕДЬ и убивает текущий процесс,
+        // а не только снимает выделение
+        if (S.qcBatch) {
+          S.qcBatch.cancelled = true;
+          killProc(S.procIds.check);
+          if (S.qcBatch.curResolve) {
+            const r = S.qcBatch.curResolve;
+            S.qcBatch.curResolve = null;
+            r({ kind: "error", ping: "", loss: "", node: "" });
+          }
+        }
+        toggleQcSelMode(false);
+      });
     const bHtml = $("#btnExportHtml");
     if (bHtml) bHtml.addEventListener("click", exportScanHtml);
 
@@ -5608,7 +6253,8 @@
   }
 
   // отладочный хук (безвредно): помогает диагностике через консоль
-  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, validateAccountJson, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage };
+  // v2.4.6: + валидаторы/санитайзеры (аудит-тесты и диагностика)
+  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildScanArgs, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, applyImportedState, applyImportedPresets, applyFoundCmd, parseEndpoint, splitEpPort, safeVal, enumOf, clampInt, sanitizeScan, sanitizeCfg, sanitizeHistoryItem, sanitizeQcItem, sanitizePresets, csvSafe, isWgKey, validateAccountJson, normWinPath, isSameWinPath, isWinPathInside, migrateData, confExportReady, defaultCfg, flushSave, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {
