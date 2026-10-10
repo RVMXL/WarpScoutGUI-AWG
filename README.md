@@ -10,7 +10,7 @@
 |---|---|
 | ![Тёмная тема](docs/screenshot-dark.png) | ![Светлая тема](docs/screenshot-light.png) |
 
-Веб-демо интерфейса (на моках, без Neutralino) доступно на лендинге проекта.
+▶ **Веб-демо интерфейса** (на моках, без Neutralino) — [**rvmxl.github.io/WarpScoutGUI-AWG**](https://rvmxl.github.io/WarpScoutGUI-AWG/) — можно пощёлкать интерфейс прямо в браузере, ничего не скачивая.
 
 ## Скачать
 
