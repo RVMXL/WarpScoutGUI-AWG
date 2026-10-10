@@ -52,3 +52,13 @@ prompt
 server.log
 # Skills directory
 /skills/
+# local database
+/db
+
+# sandbox internals / third-party research snapshots
+/tool-results
+/.zscripts
+/false
+/desktop-app/dist
+
+# download build artifacts (release zip is rebuilt by scripts)
