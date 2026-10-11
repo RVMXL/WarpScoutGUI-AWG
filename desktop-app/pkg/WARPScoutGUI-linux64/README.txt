@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════
- WARPSCOUT GUI v2.5.0 — LINUX (x86_64)
+ WARPSCOUT GUI v2.5.1 — LINUX (x86_64)
  Графическая оболочка для warpscout v0.16.0 (github.com/vernette/warpscout)
 ════════════════════════════════════════════════════════════
 
@@ -121,4 +121,4 @@
  - Neutralinojs: MIT — LICENSE-neutralino.txt.
  - qrcode: LICENSE-qrcode.txt.
 
- WARPSCOUT GUI v2.5.0 · warpscout v0.16.0
+ WARPSCOUT GUI v2.5.1 · warpscout v0.16.0

@@ -14,14 +14,20 @@
   const IS_MOCK = typeof window.Neutralino !== "undefined" && window.Neutralino.mock === true;
   const HAS_NL = typeof window.Neutralino !== "undefined";
 
-  /* ───── v2.5.0: платформенный слой (Windows / Linux) ─────
+  /* ───── v2.5.0: платформенный слой (Windows / Linux); v2.5.1: + macOS ─────
      Windows — прежнее поведение (ни одна ветка ниже не меняет логику).
      Linux (NL_OS = "Linux"): бинарник warpscout без .exe, POSIX-разделитель
      путей, chmod +x вместо PowerShell Unblock-File, папка данных
-     ~/.local/share/<имя>. В браузерном демо (IS_MOCK) остаёмся win-подобными,
+     ~/.local/share/<имя>.
+     macOS (NL_OS = "Darwin"): всё POSIX-поведение Linux переиспользуется как
+     есть (IS_LINUX = !IS_WIN), поверх — mac-замены фраз (Console.app вместо
+     journalctl) и mac-пути данных ~/Library/Application Support/<имя>.
+     Папка данных на всех ОС — os.getPath("data") (кроссплатформенно).
+     В браузерном демо (IS_MOCK) остаёмся win-подобными,
      чтобы демо соответствовало Windows-релизу. */
   const IS_WIN = IS_MOCK || typeof window.NL_OS !== "string" ? true : /^win/i.test(window.NL_OS || "");
   const IS_LINUX = !IS_WIN;
+  const IS_MAC = !IS_WIN && /^darwin|^mac/i.test(typeof window.NL_OS === "string" ? window.NL_OS : "");
   const WS_EXE = IS_WIN ? "warpscout.exe" : "warpscout";
   const GUI_EXE = IS_WIN ? "WARPScoutGUI.exe" : "WARPScoutGUI";
   const PSEP = IS_WIN ? "\\" : "/";
@@ -64,19 +70,38 @@
   ];
   const LINUX_KEY_MAP = {};
   LINUX_TEXT.forEach((row) => { LINUX_KEY_MAP[row[0]] = row[1]; });
-  // нормализация ключей/строк для Linux: имена файлов, разделители, пути
+  /* v2.5.1: mac-замены целых фраз поверх linux-вариантов: [linux-RU, mac-RU, mac-EN].
+     Применяются только на macOS (IS_MAC) — на Linux поведение прежнее. */
+  const MAC_TEXT = [
+    ["Если регистрация падает с «кодом -1»: «Проверить warpscout» показывает, запускается ли warpscout вообще; «Разрешить запуск» выдаёт право на выполнение (chmod +x) — на Linux это частая причина «кода -1» сразу после распаковки архива.",
+     "Если регистрация падает с «кодом -1»: «Проверить warpscout» показывает, запускается ли warpscout вообще; «Разрешить запуск» выдаёт право на выполнение (chmod +x) — на macOS это частая причина «кода -1» сразу после распаковки архива (метку quarantine Gatekeeper снимает: xattr -cr . в папке программы — см. README).",
+     "If registration fails with 'exit code -1': 'Check warpscout' shows whether warpscout starts at all; 'Allow execution' grants the execute permission (chmod +x) — on macOS this is the common cause of 'exit code -1' right after unpacking the archive (the Gatekeeper quarantine label is cleared by: xattr -cr . in the app folder — see README)."],
+    ["Проверка перед запуском показала версию {v} — сам warpscout запускается, путь верный. Похоже, процесс закрывается уже во время регистрации: проверьте системный журнал (journalctl) и повторите попытку.",
+     "Проверка перед запуском показала версию {v} — сам warpscout запускается, путь верный. Похоже, процесс закрывается уже во время регистрации: проверьте Console (Программы → Утилиты → Console) и повторите попытку.",
+     "The preflight check reported version {v} — warpscout itself starts and the path is correct. The process seems to get closed during registration: check Console (Applications → Utilities → Console) and retry."],
+  ];
+  const MAC_KEY_MAP = {};
+  MAC_TEXT.forEach((row) => { MAC_KEY_MAP[row[0]] = row[1]; });
+  // нормализация ключей/строк для Linux/macOS: имена файлов, разделители, пути.
+  // v2.5.1: папка данных в шаблонах — по платформе (os.getPath("data")):
+  //   Linux — ~/.local/share/<имя>, macOS — ~/Library/Application Support/<имя>
+  const UNIX_DATA_DIR = IS_MAC ? "~/Library/Application Support/WARPScoutGUI" : "~/.local/share/WARPScoutGUI";
   function platNorm(s) {
     return String(s)
       .replace(/warpscout\.exe/g, "warpscout")
       .replace(/WARPScoutGUI\.exe/g, "WARPScoutGUI")
       .replace(/bin\\warpscout/g, "bin/warpscout")
-      .replace(/%APPDATA%\\WARPScoutGUI/g, "~/.local/share/WARPScoutGUI")
+      .replace(/%APPDATA%\\WARPScoutGUI/g, UNIX_DATA_DIR)
       .replace(/ \(EBWebView\)/g, "");
   }
   function platKey(s) {
     if (IS_WIN) return s;
     const raw = String(s);
-    if (Object.prototype.hasOwnProperty.call(LINUX_KEY_MAP, raw)) return LINUX_KEY_MAP[raw];
+    if (Object.prototype.hasOwnProperty.call(LINUX_KEY_MAP, raw)) {
+      const lk = LINUX_KEY_MAP[raw];
+      if (IS_MAC && Object.prototype.hasOwnProperty.call(MAC_KEY_MAP, lk)) return MAC_KEY_MAP[lk]; // v2.5.1
+      return lk;
+    }
     return platNorm(raw);
   }
   function linuxPlatInit() {
@@ -88,6 +113,11 @@
       if (nk !== k && I18N_EN[nk] === undefined) I18N_EN[nk] = platNorm(I18N_EN[k]);
     });
     LINUX_TEXT.forEach((row) => { if (I18N_EN[row[1]] === undefined) I18N_EN[row[1]] = row[2]; });
+    if (IS_MAC) {
+      // v2.5.1: mac-варианты фраз (Console.app вместо journalctl и т. п.) —
+      // ключ и EN-перевод добавляются поверх linux-дублей.
+      MAC_TEXT.forEach((row) => { if (I18N_EN[row[1]] === undefined) I18N_EN[row[1]] = row[2]; });
+    }
   }
 
 
