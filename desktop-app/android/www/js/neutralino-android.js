@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.3)
+   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.4)
    Подключается в APK вместо js/neutralino.js (до app.js/mock.js).
    Реализует через AndroidNative-мост ровно тот сурфейс, что
    использует app.js (см. также mock.js — тот же контракт):
@@ -7,7 +7,8 @@
      os.spawnProcess / execCommand / killProcess /
        updateSpawnedProcess / getSpawnedProcesses / requestPublicAccess
      os.showSaveDialog / showOpenDialog / showFolderDialog
-     os.getPath("data") / os.open / mirrorToPublic (no-op) / publicDir
+     os.getPath("data") / os.open / mirrorToPublic (no-op) / publicDir /
+       saveToDownloads (v2.5.4: готовые конфиги → Download/WARPScoutGUI)
      fs.readFile / writeFile / writeBinaryFile / readDirectory /
        getStats / createDirectory / remove
      storage.setData / getData
@@ -53,7 +54,7 @@
   window.NL_PATH = INFO.nlPath || "/data/user/0/ru.warpscout.gui/files";
   window.NL_CWD = INFO.nlCwd || window.NL_PATH;
   window.NL_OS = "Android";
-  window.NL_APPVERSION = INFO.appVersion || "2.5.3";
+  window.NL_APPVERSION = INFO.appVersion || "2.5.4";
   window.NL_VERSION = "6.1.0"; // совместимость шима с рантаймом 6.x
   window.NL_WS_PATH = INFO.wsPath || ""; // libwarpscout.so в nativeLibraryDir
   /* v2.5.3: видимая «своя папка» пользователя на /storage/emulated/0 */
@@ -100,7 +101,9 @@
         const ext = (name.split(".").pop() || "").toLowerCase();
         const MIME = { conf: "text/plain", txt: "text/plain", json: "application/json",
           csv: "text/csv", html: "text/html", svg: "image/svg+xml", png: "image/png", log: "text/plain" };
-        return asyncString(() => B.saveDialog(String(title || ""), String(name), MIME[ext] || "*/*"));
+        // v2.5.4: диалог сохранения открывается в Download/WARPScoutGUI (API 26+)
+        return asyncString(() => B.saveDialog(String(title || ""), String(name), MIME[ext] || "*/*",
+          "primary:Download/WARPScoutGUI"));
       },
       showOpenDialog() {
         return asyncString(() => B.openDialog("Выберите файл", "*/*"));
@@ -118,8 +121,14 @@
         return Promise.resolve("");
       },
       open(path) {
-        try { B.openPath(String(path)); } catch (e) {}
-        return Promise.resolve();
+        // v2.5.4: вызов моста более не глушится молча — ошибка уходит в reject,
+        // чтобы openFolderUi в app.js мог показать тост
+        return new Promise((resolve, reject) => {
+          setTimeout(() => {
+            try { B.openPath(String(path == null ? "" : path)); resolve(); }
+            catch (e) { reject(e); }
+          }, 0);
+        });
       },
       getPath(kind) {
         return asyncCall(() => B.getPath(String(kind || "data")))
@@ -139,6 +148,12 @@
          сразу после ответа пользователя). Оба — событием __wsStorageChanged. */
       requestPublicAccess() {
         return asyncCall(() => B.requestPublicAccess());
+      },
+      /* v2.5.4: сохранить файл в публичную папку Download/WARPScoutGUI.
+         API 29+ — MediaStore.Downloads без разрешений; 7–9 — прямая запись
+         при выданном WRITE. {ok,path} | {fallback:true} | {error} */
+      saveToDownloads(name, mime, b64) {
+        return asyncCall(() => B.saveToDownloads(String(name || "file"), String(mime || "*/*"), String(b64 || "")));
       },
     },
     filesystem: {

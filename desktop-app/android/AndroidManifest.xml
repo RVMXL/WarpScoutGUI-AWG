@@ -4,15 +4,17 @@
      desktop-app/android/keystore/) — новая версия ставится как апдейт. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="ru.warpscout.gui"
-    android:versionCode="20503"
-    android:versionName="2.5.3">
+    android:versionCode="20504"
+    android:versionName="2.5.4">
 
     <!-- Сеть: регистрация аккаунта в Cloudflare и сканирование (ядро warpscout) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- v2.5.3: запись пользовательских файлов в /storage/emulated/0/WARPScoutGUI
          на Android 7–10 (WRITE + legacy-режим; на 11+ — MANAGE «Все файлы»,
          выдаётся по кнопке «В общую папку»; по умолчанию данные живут в
-         app-specific Android/data/…/files/WARPScoutGUI — разрешение не нужно) -->
+         app-specific Android/data/…/files/WARPScoutGUI — разрешение не нужно).
+         v2.5.4: готовые конфиги пишутся в Download/WARPScoutGUI — на 10+ через
+         MediaStore.Downloads без разрешений, на 7–9 этим же WRITE. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 

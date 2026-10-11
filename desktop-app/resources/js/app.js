@@ -36,9 +36,22 @@
      из nativeLibraryDir (путь приходит в window.NL_WS_PATH).
      TOUCH_UI — сенсорный режим: нижние вкладки + главная страница. */
   const TOUCH_UI = IS_ANDROID || /(?:^|[?&])touch=1/.test(typeof location === "object" && location ? String(location.search) : "");
+  // v2.5.4 (Android): публичная папка готовых конфигов — видна в любом
+  // файловом менеджере и без разрешений пишется через MediaStore (API 29+)
+  const ANDROID_DOWNLOAD_DIR = "/storage/emulated/0/Download/WARPScoutGUI";
   const WS_EXE = IS_WIN ? "warpscout.exe" : "warpscout";
   const GUI_EXE = IS_WIN ? "WARPScoutGUI.exe" : "WARPScoutGUI";
   const PSEP = IS_WIN ? "\\" : "/";
+  // v2.5.4: UTF-8 → base64 для моста saveToDownloads (там Base64.decode)
+  function utf8ToB64(str) {
+    const bytes = new TextEncoder().encode(String(str == null ? "" : str));
+    let bin = "";
+    const CH = 0x8000;
+    for (let i = 0; i < bytes.length; i += CH) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+    }
+    return btoa(bin);
+  }
   // платформенный join: на Windows ведёт себя как старые конкатенации с "\\",
   // на Linux — с "/" (лишние хвостовые разделители и ведущие у хвоста срезаются)
   function pxJoin() {
@@ -951,6 +964,27 @@
     "Конфиг готов: {p}": "Config ready: {p}",
     "Конфиг сохранён: {p}": "Config saved: {p}",
     "Отчёты и конфиги дублируются в общую папку устройства: Download/WARPScoutGUI": "Reports and configs are duplicated to the device's shared folder: Download/WARPScoutGUI",
+    /* — v2.5.4: главная, открытие папок, конфиги в Download — */
+    "Открываю папку{what}: {p}": "Opening folder{what}: {p}",
+    "Только в приложении (в демо папки нет)": "Only in the app (no folders in the demo)",
+    "Не удалось открыть папку": "Could not open the folder",
+    "■ Остановить скан": "■ Stop scan",
+    "Остановить скан": "Stop scan",
+    "Конфиг сохранён в Download/WARPScoutGUI": "Config saved to Download/WARPScoutGUI",
+    "Download недоступен без разрешения — конфиг сохранён в папку приложения": "Download is unavailable without permission — the config was saved to the app folder",
+    "Download недоступен ({err}) — сохраняю в папку приложения": "Download is unavailable ({err}) — saving to the app folder",
+    "Готовые конфиги сохраняются в Download/WARPScoutGUI — папка видна в любом файловом менеджере": "Ready configs are saved to Download/WARPScoutGUI — visible in any file manager",
+    "готовые конфиги (видны в любом файловом менеджере)": "ready configs (visible in any file manager)",
+    // текстовый узел в homePubBox начинается с « — » — нужен и такой ключ
+    "— готовые конфиги (видны в любом файловом менеджере)": "— ready configs (visible in any file manager)",
+    "■ Остановить": "■ Stop",
+    "Скан завершён": "Scan finished",
+    "конфиги": "configs",
+    "аккаунт и отчёты": "account and reports",
+    "папка данных": "data folder",
+    "файл аккаунта": "account file",
+    "отчёты": "reports",
+    "warpscout": "warpscout",
     "пользовательские файлы (отчёты, конфиги, аккаунт)": "user files (reports, configs, account)",
     "Отчёт скопирован в общую папку: {p}": "Report copied to the shared folder: {p}",
     "Копия в общей папке: {p}": "Copy in shared folder: {p}",
@@ -1959,6 +1993,7 @@
     $("#btnRunScanLabel").textContent = run ? t("Сканирую…") : t("Начать скан");
     $("#scanProgress").hidden = !run;
     if (!run) { $("#scanBarFill").style.width = "0%"; }
+    try { homeScanUi(); } catch (e) {} // v2.5.4: синхронный индикатор на главной
   }
 
   function setPhase(label, frac) {
@@ -1966,6 +2001,10 @@
     const livePhase = $("#scanLivePhase");
     if (livePhase) livePhase.textContent = label;
     if (frac != null) $("#scanBarFill").style.width = Math.max(2, Math.min(100, frac)) + "%";
+    // v2.5.4: фаза сразу на главной (realtime-индикатор скана)
+    const hp = document.getElementById("homeScanPhase");
+    if (hp) hp.textContent = String(label || "");
+    try { homeScanTick(); } catch (e) {}
   }
 
   function appendLog(el, data) {
@@ -2525,6 +2564,7 @@
     const ss = String(sec % 60).padStart(2, "0");
     const el = $("#scanLiveElapsed");
     if (el) el.textContent = mm + ":" + ss;
+    try { homeScanTick(); } catch (e) {} // v2.5.4: таймер/шаги на главной
   }
 
   function scanLiveFeed(data) {
@@ -2558,6 +2598,7 @@
       const last = live.steps[live.steps.length - 1];
       meta.textContent = t("шагов") + " " + last.done + "/" + last.total + " · " + t("узлов") + " " + live.nodes.length;
     }
+    try { homeScanTick(); } catch (e) {} // v2.5.4: шаги/узлы на главной
   }
 
   function drawScanLive() {
@@ -2618,6 +2659,7 @@
     clearInterval(live.timer);
     const panel = $("#scanLive");
     if (panel) panel.classList.add("hidden");
+    try { homeScanUi(); } catch (e) {} // v2.5.4: гасим индикатор на главной
   }
 
   /* ───────── Δ-сравнение с записью истории (v1.4.0) ───────── */
@@ -4955,7 +4997,8 @@
       if (IS_MOCK) { toast(t("Доступно только в приложении Windows"), "err"); return; }
       const dir = String(S.paths.wsPath || "").replace(/[\\/]warpscout(\.exe|\.so)?$/i, "").replace(/[\\/]+$/, "");
       if (!dir) { toast(t("Не удалось открыть папку"), "err"); return; }
-      os().open(dir).catch(() => toast(t("Не удалось открыть папку"), "err"));
+      // v2.5.4: единый хелпер с фидбеком; на Android кнопка скрыта (nativeLibraryDir)
+      openFolderUi(dir, "warpscout");
     });
     $("#btnAccCheckWs").addEventListener("click", async () => {
       toast(t("Проверяю warpscout…"), "ok");
@@ -5200,7 +5243,13 @@
       if (!hs && !hr) return;
       const phase = ph ? String(ph.textContent || "").trim() : "";
       const n = (rc && !rc.hidden) ? (parseInt(rc.textContent, 10) || 0) : 0;
-      if (hs) hs.textContent = phase ? "● " + t("Скан") + ": " + phase : "● " + t("Скан ещё не запускался");
+      // v2.5.4: после завершения не висим на «Читаем отчёт…» — честный финал
+      if (hs) {
+        if (S.running.scan) hs.textContent = "● " + t("Скан") + ": " + phase;
+        else if (S.results.length) hs.textContent = "● " + t("Скан завершён");
+        else hs.textContent = "● " + t("Скан ещё не запускался");
+        hs.className = "home-status__row" + (!S.running.scan && S.results.length ? " home-done" : "");
+      }
       if (hr) {
         hr.textContent = n ? "● " + tF("Живых эндпоинтов: {n}", { n: n }) : "● " + t("Живых эндпоинтов пока нет");
         hr.className = "home-status__row" + (n ? " home-done" : "");
@@ -5216,6 +5265,8 @@
     new MutationObserver(sync).observe(acc, { childList: true, characterData: true, subtree: true });
     if (ph) new MutationObserver(syncHome).observe(ph, { childList: true, characterData: true, subtree: true });
     if (rc) new MutationObserver(syncHome).observe(rc, { attributes: true, childList: true, characterData: true, subtree: true });
+    // v2.5.4: ручной доспуск синхронизации главной (статусы меняются не только мутациями DOM)
+    window.__wsHomeSync = () => { try { sync(); } catch (e) {} try { syncHome(); } catch (e) {} };
     sync();
     syncHome();
   }
@@ -5256,10 +5307,70 @@
     try { const r = await osApi.mirrorToPublic(String(path)); return (r && r.path) ? String(r.path) : ""; }
     catch (e) { return ""; }
   }
+
+  /* ── v2.5.4 (fix): единое «Открыть папку» с ГАРАНТИРОВАННЫМ ответом ──
+     Раньше часть кнопок вызывала os().open() с .catch(() => {}) — отказ
+     тонул молча. Теперь ВСЕ кнопки открытия идут через openFolderUi:
+     1) мгновенный тост «Открываю папку…» (кнопка отвечает всегда);
+     2) сам вызов; на ошибку — явный тост-ошибка.
+     Сама Android-обёртка (openPath) дополнительно отвечает тостом в
+     каждой ветке: открыл / показал в выборе файлов / путь в буфер. */
+  async function openFolderUi(path, what) {
+    const target = String(path || S.paths.dataDir || window.NL_PATH || "");
+    if (IS_MOCK) { toast(t("Только в приложении (в демо папки нет)"), "info"); return; }
+    toast(tF("Открываю папку{what}: {p}", { what: what ? " (" + what + ")" : "", p: target }), "info");
+    try {
+      await Promise.resolve(os().open(target));
+    } catch (e) {
+      toast(t("Не удалось открыть папку") + ": " + (e && e.message ? e.message : e), "err");
+    }
+  }
+  /* ── v2.5.4 (fix): realtime-индикатор скана на главной ──
+     Раньше на главной видно было только текстовое зеркало фазы. Теперь:
+     пульсирующая точка + «Сканирую…» + фаза + таймер + шаги/узлы + кнопка
+     «Остановить». Обновляется из setPhase/scanLiveClock/scanLiveFeed. */
+  function homeScanUi() {
+    const liveEl = document.getElementById("homeScanLive");
+    if (!liveEl) return;
+    const run = !!S.running.scan;
+    liveEl.classList.toggle("hidden", !run);
+    const idle = document.getElementById("homeScanRow");
+    if (idle) idle.classList.toggle("hidden", run);
+    const btnH = document.getElementById("homeScan");
+    if (btnH) {
+      const lbl = btnH.querySelector(".home-act__txt b");
+      if (lbl) lbl.textContent = run ? t("■ Остановить скан") : t("Просканировать эндпоинты");
+      btnH.classList.toggle("home-act--busy", run);
+      btnH.setAttribute("aria-label", run ? t("Остановить скан") : t("Просканировать эндпоинты"));
+    }
+    homeScanTick();
+    // v2.5.4: зеркала статуса на главной (скан/аккаунт/фаза) — доспустить вручную,
+    // иначе после завершения скана строка застывала на «Читаем отчёт…»
+    try { if (window.__wsHomeSync) window.__wsHomeSync(); } catch (e) {}
+  }
+  function homeScanTick() {
+    const tm = document.getElementById("homeScanTime");
+    if (tm && live.on) {
+      const sec = Math.max(0, Math.floor((Date.now() - live.t0) / 1000));
+      tm.textContent = String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
+    }
+    const st = document.getElementById("homeScanSteps");
+    if (st) {
+      const last = live.steps.length ? live.steps[live.steps.length - 1] : null;
+      st.textContent = (last ? "⚙ " + last.done + "/" + last.total : "") +
+        (live.nodes.length ? (last ? " · " : "") + "🛰 " + live.nodes.length : "");
+    }
+  }
   async function homeStartScan() {
-    if (S.running.scan) { switchTab("scan"); toast(t("Скан уже выполняется — вкладка скана открыта"), "info"); return; }
+    // v2.5.4: кнопка главной = старт/стоп одного и того же скана
+    if (S.running.scan) {
+      try { await stopScan(); } catch (e) {}
+      return;
+    }
     toast(t("Скан запущен"), "ok");
+    homeScanUi();
     try { await window.__WSGUI.runScan(); } catch (e) {}
+    homeScanUi();
   }
   async function homeMakeConf() {
     if (S.running.scan) { toast(t("Дождитесь окончания скана — конфиг строится по его результатам"), "warn"); return; }
@@ -5273,6 +5384,35 @@
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const fname = ($("#cfgFileName").textContent || "warp.conf").replace(/\.conf$/, "") + "-" + stamp + ".conf";
     const text = buildConf();
+    // ── v2.5.4 (Android): готовые конфиги по умолчанию → Download/WARPScoutGUI ──
+    // Публичная папка видна в любом файловом менеджере; на API 29+ пишется
+    // через MediaStore БЕЗ разрешений, на 7–9 — при выданном WRITE.
+    // При отказе/ошибке — прежний путь в папку данных приложения.
+    if (IS_ANDROID) {
+      const osApi = os();
+      if (osApi && typeof osApi.saveToDownloads === "function") {
+        try {
+          const r = await osApi.saveToDownloads(fname, "text/plain", utf8ToB64(text));
+          if (r && r.ok && r.path) {
+            window.__homeConfText = text;
+            window.__homeConfPath = String(r.path);
+            const boxDl = document.getElementById("homeConfBox");
+            if (boxDl) {
+              boxDl.hidden = false;
+              const p = document.getElementById("homeConfPath");
+              if (p) p.textContent = String(r.path);
+            }
+            toast(t("Конфиг сохранён в Download/WARPScoutGUI"), "ok");
+            return;
+          }
+          if (r && r.fallback) {
+            toast(t("Download недоступен без разрешения — конфиг сохранён в папку приложения"), "warn");
+          }
+        } catch (e) {
+          toast(tF("Download недоступен ({err}) — сохраняю в папку приложения", { err: e && e.message ? e.message : e }), "warn");
+        }
+      }
+    }
     const dir = S.paths.dataDir || (window.NL_PATH || ".");
     let savedPath = "";
     try {
@@ -5321,19 +5461,32 @@
     document.body.classList.add("touch-ui");
     const main = $("main.main");
     if (!main) return;
+    // v2.5.4 (fix): data-tab рендерится ВСЕГДА (даже пустой). Раньше кнопки без
+    // вкладки (например «🌓 Переключить тему» в «Ещё») не имели атрибута, и
+    // делегированный обработчик closest("[data-tab]") их не находил — кнопка
+    // темы не работала вовсе. Пустой data-tab безопасен: ветка switchTab
+    // отбрасывает пустое значение, а собственные слушатели кнопок живут как жили.
     const btn = (id, icon, label, big, tab) =>
-      '<button class="home-act' + (big ? " home-act--big" : "") + '" type="button"' + (tab ? ' data-tab="' + tab + '"' : "") + ' id="' + id + '">' +
+      '<button class="home-act' + (big ? " home-act--big" : "") + '" type="button" data-tab="' + (tab || "") + '" id="' + id + '">' +
       '<span class="home-act__ico" aria-hidden="true">' + icon + '</span><span class="home-act__txt"><b>' + label + '</b></span></button>';
     const actIco = (svg) => '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' + svg + '</svg>';
     // ── Главная: панель быстрых действий (v2.5.2) ──
+    // v2.5.4: живой индикатор скана (#homeScanLive) — пульсирующая точка,
+    // фаза, таймер, шаги/узлы и кнопка «Остановить» прямо на главной
     const home = el("section", "tab", 
       '<div class="home-wrap">' +
       '<div class="card home-status"><div class="home-status__row" id="homeWs">…</div>' +
       '<div class="home-status__row" id="homeAcc">…</div>' +
+      '<div class="home-scanlive hidden" id="homeScanLive" role="status" aria-live="polite">' +
+        '<span class="home-scanlive__dot" aria-hidden="true"></span>' +
+        '<span class="home-scanlive__main"><b>' + t("Сканирую…") + '</b><span id="homeScanPhase"></span></span>' +
+        '<span class="home-scanlive__meta"><span id="homeScanTime">00:00</span><span id="homeScanSteps"></span></span>' +
+        '<button class="home-scanlive__stop" id="homeScanStop" type="button">■ ' + t("Остановить") + '</button>' +
+      '</div>' +
       '<div class="home-status__row" id="homeScanRow"></div>' +
       '<div class="home-status__row" id="homeResRow"></div>' +
       '<div class="home-status__hint">' + (IS_ANDROID
-        ? "Отчёты и конфиги дублируются в общую папку устройства: Download/WARPScoutGUI"
+        ? "Готовые конфиги сохраняются в Download/WARPScoutGUI — папка видна в любом файловом менеджере"
         : "Сенсорный режим интерфейса") + '</div></div>' +
       '<h2 class="home-title">Основные действия</h2>' +
       '<div class="home-actions">' +
@@ -5345,7 +5498,7 @@
       '<div class="home-pub__btns"><button class="btn btn--ghost btn--sm" id="homeConfOpen" type="button">📁 ' + "Открыть папку" + '</button>' +
       '<button class="btn btn--ghost btn--sm" id="homeConfCopy" type="button">📋 ' + "Скопировать конфиг" + '</button></div></div>' +
       (IS_ANDROID
-        ? '<div class="home-pub" id="homePubBox"><b>Download/WARPScoutGUI</b> — ' + "пользовательские файлы (отчёты, конфиги, аккаунт)" +
+        ? '<div class="home-pub" id="homePubBox"><b>Download/WARPScoutGUI</b> — ' + "готовые конфиги (видны в любом файловом менеджере)" +
           '<div class="home-pub__btns"><button class="btn btn--ghost btn--sm" id="homePubOpen" type="button">📁 ' + "Открыть папку" + '</button></div></div>'
         : "") +
       // v2.5.2: разделы вертикальным списком (как в «Ещё») — в ряд из трёх
@@ -5400,6 +5553,14 @@
       switchTab(t);
       window.scrollTo(0, 0);
     });
+    // v2.5.4 (fix): прямой слушатель на кнопке темы — помимо делегирования.
+    // Даже еслиclosest-цепочка когда-нибудь сломается, тема переключится.
+    const moreThemeBtn = document.getElementById("moreTheme");
+    if (moreThemeBtn) moreThemeBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const tb = $("#btnTheme");
+      if (tb) tb.click();
+    });
     // v2.5.2: главные действия выполняются сразу (не переход по вкладкам)
     const hScan = document.getElementById("homeScan");
     if (hScan) hScan.addEventListener("click", homeStartScan);
@@ -5407,14 +5568,16 @@
     if (hConf) hConf.addEventListener("click", homeMakeConf);
     const hcOpen = document.getElementById("homeConfOpen");
     if (hcOpen) hcOpen.addEventListener("click", () => {
-      const target = window.__homeConfPath || S.paths.dataDir || window.NL_PATH || "";
-      try { Promise.resolve(os().open(target)).catch(() => {}); } catch (e) {}
+      // v2.5.4: единый хелпер — мгновенный тост + явная ошибка (было .catch(() => {}))
+      openFolderUi(window.__homeConfPath || S.paths.dataDir || window.NL_PATH || "", "конфиги");
     });
     const hcCopy = document.getElementById("homeConfCopy");
     if (hcCopy) hcCopy.addEventListener("click", () => { if (window.__homeConfText) copyText(window.__homeConfText, t("Конфиг скопирован")); });
     const hpOpen = document.getElementById("homePubOpen");
     if (hpOpen) hpOpen.addEventListener("click", () => {
-      try { Promise.resolve(os().open(S.paths.dataDir || window.NL_PATH || "")).catch(() => {}); } catch (e) {}
+      // v2.5.4 (Android): конфиги по умолчанию лежат в Download/WARPScoutGUI —
+      // она видна в ЛЮБОМ файловом менеджере (Android/data — нет)
+      openFolderUi(IS_ANDROID ? ANDROID_DOWNLOAD_DIR : (S.paths.dataDir || window.NL_PATH || ""), "готовые конфиги");
     });
     // v2.5.0 (аудит B4): переключение языка из touch-меню
     const langWrap = more.querySelector(".home-lang .lang-switch");
@@ -6436,20 +6599,15 @@
       registerUi();
       appendLog($("#accLog"), "\n[GUI] Остановлено пользователем.\n");
     });
-    $("#btnOpenAccFolder").addEventListener("click", () => {
-      if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
-      os().open(S.paths.dataDir).catch(() => toast(t("Не удалось открыть папку"), "err"));
-    });
+    // v2.5.4: единый хелпер с гарантированным фидбеком (было: молчаливый .catch)
+    $("#btnOpenAccFolder").addEventListener("click", () => openFolderUi(S.paths.dataDir, "аккаунт и отчёты"));
     // v2.2.0: папка данных (Настройки) — v2.3.0: кнопки выбрать/открыть/по умолчанию
     const bPick = $("#btnDataRootPick");
     if (bPick) bPick.addEventListener("click", pickDataRoot);
     const bReset = $("#btnDataRootReset");
     if (bReset) bReset.addEventListener("click", () => applyDataRoot(S.paths.dataDirDefault || ""));
     const bOpen = $("#btnDataRootOpen");
-    if (bOpen) bOpen.addEventListener("click", () => {
-      if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
-      os().open(S.paths.dataDir).catch(() => toast(t("Не удалось открыть папку"), "err"));
-    });
+    if (bOpen) bOpen.addEventListener("click", () => openFolderUi(S.paths.dataDir, "папка данных"));
     // v2.5.3 (Android): перенос данных в общую папку /storage/emulated/0/WARPScoutGUI
     const bPub = $("#btnDataRootPublic");
     if (bPub) {
@@ -6523,14 +6681,9 @@
       const txt = await wsDiagText();
       copyText(txt, t("Диагностика скопирована — пришлите её текстом"));
     });
-    $("#btnOpenAcc").addEventListener("click", () => {
-      if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
-      os().open(S.paths.dataDir).catch(() => {});
-    });
-    $("#btnOpenReports").addEventListener("click", () => {
-      if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
-      os().open(S.paths.reportsDir).catch(() => {});
-    });
+    // v2.5.4: единый хелпер с гарантированным фидбеком (было: молчаливый .catch)
+    $("#btnOpenAcc").addEventListener("click", () => openFolderUi(S.paths.dataDir, "файл аккаунта"));
+    $("#btnOpenReports").addEventListener("click", () => openFolderUi(S.paths.reportsDir, "отчёты"));
     $("#btnResetStorage").addEventListener("click", async () => {
       if (await anyProcRunning()) {
         // v2.4.6 (F34/F38): сброс посреди активных операций запрещён
@@ -6686,6 +6839,14 @@
     linuxPlatInit(); // v2.5.0: Linux-нормализация EN-словаря до первого applyLang
     setupTouchUi(); // v2.5.0: сенсорный режим (Android) — построить вкладки/главную до bindEvents
     if (IS_ANDROID) { const bu = $("#btnAccUnblock"); if (bu) bu.hidden = true; } // v2.5.0: бинарь уже исполняемый (nativeLibraryDir), chmod-кнопка не нужна
+    // v2.5.4 (Android): путь до warpscout (libwarpscout.so в nativeLibraryDir)
+    // и кнопки «показать его папку» пользователю недоступны и не нужны — убраны:
+    // всё поле пути в Настройках, «Папка warpscout.exe» и Windows-подсказка про -1
+    if (IS_ANDROID) {
+      const fWs = document.getElementById("fieldWsPath"); if (fWs) fWs.hidden = true;
+      const bExe = document.getElementById("btnAccOpenExeDir"); if (bExe) bExe.hidden = true;
+      const hWin = document.getElementById("accLogHintWin"); if (hWin) hWin.hidden = true;
+    }
     $("#modeBadge").hidden = !IS_MOCK;
     bindProcEvents();
 

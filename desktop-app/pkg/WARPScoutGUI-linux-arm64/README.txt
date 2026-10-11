@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════
- WARPSCOUT GUI v2.5.3 — LINUX (ARM64 / AArch64)
+ WARPSCOUT GUI v2.5.4 — LINUX (ARM64 / AArch64)
  Графическая оболочка для warpscout v0.16.0 (github.com/vernette/warpscout)
 ════════════════════════════════════════════════════════════
 
@@ -144,4 +144,4 @@
  - О найденных проблемах сообщайте в Issues:
    github.com/RVMXL/WarpScoutGUI-AWG/issues
 
- WARPSCOUT GUI v2.5.3 · warpscout v0.16.0
+ WARPSCOUT GUI v2.5.4 · warpscout v0.16.0

@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=25v5" />
-  <link rel="stylesheet" href="css/touch.css?v=25v5" />
+  <link rel="stylesheet" href="css/app.css?v=25v6" />
+  <link rel="stylesheet" href="css/touch.css?v=25v6" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -529,7 +529,7 @@
               <button class="btn btn--ghost" id="btnAccOpenExeDir" type="button">📂 Папка warpscout.exe</button>
               <button class="btn btn--ghost" id="btnAccCheckWs" type="button">🔎 Проверить warpscout</button>
             </div>
-            <p class="hint">Если регистрация падает с «кодом -1»: «Проверить warpscout» показывает, запускается ли exe вообще; «Разблокировать exe» снимает метку «скачано из интернета» (PowerShell Unblock-File); папку из предыдущей кнопки добавьте в исключения антивируса.</p>
+            <p class="hint" id="accLogHintWin">Если регистрация падает с «кодом -1»: «Проверить warpscout» показывает, запускается ли exe вообще; «Разблокировать exe» снимает метку «скачано из интернета» (PowerShell Unblock-File); папку из предыдущей кнопки добавьте в исключения антивируса.</p>
           </div>
         </div>
       </section>
@@ -639,7 +639,7 @@
           <div class="card">
             <div class="card__head"><h2>Пути</h2></div>
             <div class="form-grid">
-              <label class="field field--wide">
+              <label class="field field--wide" id="fieldWsPath">
                 <span class="field__label">Путь до warpscout.exe</span>
                 <div style="display:flex; gap:8px">
                   <input type="text" id="setWsPath" placeholder="bin\warpscout.exe или папка с ним" />
@@ -828,8 +828,8 @@
   </datalist>
 
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js?v=25v5"></script>
-  <script src="js/qrcode.js?v=25v5"></script>
-  <script src="js/app.js?v=25v5"></script>
+  <script src="js/mock.js?v=25v6"></script>
+  <script src="js/qrcode.js?v=25v6"></script>
+  <script src="js/app.js?v=25v6"></script>
 </body>
 </html>

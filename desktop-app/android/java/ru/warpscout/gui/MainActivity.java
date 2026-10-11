@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   WARPSCOUT GUI — Android-оболочка (v2.5.2)
+   WARPSCOUT GUI — Android-оболочка (v2.5.4)
    WebView + JS-мост AndroidNative, реализующий контракт Neutralino
    (см. js/neutralino-android.js): процессы (spawnProcess/execCommand),
    файлы (fs.*), хранилище (storage.*), диалоги (showSave/OpenDialog),
@@ -550,15 +550,22 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String saveDialog(final String title, final String defaultName, final String mime) {
-            return runDialog(REQ_SAVE, title, defaultName, mime);
+            return runDialog(REQ_SAVE, title, defaultName, mime, null);
+        }
+
+        /* v2.5.4: с подсказкой начального каталога (EXTRA_INITIAL_URI, API 26+) —
+           диалог «Сохранить как…» открывается в Download/WARPScoutGUI */
+        @JavascriptInterface
+        public String saveDialog(final String title, final String defaultName, final String mime, final String initDocId) {
+            return runDialog(REQ_SAVE, title, defaultName, mime, initDocId);
         }
 
         @JavascriptInterface
         public String openDialog(final String title, final String mime) {
-            return runDialog(REQ_OPEN, title, null, mime);
+            return runDialog(REQ_OPEN, title, null, mime, null);
         }
 
-        private String runDialog(final int req, final String title, final String defaultName, final String mime) {
+        private String runDialog(final int req, final String title, final String defaultName, final String mime, final String initDocId) {
             final CountDownLatch latch = new CountDownLatch(1);
             runOnUiThread(() -> {
                 dialogLatch = latch;
@@ -572,6 +579,14 @@ public class MainActivity extends Activity {
                         i.setType(m);
                         if (defaultName != null && !defaultName.isEmpty())
                             i.putExtra(Intent.EXTRA_TITLE, defaultName);
+                        // v2.5.4: открываем диалог сразу в папке конфигов
+                        if (initDocId != null && !initDocId.isEmpty() && Build.VERSION.SDK_INT >= 26) {
+                            try {
+                                i.putExtra(DocumentsContract.EXTRA_INITIAL_URI,
+                                        DocumentsContract.buildDocumentUri(
+                                                "com.android.externalstorage.documents", initDocId));
+                            } catch (Throwable ignored) {}
+                        }
                     } else {
                         i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
                         i.addCategory(Intent.CATEGORY_OPENABLE);
@@ -641,6 +656,9 @@ public class MainActivity extends Activity {
        и отвечает тостом в КАЖДОЙ ветке: тишина исключена. */
 
     private static final String EXT_ROOT = "/storage/emulated/0";
+    /* v2.5.4: публичная папка готовых конфигов — видна в любом файловом
+       менеджере, на API 29+ пишется через MediaStore без разрешений */
+    private static final String DOWNLOAD_DIR = "/storage/emulated/0/Download/WARPScoutGUI";
     private static final int REQ_WRITE = 7101;
     private String lastStorageMode = null;
 
@@ -806,11 +824,80 @@ public class MainActivity extends Activity {
         }
     }
 
-    /* «Открыть папку»: строго своя папка/подпапка (v2.5.3).
-       Пользовательские данные теперь в /storage/emulated/0 — всё, что вне
-       своей папки (приватный filesDir старых версий, системные каталоги,
-       корень тома), показываем как свою папку данных. Корень никогда
-       не открываем. Цепочка попыток с ответом в каждой: */
+    /* ── v2.5.4: сохранение готовых конфигов в Download/WARPScoutGUI ──
+       API 29+ (Android 10+): MediaStore.Downloads — БЕЗ каких-либо разрешений;
+       API 24–28 (Android 7–9): прямая запись при выданном WRITE_EXTERNAL_STORAGE
+       (legacy-режим в манифесте); иначе {fallback:true} — JS сохранит в
+       папку приложения и честно скажет об этом.
+       Ответ: {ok:true, path, uri?} | {fallback:true} | {error} */
+    @JavascriptInterface
+    public String saveToDownloads(String name, String mime, String b64) {
+        JSONObject o = new JSONObject();
+        try {
+            byte[] bytes = Base64.decode(b64 == null ? "" : b64, Base64.NO_WRAP);
+            String safeName = String.valueOf(name == null || name.trim().isEmpty() ? "warp.conf" : name.trim());
+            safeName = safeName.replaceAll("[\\\\/:*?\"<>|]", "_");
+            String m = (mime == null || mime.trim().isEmpty()) ? "text/plain" : mime;
+            if (Build.VERSION.SDK_INT >= 29) {
+                ContentResolver cr = getContentResolver();
+                ContentValues cv = new ContentValues();
+                cv.put(MediaStore.MediaColumns.DISPLAY_NAME, safeName);
+                cv.put(MediaStore.MediaColumns.MIME_TYPE, m);
+                cv.put(MediaStore.MediaColumns.RELATIVE_PATH,
+                        Environment.DIRECTORY_DOWNLOADS + "/WARPScoutGUI");
+                cv.put(MediaStore.MediaColumns.IS_PENDING, 1);
+                Uri uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                if (uri == null) throw new Exception("MediaStore insert failed");
+                OutputStream os = cr.openOutputStream(uri);
+                if (os == null) throw new Exception("openOutputStream failed");
+                try { os.write(bytes); os.flush(); } finally { try { os.close(); } catch (Exception ignored) {} }
+                ContentValues done = new ContentValues();
+                done.put(MediaStore.MediaColumns.IS_PENDING, 0);
+                try { cr.update(uri, done, null, null); } catch (Throwable ignored) {}
+                o.put("ok", true);
+                o.put("path", DOWNLOAD_DIR + "/" + safeName);
+                o.put("uri", uri.toString());
+                return o.toString();
+            }
+            if (publicRootAllowed()) {
+                File dir = new File(DOWNLOAD_DIR);
+                if (!dir.isDirectory() && !dir.mkdirs()) throw new Exception("mkdirs failed: " + DOWNLOAD_DIR);
+                File f = uniqueFile(dir, safeName);
+                FileOutputStream fo = new FileOutputStream(f);
+                try { fo.write(bytes); fo.flush(); } finally { try { fo.close(); } catch (Exception ignored) {} }
+                o.put("ok", true);
+                o.put("path", f.getAbsolutePath());
+                return o.toString();
+            }
+            o.put("fallback", true);
+            return o.toString();
+        } catch (Throwable t) {
+            try { o.put("error", String.valueOf(t)); } catch (Throwable ignored) {}
+            return o.toString();
+        }
+    }
+
+    /* «file.conf» существует → «file (1).conf», «file (2).conf», … (API 7–9) */
+    private static File uniqueFile(File dir, String name) {
+        File f = new File(dir, name);
+        if (!f.exists()) return f;
+        int dot = name.lastIndexOf('.');
+        String base = dot > 0 ? name.substring(0, dot) : name;
+        String ext = dot > 0 ? name.substring(dot) : "";
+        for (int i = 1; i < 1000; i++) {
+            File c = new File(dir, base + " (" + i + ")" + ext);
+            if (!c.exists()) return c;
+        }
+        return new File(dir, base + "-" + System.currentTimeMillis() + ext);
+    }
+
+    /* «Открыть папку» (v2.5.4): открываются СТРОГО
+         • своя папка данных (…/Android/data/…/files/WARPScoutGUI или
+           /storage/emulated/0/WARPScoutGUI) и её подпапки;
+         • публичная папка конфигов Download/WARPScoutGUI и её подпапки.
+       Всё прочее (корень тома, системные каталоги, чужие папки) показываем
+       как свою папку данных. Корень никогда не открываем.
+       Ответ пользователю ГАРАНТИРОВАН в каждой ветке (тост): тишина исключена. */
     @JavascriptInterface
     public void openPath(String path) {
         final String p = String.valueOf(path == null ? "" : path);
@@ -828,33 +915,39 @@ public class MainActivity extends Activity {
         } catch (Throwable ignored) {}
         String ud = userDir().getAbsolutePath().replace('\\', '/');
         String a = abs.replace('\\', '/');
-        if (!a.startsWith(ud)) a = ud;   // вне своей папки → своя папка данных
         if (a.equals(EXT_ROOT)) a = ud;  // корень тома не открываем
+        // v2.5.4: разрешены своя папка и публичная папка конфигов (вместе с подпапками)
+        boolean okUser = a.startsWith(ud);
+        boolean okDl = a.startsWith(DOWNLOAD_DIR);
+        if (!okUser && !okDl) a = ud;    // вне разрешённых → своя папка данных
         try { File d = new File(a); if (!d.exists()) d.mkdirs(); } catch (Throwable ignored) {}
-        final String fDocId = userDirDocId(a);
+        // v2.5.4: docId строим по реальному тому папки (своя на /storage или Download)
+        final String fDocId = underExtDocId(a);
         final String fHuman = a;
         runOnUiThread(() -> openDirChain(fDocId, fHuman));
     }
 
-    /* documentId папки под /storage/emulated/0 ("primary:Android/data/…/WARPScoutGUI/…");
-       null — если своя папка вдруг вне общего хранилища (не бывает на телефонах) */
-    private String userDirDocId(String absUnderUser) {
-        String ud = userDir().getAbsolutePath().replace('\\', '/');
-        if (!ud.startsWith(EXT_ROOT)) return null;
-        String baseRel = ud.substring(EXT_ROOT.length());
-        while (baseRel.startsWith("/")) baseRel = baseRel.substring(1);
-        String rel = absUnderUser.length() > ud.length()
-                ? absUnderUser.substring(ud.length()) : "";
+    /* documentId папки под /storage/emulated/0 ("primary:Android/data/…", "primary:Download/…");
+       null — если папка вне общего хранилища (например своя папка в /data — не бывает на телефонах) */
+    private String underExtDocId(String abs) {
+        if (!abs.startsWith(EXT_ROOT)) return null;
+        String rel = abs.substring(EXT_ROOT.length());
         while (rel.startsWith("/")) rel = rel.substring(1);
-        return "primary:" + baseRel + (rel.isEmpty() ? "" : "/" + rel);
+        return "primary:" + rel;
     }
 
-    /* Цепочка открытия с гарантированным ответом:
-       1) системные «Файлы» (DocumentsUI ACTION_VIEW каталога);
-       2) SAF-выбор каталога, открытый на нужной папке;
+    /* Цепочка открытия с гарантированным ответом (v2.5.4):
+       0) тост «Открываю папку…» — реакция на нажатие видна ВСЕГДА;
+       1) системные «Файлы» (ACTION_VIEW каталога) — только для ПУБЛИЧНЫХ
+          папок: на Android 11+ «Файлы» показывают Android/data ПУСТОЙ,
+          что выглядело как «кнопка ничего не делает»;
+       2) SAF-выбор каталога, открытый на нужной папке — системный выборщик
+          видит Android/data даже на 11+, где обычные менеджеры не бывают;
        3) путь в буфер обмена + явный тост. */
     private void openDirChain(String docId, String human) {
-        if (docId != null) {
+        toast("Открываю папку: " + human);
+        boolean restricted = human.startsWith(EXT_ROOT + "/Android/data/");
+        if (docId != null && !restricted) {
             try {
                 Uri doc = DocumentsContract.buildDocumentUri(
                         "com.android.externalstorage.documents", docId);
@@ -865,6 +958,8 @@ public class MainActivity extends Activity {
                 toast("Папка открыта: " + human);
                 return;
             } catch (Throwable ignored) {}
+        }
+        if (docId != null) {
             try {
                 Uri doc = DocumentsContract.buildDocumentUri(
                         "com.android.externalstorage.documents", docId);
@@ -872,7 +967,9 @@ public class MainActivity extends Activity {
                 if (Build.VERSION.SDK_INT >= 26)
                     i.putExtra(DocumentsContract.EXTRA_INITIAL_URI, doc);
                 startActivity(i);
-                toast("Папка показана в выборе файлов: " + human);
+                toast(restricted
+                        ? "Выберите эту папку в открывшемся менеджере: " + human
+                        : "Папка показана в выборе файлов: " + human);
                 return;
             } catch (Throwable ignored) {}
         }
