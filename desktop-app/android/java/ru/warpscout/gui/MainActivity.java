@@ -359,12 +359,26 @@ public class MainActivity extends Activity {
         /* ── файлы: file-пути и content:// URI (диалоги SAF) ── */
 
         /* v2.5.5 (CodeQL path-injection / unsafe-content-uri-resolution):
-           файловые пути — только внутри разрешённых корней (guardPath),
-           content:// — только URI, выданные нашими диалогами (uriAllowed). */
+           файловые пути — только внутри разрешённых корней (guardPath);
+           content:// — только URI, выданные нашими диалогами или с сохранённым
+           правом. equals-сравнение URI с доверенным значением — локальный
+           guard-барьер для потока данных (закрывает последний алерт). */
         private InputStream openRead(String path) throws Exception {
             if (path.startsWith("content://")) {
-                if (!uriAllowed(path)) throw new Exception("content URI не выдан приложением");
-                return getContentResolver().openInputStream(Uri.parse(path));
+                Uri uri = Uri.parse(path);
+                List<android.content.UriPermission> perms = null;
+                try { perms = getContentResolver().getPersistedUriPermissions(); } catch (Throwable ignored) {}
+                if (perms != null) {
+                    for (android.content.UriPermission p : perms)
+                        if (p.getUri() != null && uri.equals(p.getUri()))
+                            return getContentResolver().openInputStream(uri);
+                }
+                String[] snap;
+                synchronized (uriAllow) { snap = uriAllow.toArray(new String[0]); }
+                for (String s : snap)
+                    if (uri.equals(Uri.parse(s)))
+                        return getContentResolver().openInputStream(uri);
+                throw new Exception("content URI не выдан приложением");
             }
             String g = guardPath(path);
             if (g == null) throw new Exception("путь вне папок приложения");
@@ -373,8 +387,20 @@ public class MainActivity extends Activity {
 
         private OutputStream openWrite(String path) throws Exception {
             if (path.startsWith("content://")) {
-                if (!uriAllowed(path)) throw new Exception("content URI не выдан приложением");
-                return getContentResolver().openOutputStream(Uri.parse(path), "wt");
+                Uri uri = Uri.parse(path);
+                List<android.content.UriPermission> perms = null;
+                try { perms = getContentResolver().getPersistedUriPermissions(); } catch (Throwable ignored) {}
+                if (perms != null) {
+                    for (android.content.UriPermission p : perms)
+                        if (p.getUri() != null && uri.equals(p.getUri()))
+                            return getContentResolver().openOutputStream(uri, "wt");
+                }
+                String[] snap;
+                synchronized (uriAllow) { snap = uriAllow.toArray(new String[0]); }
+                for (String s : snap)
+                    if (uri.equals(Uri.parse(s)))
+                        return getContentResolver().openOutputStream(uri, "wt");
+                throw new Exception("content URI не выдан приложением");
             }
             String g = guardPath(path);
             if (g == null) throw new Exception("путь вне папок приложения");
