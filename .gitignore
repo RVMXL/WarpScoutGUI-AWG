@@ -7,6 +7,18 @@ build/
 # desktop-app build output
 desktop-app/dist/
 desktop-app/.tmp/
+desktop-app/bin/
+desktop-app/pkg/*/.storage/
+desktop-app/pkg/*/.tmp/
+
+# release artifacts & signing material (never commit)
+download/
+*.keystore
+*.idsig
+
+# sandbox / agent work artifacts — never publish
+worklog.md
+postcss.config.json
 
 # misc
 .DS_Store
