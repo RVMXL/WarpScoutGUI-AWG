@@ -23,7 +23,7 @@ src = re.sub(r'\?v=[0-9a-z]+', '?v=' + ver, src)
 open(p, "w").write(src)
 print("demo index: neutralino.js удалён, cache-buster ?v=%s" % ver)
 EOF
-for f in css/app.css js/app.js js/mock.js js/qrcode.js; do
+for f in css/app.css css/touch.css js/app.js js/mock.js js/qrcode.js; do
   cp "$ROOT/desktop-app/resources/$f" "$ROOT/public/gui-demo/$f"
 done
 mkdir -p "$ROOT/public/gui-demo/icons"

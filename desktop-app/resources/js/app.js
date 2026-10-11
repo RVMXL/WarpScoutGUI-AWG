@@ -25,9 +25,17 @@
      Папка данных на всех ОС — os.getPath("data") (кроссплатформенно).
      В браузерном демо (IS_MOCK) остаёмся win-подобными,
      чтобы демо соответствовало Windows-релизу. */
-  const IS_WIN = IS_MOCK || typeof window.NL_OS !== "string" ? true : /^win/i.test(window.NL_OS || "");
+  const IS_WIN0_RAW = typeof window.NL_OS === "string" ? window.NL_OS : "";
+  const IS_ANDROID = /^android/i.test(IS_WIN0_RAW);
+  const IS_WIN = IS_ANDROID ? false : (IS_MOCK || IS_WIN0_RAW === "" ? true : /^win/i.test(IS_WIN0_RAW));
   const IS_LINUX = !IS_WIN;
   const IS_MAC = !IS_WIN && /^darwin|^mac/i.test(typeof window.NL_OS === "string" ? window.NL_OS : "");
+  /* v2.5.0: Android (WebView-оболочка APK): NL_OS = "Android" ставит шим
+     neutralino-android.js (window.Neutralino реализован через AndroidNative-мост).
+     Поведение как на Linux (POSIX, chmod), бинарь warpscout — libwarpscout.so
+     из nativeLibraryDir (путь приходит в window.NL_WS_PATH).
+     TOUCH_UI — сенсорный режим: нижние вкладки + главная страница. */
+  const TOUCH_UI = IS_ANDROID || /(?:^|[?&])touch=1/.test(typeof location === "object" && location ? String(location.search) : "");
   const WS_EXE = IS_WIN ? "warpscout.exe" : "warpscout";
   const GUI_EXE = IS_WIN ? "WARPScoutGUI.exe" : "WARPScoutGUI";
   const PSEP = IS_WIN ? "\\" : "/";
@@ -85,7 +93,7 @@
   // нормализация ключей/строк для Linux/macOS: имена файлов, разделители, пути.
   // v2.5.1: папка данных в шаблонах — по платформе (os.getPath("data")):
   //   Linux — ~/.local/share/<имя>, macOS — ~/Library/Application Support/<имя>
-  const UNIX_DATA_DIR = IS_MAC ? "~/Library/Application Support/WARPScoutGUI" : "~/.local/share/WARPScoutGUI";
+  const UNIX_DATA_DIR = IS_ANDROID ? "папка данных приложения" : IS_MAC ? "~/Library/Application Support/WARPScoutGUI" : "~/.local/share/WARPScoutGUI";
   function platNorm(s) {
     return String(s)
       .replace(/warpscout\.exe/g, "warpscout")
@@ -311,6 +319,15 @@
     "SOCKS-прокси": "SOCKS proxy",
     "Поиск параметров": "Param finder",
     "Настройки": "Settings",
+    /* v2.5.0 (аудит A2): сенсорная главная/меню «Ещё» */
+    "Главная": "Home",
+    "Ещё": "More",
+    "Основные действия": "Main actions",
+    "Сгенерировать конфиг": "Generate config",
+    "Переключить тему": "Toggle theme",
+    "Скан запускается на устройстве, ключи и отчёты остаются в папке приложения.": "Scanning runs on the device; keys and reports stay in the app folder.",
+    "Сенсорный режим интерфейса": "Touch UI mode",
+    "Android-оболочка: WebView + ядро warpscout (MIT)": "Android shell: WebView + warpscout core (MIT)",
     "Разделы приложения": "App sections",
     /* — статус-строка/сайдбар — */
     "● warpscout: проверка…": "● warpscout: checking…",
@@ -4836,7 +4853,7 @@
     if (S.account || S.accountError) return false; // свой есть (или лежит битый) — не трогаем
     const base = String(S.paths.dataDir || "").replace(/[\\/]WARPScoutGUI(\.exe)?$/i, "");
     const np = String(window.NL_PATH || "").replace(/[\\/]+$/, "");
-    const exeDir = String(S.paths.wsPath || "").replace(/[\\/]warpscout(\.exe)?$/i, "").replace(/[\\/]+$/, "");
+    const exeDir = String(S.paths.wsPath || "").replace(/[\\/]warpscout(\.exe|\.so)?$/i, "").replace(/[\\/]+$/, "");
     const candidates = [];
     const legacy = S.paths.legacyDataDir || ""; // v2.3.0: старая папка данных — первый кандидат
     if (legacy && legacy.toLowerCase() !== String(S.paths.dataDir || "").toLowerCase()) candidates.push(pxJoin(legacy, "warpscout-account.json")); // v2.5.0
@@ -4900,7 +4917,7 @@
     });
     $("#btnAccOpenExeDir").addEventListener("click", () => {
       if (IS_MOCK) { toast(t("Доступно только в приложении Windows"), "err"); return; }
-      const dir = String(S.paths.wsPath || "").replace(/[\\/]warpscout(\.exe)?$/i, "").replace(/[\\/]+$/, "");
+      const dir = String(S.paths.wsPath || "").replace(/[\\/]warpscout(\.exe|\.so)?$/i, "").replace(/[\\/]+$/, "");
       if (!dir) { toast(t("Не удалось открыть папку"), "err"); return; }
       os().open(dir).catch(() => toast(t("Не удалось открыть папку"), "err"));
     });
@@ -5122,6 +5139,101 @@
     $$(".subtab").forEach((b) => b.classList.toggle("is-active", b.getAttribute("data-subtab") === name));
     $("#resultsWrap").classList.toggle("hidden", name !== "results");
     $("#logWrap").classList.toggle("hidden", name !== "log");
+  }
+
+  /* ───────── v2.5.0: сенсорный режим (Android / ?touch=1) ─────────
+     Нижняя навигация (Главная · Скан · Конфиг · Аккаунт · Ещё) + главная
+     страница с тремя основными действиями (скан, поиск параметров,
+     генерация конфига). Десктоп-вёрстка не затрагивается (TOUCH_UI = false). */
+  function el(tag, cls, html) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html != null) e.innerHTML = html;
+    return e;
+  }
+  function touchStatusMirror() {
+    // дублируем строки статуса из сайдбара (stWs/stAcc) в главную страницу —
+    // без дублирования id: подписка на изменения текста оригиналов
+    const ws = $("#stWs"), acc = $("#stAcc");
+    if (!ws || !acc) return;
+    const sync = () => {
+      const hw = document.getElementById("homeWs"), ha = document.getElementById("homeAcc");
+      if (hw) { hw.textContent = ws.textContent; hw.className = "home-status__row " + ws.className; }
+      if (ha) { ha.textContent = acc.textContent; ha.className = "home-status__row " + acc.className; }
+    };
+    new MutationObserver(sync).observe(ws, { childList: true, characterData: true, subtree: true });
+    new MutationObserver(sync).observe(acc, { childList: true, characterData: true, subtree: true });
+    sync();
+  }
+  function setupTouchUi() {
+    if (!TOUCH_UI) return;
+    document.body.classList.add("touch-ui");
+    const main = $("main.main");
+    if (!main) return;
+    const btn = (id, icon, label, big, tab) =>
+      '<button class="home-act' + (big ? " home-act--big" : "") + '" type="button" data-tab="' + tab + '" id="' + id + '">' +
+      '<span class="home-act__ico" aria-hidden="true">' + icon + '</span><span class="home-act__txt"><b>' + label + '</b></span></button>';
+    // ── Главная ──
+    const home = el("section", "tab", 
+      '<div class="home-wrap">' +
+      '<div class="card home-status"><div class="home-status__row" id="homeWs">● warpscout: проверка…</div>' +
+      '<div class="home-status__row" id="homeAcc">● аккаунт: проверка…</div>' +
+      '<div class="home-status__hint">' + (IS_ANDROID ? "Скан запускается на устройстве, ключи и отчёты остаются в папке приложения." : "Сенсорный режим интерфейса") + '</div></div>' +
+      '<h2 class="home-title">Основные действия</h2>' +
+      '<div class="home-actions">' +
+      btn("homeScan", "📡", "Начать скан", true, "scan") +
+      btn("homeTools", "🛠", "Поиск параметров", true, "tools") +
+      btn("homeConf", "⚙️", "Сгенерировать конфиг", true, "config") +
+      '</div>' +
+      '<div class="home-actions home-actions--secondary">' +
+      btn("homeSocks", "🔗", "SOCKS-прокси", false, "socks") +
+      btn("homeSettings", "⚙", "Настройки", false, "settings") +
+      '</div></div>');
+    home.id = "tab-home";
+    home.setAttribute("aria-label", "Главная");
+    // ── Ещё ──
+    const more = el("section", "tab",
+      '<div class="home-wrap"><h2 class="home-title">Ещё</h2><div class="home-actions home-actions--list">' +
+      btn("moreTools", "🛠", "Поиск параметров", false, "tools") +
+      btn("moreSocks", "🔗", "SOCKS-прокси", false, "socks") +
+      btn("moreSettings", "⚙", "Настройки", false, "settings") +
+      btn("moreTheme", "🌓", "Переключить тему", false, "") +
+      '</div><div class="home-foot">WARPSCOUT GUI v' + (window.NL_APPVERSION || "2.5.0") + ' · warpscout v0.16.0<br>Android-оболочка: WebView + ядро warpscout (MIT)</div></div>');
+    more.id = "tab-more";
+    more.setAttribute("aria-label", "Ещё");
+    main.insertBefore(home, main.firstChild);
+    main.appendChild(more);
+    // ── нижняя навигация ──
+    const tabs = [["home", "🏠", "Главная"], ["scan", "📡", "Скан"], ["config", "⚙️", "Конфиг"], ["account", "👤", "Аккаунт"], ["more", "⋯", "Ещё"]];
+    const bar = el("nav", "tabbar");
+    bar.setAttribute("aria-label", "Нижняя навигация");
+    tabs.forEach(([t, ico, label]) => {
+      const b = el("button", "nav__item tabbar__btn" + (t === "home" ? " is-active" : ""),
+        '<svg viewBox="0 0 24 24" class="nav__ico" aria-hidden="true" focusable="false"><text x="12" y="17" text-anchor="middle" font-size="14">' + ico + '</text></svg><span>' + label + '</span>');
+      b.setAttribute("data-tab", t);
+      b.setAttribute("type", "button");
+      b.setAttribute("aria-label", label);
+      bar.appendChild(b);
+    });
+    document.body.appendChild(bar);
+    // ── переходы с главной/меню ──
+    main.addEventListener("click", (ev) => {
+      const b = ev.target && ev.target.closest ? ev.target.closest("[data-tab]") : null;
+      if (!b) return;
+      // тема — не переход по вкладке (data-tab пустой намеренно)
+      if (b.id === "moreTheme") { const tb = $("#btnTheme"); if (tb) tb.click(); return; }
+      const t = b.getAttribute("data-tab");
+      if (!t) return;
+      switchTab(t);
+      window.scrollTo(0, 0);
+      // v2.5.0 (аудит A1): главная кнопка «Начать скан» не только переключает
+      // вкладку, но и запускает скан (runScan имеет guard от повторного запуска)
+      if (b.id === "homeScan") setTimeout(() => { try { window.__WSGUI.runScan(); } catch (e) {} }, 60);
+    });
+    touchStatusMirror();
+    // стартовая вкладка — главная
+    $$(".tab").forEach((x) => x.classList.toggle("is-active", x.id === "tab-home"));
+    $$(".nav__item").forEach((b) => b.classList.toggle("is-active", b.getAttribute("data-tab") === "home"));
   }
 
   /* ───────── синхронизация формы ↔ состояние ───────── */
@@ -5426,7 +5538,7 @@
   // (3) существование проверяем fs.getStats (isFile), а не попыткой запуска.
   async function wsFileExists(p) {
     if (!p) return false;
-    if (IS_MOCK) return /warpscout(\.exe)?$/i.test(String(p).replace(/[\\/]+$/, ""));
+    if (IS_MOCK) return /warpscout(\.exe|\.so)?$/i.test(String(p).replace(/[\\/]+$/, ""));
     try {
       const st = await fs().getStats(p);
       if (!st) return false;
@@ -5444,6 +5556,9 @@
       push(pxJoin(custom, WS_EXE));          // указана папка, где exe лежит рядом (v2.5.0)
       push(pxJoin(pxJoin(custom, "bin"), WS_EXE)); // указана папка приложения (exe внутри bin)
     }
+    // v2.5.0: Android — warpscout упакован как libwarpscout.so в nativeLibraryDir;
+    // путь к нему приносит оболочка (window.NL_WS_PATH) — до пользовательских настроек
+    if (IS_ANDROID && window.NL_WS_PATH) push(String(window.NL_WS_PATH));
     const appDir = String(S.paths.appDir || "").replace(/[\\/]+$/, "");
     if (appDir) {
       push(pxJoin(pxJoin(appDir, "bin"), WS_EXE)); // штатное место: bin рядом с WARPScoutGUI (v2.5.0)
@@ -5507,14 +5622,16 @@
   async function computePaths() {
     let base = "";
     if (IS_MOCK) {
-      base = "C:\\Users\\Demo\\AppData\\Roaming"; // v2.1.0: как в реальном приложении (Roaming)
+      // v2.5.0 (аудит A4): android-превью — base по-настоящему андроидный
+      base = IS_ANDROID ? "/data/user/0/ru.warpscout.gui/files" : "C:\\Users\\Demo\\AppData\\Roaming";
     } else {
       let dataDir = "";
       try { dataDir = await os().getPath("data"); } catch (e) { dataDir = ""; }
       base = (dataDir || (window.NL_PATH || "") || "").replace(/[\\/]+$/, "");
       if (!base) base = "."; // крайний случай: относительно CWD
     }
-    S.paths.exeName = IS_MOCK ? "WARPScoutGUI.exe" : exeFileName();
+    // v2.5.0 (аудит A6): android-превью показывает имя без .exe (как в реальной сборке)
+    S.paths.exeName = IS_MOCK ? (IS_ANDROID ? "WARPScoutGUI" : "WARPScoutGUI.exe") : exeFileName();
     S.paths.udfPath = pxJoin(base, S.paths.exeName); // каталог веб-кэша (жёстко задан рантаймом) (v2.5.0)
     // v2.3.0 — НАОБОРОТ (просьба пользователя): данные (аккаунт + отчёты) живут ВНУТРИ
     // папки «<имя exe>», рядом с EBWebView. Эта папка создаётся рантаймом всегда и
@@ -6346,6 +6463,8 @@
 
   async function init() {
     linuxPlatInit(); // v2.5.0: Linux-нормализация EN-словаря до первого applyLang
+    setupTouchUi(); // v2.5.0: сенсорный режим (Android) — построить вкладки/главную до bindEvents
+    if (IS_ANDROID) { const bu = $("#btnAccUnblock"); if (bu) bu.hidden = true; } // v2.5.0: бинарь уже исполняемый (nativeLibraryDir), chmod-кнопка не нужна
     $("#modeBadge").hidden = !IS_MOCK;
     bindProcEvents();
 

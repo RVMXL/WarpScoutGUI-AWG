@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WARPSCOUT GUI — Android-оболочка (WebView + ядро warpscout).
+     Обновление поверх: тот же package + тот же ключ подписи (keystore
+     desktop-app/android/keystore/) — новая версия ставится как апдейт. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="ru.warpscout.gui"
+    android:versionCode="20500"
+    android:versionName="2.5.0">
+
+    <!-- Сеть: регистрация аккаунта в Cloudflare и сканирование (ядро warpscout) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+        android:allowBackup="true"
+        android:extractNativeLibs="true"
+        android:hardwareAccelerated="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|uiMode|density|locale|fontScale">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <!-- Свой мини-FileProvider (без androidx): content://ru.warpscout.gui.files/root/<абсолютный путь> -->
+        <provider
+            android:name=".WsFileProvider"
+            android:authorities="ru.warpscout.gui.files"
+            android:grantUriPermissions="true"
+            android:exported="false" />
+    </application>
+</manifest>

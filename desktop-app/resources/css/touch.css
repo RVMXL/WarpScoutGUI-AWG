@@ -1,0 +1,151 @@
+/* ═══════════════════════════════════════════════════════════════
+   WARPSCOUT GUI — сенсорный режим (v2.5.0)
+   Включается body.touch-ui (Android-оболочка APK или ?touch=1).
+   Правила применяются ТОЛЬКО в touch-режиме: десктоп-вёрстка
+   не затрагивается. Тап-таргеты ≥ 44px, нижняя навигация,
+   safe-area (вырезы/жест-бар).
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── каркас: без сайдбара, скролл внутри main ─── */
+body.touch-ui .app { display: block; height: 100dvh; }
+body.touch-ui .sidebar { display: none !important; }
+body.touch-ui .main {
+  height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+}
+
+/* ─── нижняя навигация ─── */
+body.touch-ui .tabbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 50;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
+  padding: 0 env(safe-area-inset-left, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-right, 0px);
+  background: var(--bg-soft);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
+}
+body.touch-ui .tabbar__btn {
+  flex: 1 1 0;
+  min-width: 56px;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 6px 2px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+body.touch-ui .tabbar__btn .nav__ico { width: 22px; height: 22px; }
+body.touch-ui .tabbar__btn.is-active { color: var(--accent-text); }
+body.touch-ui .tabbar__btn.is-active::after {
+  content: "";
+  width: 22px; height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  margin-top: 2px;
+}
+body.touch-ui .tabbar__btn:active { transform: scale(0.94); }
+
+/* ─── главная страница и «Ещё» ─── */
+body.touch-ui .home-wrap {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 14px 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+body.touch-ui .home-status {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+body.touch-ui .home-status__row { color: var(--text-dim); min-height: 20px; }
+body.touch-ui .home-status__hint { color: var(--text-faint); font-size: 12px; margin-top: 2px; }
+body.touch-ui .home-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  margin: 4px 2px 0;
+}
+body.touch-ui .home-actions { display: flex; flex-direction: column; gap: 10px; }
+body.touch-ui .home-actions--secondary { flex-direction: row; }
+body.touch-ui .home-actions--secondary .home-act { flex: 1 1 0; }
+body.touch-ui .home-actions--list .home-act { padding: 13px 16px; }
+
+/* крупная кнопка действия: 64px+ тап-таргет */
+body.touch-ui .home-act {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+body.touch-ui .home-act--big { min-height: 72px; font-size: 16px; border-color: var(--accent-line); background: linear-gradient(180deg, var(--bg-card), var(--bg-card-hover)); }
+body.touch-ui .home-act__ico {
+  flex: 0 0 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: var(--accent-soft);
+  border-radius: 10px;
+}
+body.touch-ui .home-act__txt b { font-weight: 600; display: block; }
+body.touch-ui .home-act:active { transform: scale(0.985); background: var(--bg-card-hover); }
+body.touch-ui .home-act--big:active { background: var(--accent-soft); }
+body.touch-ui .home-foot {
+  margin-top: 6px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* ─── тап-таргеты и скролл внутри вкладок ─── */
+body.touch-ui .btn { min-height: 44px; }
+body.touch-ui .btn--sm { min-height: 40px; min-width: 40px; }
+body.touch-ui input[type="text"], body.touch-ui input[type="number"], body.touch-ui input[type="password"],
+body.touch-ui select, body.touch-ui textarea { min-height: 44px; font-size: 16px; /* 16px — без зума в iOS/WebView */ }
+body.touch-ui .nav__item { min-height: 48px; }
+body.touch-ui .subtab, body.touch-ui .preset-chip, body.touch-ui .chip { min-height: 44px; }
+body.touch-ui .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+body.touch-ui td, body.touch-ui th { padding: 10px 8px; }
+body.touch-ui label { touch-action: manipulation; }
+body.touch-ui .toast { max-width: 90vw; }
+
+/* лёгкий отступ сверху под статус-бар/вырез */
+body.touch-ui .tab.is-active { padding-top: env(safe-area-inset-top, 0px); }
+
+/* светлая тема наследует переменные app.css автоматически — отдельные правила не нужны */

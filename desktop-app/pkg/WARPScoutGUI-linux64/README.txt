@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════
- WARPSCOUT GUI v2.5.1 — LINUX (x86_64)
+ WARPSCOUT GUI v2.5.0 — LINUX (x86_64)
  Графическая оболочка для warpscout v0.16.0 (github.com/vernette/warpscout)
 ════════════════════════════════════════════════════════════
 
@@ -8,19 +8,22 @@
  эндпоинты Cloudflare WARP из вашей сети, показывает узел и регион
  выхода и генерирует готовые конфиги WireGuard / AmneziaWG
  (версии 1.5 / 2.0 / 3.1).
- Это первый кроссплатформенный выпуск: функциональность и все
- исправления аудита v2.4.6 сохранены, Windows-релиз продолжает
- выходить отдельным архивом (WARPScoutGUI-2.4.6-win64.zip).
+ Это кроссплатформенный выпуск v2.5.0 (пререлиз — могут быть
+ баги): одна кодовая база для Windows, Linux (x64/arm64), macOS
+ (Intel/Apple Silicon) и Android. Стабильный Windows-релиз:
+ WARPScoutGUI-2.4.6-win64.zip. Все исправления аудита v2.4.6
+ сохранены.
 
  СОСТАВ АРХИВА
  WARPScoutGUI            — исполняемый файл GUI (Neutralino, x86_64)
  resources.neu           — ресурсы интерфейса (читаются из папки программы)
  bin/warpscout           — ядро warpscout v0.16.0 (linux_amd64, статический ELF)
  README.txt              — этот файл
- LICENSE-AWG.txt         — лицензия GUI (AWG)
- LICENSE-warpscout.txt   — лицензия warpscout (MIT)
- LICENSE-neutralino.txt  — лицензия Neutralinojs (MIT)
- LICENSE-qrcode.txt      — лицензия библиотеки QR
+ licenses/               — папка лицензий:
+   LICENSE-AWG.txt         — лицензия GUI (AWG)
+   LICENSE-warpscout.txt   — лицензия warpscout (MIT)
+   LICENSE-neutralino.txt  — лицензия Neutralinojs (MIT)
+   LICENSE-qrcode.txt      — лицензия библиотеки QR
 
  ТРЕБОВАНИЯ
  - Linux x86_64 с графической средой (X11 или Wayland).
@@ -116,9 +119,9 @@
  - warpscout — сторонняя утилита (MIT, github.com/vernette/warpscout).
 
  ЛИЦЕНЗИИ
- - WARPScout GUI (AWG): см. LICENSE-AWG.txt.
- - warpscout: MIT — LICENSE-warpscout.txt.
- - Neutralinojs: MIT — LICENSE-neutralino.txt.
- - qrcode: LICENSE-qrcode.txt.
+ - WARPScout GUI (AWG): см. licenses/LICENSE-AWG.txt.
+ - warpscout: MIT — licenses/LICENSE-warpscout.txt.
+ - Neutralinojs: MIT — licenses/LICENSE-neutralino.txt.
+ - qrcode: licenses/LICENSE-qrcode.txt.
 
- WARPSCOUT GUI v2.5.1 · warpscout v0.16.0
+ WARPSCOUT GUI v2.5.0 · warpscout v0.16.0

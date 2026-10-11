@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════
- WARPSCOUT GUI v2.4.6
+ WARPSCOUT GUI v2.5.0 — WINDOWS (x86_64)
  Графическая оболочка для warpscout v0.16.0 (github.com/vernette/warpscout)
 ════════════════════════════════════════════════════════════
 
@@ -8,6 +8,9 @@
  эндпоинты Cloudflare WARP из вашей сети, показывает узел и регион
  выхода и генерирует готовые конфиги WireGuard / AmneziaWG
  (версии 1.5 / 2.0 / 3.1).
+ Выпуск v2.5.0 — кроссплатформенный пререлиз (могут быть баги):
+ одна кодовая база для Windows, Linux (x64/arm64), macOS
+ (Intel/Apple Silicon) и Android; функциональность 2.4.6 сохранена.
 
  УСТАНОВКА
  1. Распакуйте папку целиком в любое место (например, D:\WARPScoutGUI).
@@ -141,7 +144,7 @@
    город и страна (как в выводе warpscout).
  - ↕ Колонка TUN PING теперь сортируемая (клик по заголовку);
    сортировка PING сортирует по ICMP-пингу эндпоинта.
- - 📄 В архив добавлен LICENSE-AWG.txt — текст лицензии Apache-2.0
+ - 📄 В архив добавлен licenses\LICENSE-AWG.txt — текст лицензии Apache-2.0
    самой программы (в архивах до v2.4.5 лежали только три
    MIT-текста сторонних компонентов).
  - 📖 Этот README дополнен: раздел «ОБНОВЛЕНИЕ» и предупреждение
@@ -447,10 +450,11 @@
  WARPScoutGUI.exe  — приложение (WebView2, встроен в Windows 10/11)
  resources.neu     — ресурсы интерфейса (нужен, лежит рядом)
  bin\warpscout.exe — сама утилита warpscout v0.16.0 (MIT)
- LICENSE-AWG.txt          — лицензия самой программы (Apache-2.0)
- LICENSE-warpscout.txt    — лицензия warpscout
- LICENSE-neutralino.txt   — лицензия Neutralino (+ встроенные библиотеки)
- LICENSE-qrcode.txt       — лицензия QR Code Generator (qrcode.js)
+ licenses\                — папка лицензий:
+   LICENSE-AWG.txt          — лицензия самой программы (Apache-2.0)
+   LICENSE-warpscout.txt    — лицензия warpscout
+   LICENSE-neutralino.txt   — лицензия Neutralino (+ встроенные библиотеки)
+   LICENSE-qrcode.txt       — лицензия QR Code Generator (qrcode.js)
  Данные приложения (аккаунт, отчёты) хранятся в
  %APPDATA%\WARPScoutGUI.exe\ (AppData\Roaming) — в той же папке,
  что и веб-кэш движка EBWebView. Папку можно сменить:
@@ -472,20 +476,20 @@
 
  ЛИЦЕНЗИИ
  Сам WarpScoutGUI-AWG — независимая графическая оболочка,
- © 2026 RVMXL, лицензия Apache License 2.0 — текст: LICENSE-AWG.txt
+ © 2026 RVMXL, лицензия Apache License 2.0 — текст: licenses\LICENSE-AWG.txt
  (исходники: github.com/RVMXL/WarpScoutGUI-AWG).
 
  ЛИЦЕНЗИИ СТОРОННИХ КОМПОНЕНТОВ
  В состав входят сторонние компоненты, каждый под лицензией MIT:
  - bin\warpscout.exe — warpscout v0.16.0
-   (github.com/vernette/warpscout) — текст: LICENSE-warpscout.txt;
+   (github.com/vernette/warpscout) — текст: licenses\LICENSE-warpscout.txt;
  - WARPScoutGUI.exe и resources/js/neutralino.js — Neutralino
    core и client v6.10.0 (github.com/neutralinojs/neutralinojs) —
    полный текст со всеми встроенными библиотеками:
    LICENSE-neutralino.txt;
  - resources/js/qrcode.js — QR Code Generator for JavaScript
    © 2009 Kazuhiko Arase (github.com/kazuhikoarase/qrcode-generator)
-   — текст: LICENSE-qrcode.txt. «QR Code» — зарегистрированный
+   — текст: licenses\LICENSE-qrcode.txt. «QR Code» — зарегистрированный
    товарный знак DENSO WAVE INCORPORATED.
  Протокол AWG в warpscout реализован на базе amneziawg-go
  (github.com/amnezia-vpn/amneziawg-go, MIT), который в свою очередь
