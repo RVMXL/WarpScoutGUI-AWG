@@ -7,7 +7,7 @@
 # Использование: python3 tools/build-zips.py [имя_пакета ...]
 import os, sys, zipfile
 
-VER = "2.5.2"
+VER = "2.5.3"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PKG = os.path.join(ROOT, "pkg")
 OUT = os.path.join(os.path.dirname(ROOT), "download")

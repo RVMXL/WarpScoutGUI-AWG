@@ -1,18 +1,20 @@
 /* ═══════════════════════════════════════════════════════════════
-   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.2)
+   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.3)
    Подключается в APK вместо js/neutralino.js (до app.js/mock.js).
    Реализует через AndroidNative-мост ровно тот сурфейс, что
    использует app.js (см. также mock.js — тот же контракт):
-     Neutralino.init, events.on("ready"|"spawnedProcess")
+     Neutralino.init, events.on("ready"|"spawnedProcess"|"storageChanged")
      os.spawnProcess / execCommand / killProcess /
-       updateSpawnedProcess / getSpawnedProcesses
+       updateSpawnedProcess / getSpawnedProcesses / requestPublicAccess
      os.showSaveDialog / showOpenDialog / showFolderDialog
-     os.getPath("data") / os.open
+     os.getPath("data") / os.open / mirrorToPublic (no-op) / publicDir
      fs.readFile / writeFile / writeBinaryFile / readDirectory /
        getStats / createDirectory / remove
      storage.setData / getData
-   Пути: NL_PATH = filesDir; warpscout — libwarpscout.so из
-   nativeLibraryDir (путь в window.NL_WS_PATH).
+   Пути: NL_PATH = filesDir; СВОЯ папка данных (NL_DATA_DIR) —
+   /storage/emulated/0/Android/data/…/files/WARPScoutGUI по умолчанию
+   или /storage/emulated/0/WARPScoutGUI после выдачи доступа.
+   warpscout — libwarpscout.so из nativeLibraryDir (путь в window.NL_WS_PATH).
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   "use strict";
@@ -51,9 +53,13 @@
   window.NL_PATH = INFO.nlPath || "/data/user/0/ru.warpscout.gui/files";
   window.NL_CWD = INFO.nlCwd || window.NL_PATH;
   window.NL_OS = "Android";
-  window.NL_APPVERSION = INFO.appVersion || "2.5.0";
+  window.NL_APPVERSION = INFO.appVersion || "2.5.3";
   window.NL_VERSION = "6.1.0"; // совместимость шима с рантаймом 6.x
   window.NL_WS_PATH = INFO.wsPath || ""; // libwarpscout.so в nativeLibraryDir
+  /* v2.5.3: видимая «своя папка» пользователя на /storage/emulated/0 */
+  window.NL_DATA_BASE = INFO.dataBase || "";
+  window.NL_DATA_DIR = INFO.dataDir || "";
+  window.NL_STORAGE_MODE = INFO.storageMode || "app"; // "app" | "public"
 
   /* ── шина событий (ready / spawnedProcess) ── */
   function dispatchNL(name, detail) {
@@ -101,9 +107,13 @@
       },
       showFolderDialog() {
         // SAF-выбор дерева каталогов в v1 не поддержан — пустая строка =
-        // «отмена» в логике app.js; объясняем пользователю
+        // «отмена» в логике app.js; объясняем, где данные и как их перенести
         setTimeout(() => {
-          try { window.alert("На Android смена папки данных недоступна — данные хранятся в приватной папке приложения."); } catch (e) {}
+          try {
+            window.alert("На Android папку данных выбирает приложение: " +
+              (window.NL_DATA_DIR || "…/WARPScoutGUI") +
+              " (по умолчанию — внутри Android/data; общая /storage/emulated/0/WARPScoutGUI подключается кнопкой «В общую папку» в Настройках).");
+          } catch (e) {}
         }, 0);
         return Promise.resolve("");
       },
@@ -115,14 +125,20 @@
         return asyncCall(() => B.getPath(String(kind || "data")))
           .then((r) => r.path || r.data || "");
       },
-      /* v2.5.2: публичная папка пользователя (Download/WARPScoutGUI).
-         mirrorToPublic(absPath) → { ok, path } — копия файла, видимая
-         файловым менеджерам без root; publicDir() → { ok, path }. */
+      /* v2.5.2 (в 2.5.3 — no-op): данные уже лежат в видимой папке,
+         ответ без "path" — JS покажет исходный путь */
       mirrorToPublic(path) {
         return asyncCall(() => B.pubMirror(String(path)));
       },
       publicDir() {
         return asyncCall(() => B.pubDir());
+      },
+      /* v2.5.3: запросить доступ к общей папке /storage/emulated/0/WARPScoutGUI.
+         Мост НЕ блокируется: API 30+ откроет экран «Все файлы» (результат —
+         при возврате в приложение), API ≤29 — диалог WRITE (результат —
+         сразу после ответа пользователя). Оба — событием __wsStorageChanged. */
+      requestPublicAccess() {
+        return asyncCall(() => B.requestPublicAccess());
       },
     },
     filesystem: {

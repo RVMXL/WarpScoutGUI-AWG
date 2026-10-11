@@ -4,14 +4,17 @@
      desktop-app/android/keystore/) — новая версия ставится как апдейт. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="ru.warpscout.gui"
-    android:versionCode="20502"
-    android:versionName="2.5.2">
+    android:versionCode="20503"
+    android:versionName="2.5.3">
 
     <!-- Сеть: регистрация аккаунта в Cloudflare и сканирование (ядро warpscout) -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- v2.5.2: запись пользовательских файлов в Downloads/WARPScoutGUI на
-         Android 7–9 (на 10+ используется MediaStore — разрешение не нужно) -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- v2.5.3: запись пользовательских файлов в /storage/emulated/0/WARPScoutGUI
+         на Android 7–10 (WRITE + legacy-режим; на 11+ — MANAGE «Все файлы»,
+         выдаётся по кнопке «В общую папку»; по умолчанию данные живут в
+         app-specific Android/data/…/files/WARPScoutGUI — разрешение не нужно) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <application
         android:label="@string/app_name"
@@ -19,7 +22,8 @@
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
         android:allowBackup="true"
         android:extractNativeLibs="true"
-        android:hardwareAccelerated="true">
+        android:hardwareAccelerated="true"
+        android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

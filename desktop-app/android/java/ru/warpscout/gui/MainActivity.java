@@ -143,6 +143,11 @@ public class MainActivity extends Activity {
         // file:///android_asset/www/... давал net::ERR_FILE_NOT_FOUND (первый
         // баг с реального устройства, smoke-тест 2026-10-11).
         web.loadUrl("file:///android_asset/index.html");
+
+        // v2.5.3: «своя папка» на /storage/emulated/0 + разовый перенос
+        // пользовательских файлов из приватного каталога v2.5.2
+        lastStorageMode = storageMode();
+        migrateLegacyOnce();
     }
 
     /* ── доставка событий в JS (eval, буферизация до готовности страницы) ── */
@@ -176,6 +181,10 @@ public class MainActivity extends Activity {
                 JSONObject o = new JSONObject();
                 o.put("nlPath", getFilesDir().getAbsolutePath());
                 o.put("nlCwd", getFilesDir().getAbsolutePath());
+                // v2.5.3: «своя папка» на /storage/emulated/0 (см. блок хранилища ниже)
+                o.put("dataBase", dataBase().getAbsolutePath());
+                o.put("dataDir", userDir().getAbsolutePath());
+                o.put("storageMode", storageMode());
                 String libDir = getApplicationInfo().nativeLibraryDir;
                 o.put("wsPath", new File(libDir, "libwarpscout.so").getAbsolutePath());
                 o.put("appVersion", getPackageManager()
@@ -193,7 +202,9 @@ public class MainActivity extends Activity {
 
         private Process startProc(String cmd) throws Exception {
             ProcessBuilder pb = new ProcessBuilder("sh", "-c", cmd);
-            pb.directory(getFilesDir());
+            // v2.5.3: warpscout работает в СВОЕЙ видимой папке — любые его
+            // относительные записи тоже попадают в /storage/emulated/0
+            pb.directory(userDir());
             pb.redirectErrorStream(false);
             return pb.start();
         }
@@ -524,13 +535,11 @@ public class MainActivity extends Activity {
         public String getPath(String kind) {
             JSONObject o = new JSONObject();
             try {
-                File base = getFilesDir();
-                if ("documents".equals(kind) || "downloads".equals(kind) || "pictures".equals(kind)) {
-                    File ext = getExternalFilesDir(null);
-                    if (ext != null) base = ext;
-                }
+                // v2.5.3: база пользовательских данных — том /storage/emulated/0
+                // (после выдачи доступа) или app-specific files (по умолчанию);
+                // GUI добавляет к базе «WARPScoutGUI» (computePaths в app.js)
                 o.put("ok", true);
-                o.put("path", base.getAbsolutePath());
+                o.put("path", dataBase().getAbsolutePath());
                 return o.toString();
             } catch (Exception e) {
                 return "{\"error\":" + JSONObject.quote(String.valueOf(e)) + "}";
@@ -607,260 +616,275 @@ public class MainActivity extends Activity {
         }
     }
 
-    /* ── открытие файла/папки (os.open) и публичная папка пользователя ──
+    /* ── хранилище пользователя (v2.5.3) и открытие папок ──
 
-       v2.5.2: приватный каталог приложения (/data/user/0/…) файловые
-       менеджеры НЕ видят — кнопки «Открыть папку» работали молча или вели в
-       недоступное место. Теперь:
-       1. Пользовательские файлы (отчёты, конфиги, аккаунт) дублируются из
-          files/WARPScoutGUI в общую папку устройства Download/WARPScoutGUI —
-          она видна любому файловому менеджеру без root:
-          • Android 10+ (API 29+): MediaStore (Downloads, RELATIVE_PATH) —
-            разрешение не требуется, существующие записи перезаписываются;
-          • Android 7–9: прямой файл в Downloads/WARPScoutGUI (для него в
-            манифесте объявлен WRITE_EXTERNAL_STORAGE, maxSdkVersion 28);
-            без права — fallback в app-specific getExternalFilesDir
-            (тот же /storage/emulated/0).
-       2. «Открыть папку» показывает публичную копию через DocumentsUI
-          (ACTION_VIEW document-URI каталога) и ВСЕГДА отвечает тостом —
-          с путём, который реально виден пользователю. */
+       Пользовательские файлы (аккаунт, отчёты, конфиги) живут ТОЛЬКО в
+       «своей папке» на /storage/emulated/0 — файловые менеджеры видят их
+       без root, зеркалирование в Downloads больше не нужно:
 
-    private static final String PUB_REL = "Download/WARPScoutGUI";
+       • режим "app" (по умолчанию, без разрешений):
+           /storage/emulated/0/Android/data/ru.warpscout.gui/files/WARPScoutGUI
+         (своя папка внутри app-specific каталога — видна большинству
+         файловых менеджеров, пишется всегда);
+       • режим "public" (после выдачи доступа):
+           /storage/emulated/0/WARPScoutGUI
+         – Android 11+ (API 30+): переключатель «Все файлы» (MANAGE);
+         – Android 7–10 (API 24–29): WRITE_EXTERNAL_STORAGE + legacy-режим
+           (requestLegacyExternalStorage в манифесте).
 
-    /* хвост пути после "WARPScoutGUI/": …/files/WARPScoutGUI/reports/x.txt → reports/x.txt */
-    private String pubRelOf(String absPath) {
-        String p = absPath.replace('\\', '/');
-        int i = p.indexOf("WARPScoutGUI/");
-        if (i >= 0) return p.substring(i + "WARPScoutGUI/".length());
-        return new File(p).getName();
-    }
+       os.getPath("data") возвращает БАЗУ (том или app-specific files),
+       GUI добавляет к ней «WARPScoutGUI» (computePaths в app.js).
+       Рабочий каталог warpscout — тоже эта папка (startProc).
 
-    private boolean isUnder(File parent, String child) {
-        try {
-            String a = parent.getCanonicalPath().replace('\\', '/');
-            String b = child.replace('\\', '/');
-            return b.equals(a) || b.startsWith(a.endsWith("/") ? a : a + "/");
-        } catch (Exception e) { return false; }
-    }
+       «Открыть папку» (openPath) открывает СТРОГО свою папку или её
+       подпапку — корень тома и системные каталоги никогда не открываются —
+       и отвечает тостом в КАЖДОЙ ветке: тишина исключена. */
 
-    /* запись потока в Download/WARPScoutGUI/<rel> через MediaStore (API 29+) */
-    private String pubWriteMediaStore(String rel, String mime, InputStream in) throws Exception {
-        ContentResolver cr = getContentResolver();
-        String relPath = PUB_REL, name = rel;
-        int slash = rel.lastIndexOf('/');
-        if (slash >= 0) { relPath = PUB_REL + "/" + rel.substring(0, slash); name = rel.substring(slash + 1); }
-        Uri collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
-        // перезапись существующей записи вместо накопления дублей
-        Uri item = null;
-        Cursor c = cr.query(collection, new String[]{MediaStore.MediaColumns._ID},
-                MediaStore.MediaColumns.RELATIVE_PATH + "=? AND " + MediaStore.MediaColumns.DISPLAY_NAME + "=?",
-                new String[]{relPath + "/", name}, null);
-        if (c != null) {
-            try { if (c.moveToFirst()) item = Uri.withAppendedPath(collection, String.valueOf(c.getLong(0))); }
-            finally { c.close(); }
+    private static final String EXT_ROOT = "/storage/emulated/0";
+    private static final int REQ_WRITE = 7101;
+    private String lastStorageMode = null;
+
+    /* доступна ли запись в корень общего хранилища */
+    private boolean publicRootAllowed() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            try { return Environment.isExternalStorageManager(); }
+            catch (Throwable t) { return false; }
         }
-        String display = "/storage/emulated/0/" + relPath + "/" + name;
-        if (item != null) {
-            OutputStream out = cr.openOutputStream(item, "wt");
-            if (out == null) throw new Exception("openOutputStream(wt) = null");
-            try { copyStream(in, out); } finally { out.close(); }
-            return display;
-        }
-        ContentValues v = new ContentValues();
-        v.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
-        v.put(MediaStore.MediaColumns.MIME_TYPE, mime);
-        v.put(MediaStore.MediaColumns.RELATIVE_PATH, relPath + "/");
-        Uri uri = cr.insert(collection, v);
-        if (uri == null) throw new Exception("MediaStore insert failed");
-        OutputStream out = cr.openOutputStream(uri);
-        if (out == null) throw new Exception("openOutputStream = null");
-        try { copyStream(in, out); } finally { out.close(); }
-        return display;
-    }
-
-    /* запись потока в Downloads/WARPScoutGUI (API 24–28); без права —
-       app-specific getExternalFilesDir (тоже /storage/emulated/0) */
-    private String pubWriteLegacy(String rel, InputStream in) throws Exception {
-        File base = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "WARPScoutGUI");
-        File f = new File(base, rel);
-        FileOutputStream out;
         try {
-            File parent = f.getParentFile();
-            if (parent != null && !parent.exists()) parent.mkdirs();
-            out = new FileOutputStream(f);
-        } catch (Exception noPerm) {
-            File altBase = getExternalFilesDir(null);
-            if (altBase == null) throw noPerm;
-            f = new File(new File(altBase, "WARPScoutGUI"), rel);
-            File parent = f.getParentFile();
-            if (parent != null && !parent.exists()) parent.mkdirs();
-            out = new FileOutputStream(f);
+            return checkSelfPermission("android.permission.WRITE_EXTERNAL_STORAGE")
+                    == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        } catch (Throwable t) { return false; }
+    }
+
+    /* база путей для GUI: том (public) или app-specific files (app) */
+    private File dataBase() {
+        if (publicRootAllowed()) {
+            try {
+                File r = Environment.getExternalStorageDirectory();
+                if (r != null && r.isDirectory()) return r;
+            } catch (Throwable ignored) {}
         }
-        try { copyStream(in, out); } finally { out.close(); }
-        return f.getAbsolutePath();
+        File ext = getExternalFilesDir(null);
+        return ext != null ? ext : getFilesDir();
     }
 
-    private String pubMirrorFile(File src) throws Exception {
-        String rel = pubRelOf(src.getAbsolutePath());
-        InputStream in = new FileInputStream(src);
+    /* «своя папка» пользователя: <база>/WARPScoutGUI */
+    private File userDir() {
+        File d = new File(dataBase(), "WARPScoutGUI");
+        if (!d.exists()) d.mkdirs();
+        return d;
+    }
+
+    private String storageMode() { return publicRootAllowed() ? "public" : "app"; }
+
+    /* разовый перенос пользовательских файлов из приватного каталога
+       v2.5.2 (files/WARPScoutGUI) в новую видимую папку */
+    private void migrateLegacyOnce() {
         try {
-            if (Build.VERSION.SDK_INT >= 29) return pubWriteMediaStore(rel, mimeFor(src.getName()), in);
-            return pubWriteLegacy(rel, in);
-        } finally { try { in.close(); } catch (Exception ignored) {} }
+            File flag = new File(getFilesDir(), ".migrated-253");
+            if (flag.exists()) return;
+            File src = new File(getFilesDir(), "WARPScoutGUI");
+            if (src.isDirectory()) copyTree(src, userDir(), 512);
+            flag.createNewFile();
+        } catch (Throwable ignored) {}
     }
 
-    /* зеркало содержимого папки (1 уровень + reports/) — «синхронизация перед показом» */
-    private void pubMirrorTree(File f) {
-        int budget = 64;
-        if (f.isFile()) { try { pubMirrorFile(f); } catch (Exception ignored) {} return; }
-        if (!f.isDirectory()) return;
-        File[] kids = f.listFiles();
+    private int copyBudget;
+
+    private void copyTree(File src, File dst, int budget) {
+        copyBudget = budget;
+        File[] kids = src.listFiles();
         if (kids == null) return;
         for (File k : kids) {
-            if (budget-- <= 0) return;
-            if (k.isFile()) { try { pubMirrorFile(k); } catch (Exception ignored) {} }
-            else if (k.isDirectory()) {
-                File[] sub = k.listFiles();
-                if (sub == null) continue;
-                for (File s : sub) {
-                    if (budget-- <= 0) break;
-                    if (s.isFile()) { try { pubMirrorFile(s); } catch (Exception ignored) {} }
-                }
+            if (copyBudget <= 0) return;
+            File t = new File(dst, k.getName());
+            if (k.isDirectory()) {
+                if (t.mkdirs() || t.isDirectory()) copyTree(k, t, copyBudget);
+            } else {
+                try {
+                    if (t.exists() && t.length() == k.length()) continue;
+                    File p = t.getParentFile();
+                    if (p != null && !p.exists()) p.mkdirs();
+                    FileInputStream in = new FileInputStream(k);
+                    try {
+                        FileOutputStream out = new FileOutputStream(t);
+                        try { copyStream(in, out); } finally { out.close(); }
+                    } finally { try { in.close(); } catch (Exception ignored) {} }
+                    copyBudget--;
+                } catch (Throwable ignored) {}
             }
         }
     }
 
-    /* JS-мост: зеркалирование одного файла (GUI вызывает после записи отчёта/конфига/аккаунта) */
-    @JavascriptInterface
-    public String pubMirror(String srcPath) {
-        JSONObject o = new JSONObject();
+    /* Java → JS: режим хранилища изменился (выдача/отзыв доступа) */
+    private void emitStorageChanged() {
         try {
-            File src = new File(srcPath);
-            if (!src.exists() || !src.isFile()) return "{\"error\":\"not found\"}";
-            o.put("ok", true);
-            o.put("path", pubMirrorFile(src));
-            return o.toString();
-        } catch (Exception e) {
-            return "{\"error\":" + JSONObject.quote(String.valueOf(e)) + "}";
-        }
+            JSONObject o = new JSONObject();
+            o.put("mode", storageMode());
+            o.put("base", dataBase().getAbsolutePath());
+            o.put("userDir", userDir().getAbsolutePath());
+            evalJs("window.__wsStorageChanged && window.__wsStorageChanged(JSON.parse("
+                    + JSONObject.quote(o.toString()) + "));");
+        } catch (Throwable ignored) {}
     }
 
-    /* JS-мост: путь публичной папки для показа пользователю */
+    /* JS-мост: запросить доступ к общей папке (мост НЕ блокируется):
+       API 30+ — экран «Все файлы» (результат придёт в onResume),
+       API 24–29 — системный диалог WRITE (результат в onRequestPermissionsResult) */
+    @JavascriptInterface
+    public String requestPublicAccess() {
+        JSONObject o = new JSONObject();
+        try {
+            boolean allowed = publicRootAllowed();
+            o.put("ok", true);
+            o.put("mode", allowed ? "public" : "app");
+            if (!allowed) {
+                if (Build.VERSION.SDK_INT >= 30) {
+                    try {
+                        startActivity(new Intent(
+                                android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                Uri.parse("package:" + getPackageName())));
+                        o.put("asked", "manage");
+                    } catch (Exception e) {
+                        try {
+                            startActivity(new Intent(
+                                    android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+                            o.put("asked", "manage");
+                        } catch (Exception e2) { o.put("asked", "unavailable"); }
+                    }
+                } else {
+                    try {
+                        requestPermissions(new String[]{"android.permission.WRITE_EXTERNAL_STORAGE"}, REQ_WRITE);
+                        o.put("asked", "write");
+                    } catch (Exception e) { o.put("asked", "unavailable"); }
+                }
+            }
+        } catch (Exception e) {
+            try { o.put("error", String.valueOf(e)); } catch (Throwable ignored) {}
+        }
+        return o.toString();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
+        if (req == REQ_WRITE) {
+            boolean ok = res != null && res.length > 0
+                    && res[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
+            toast(ok
+                    ? "Доступ к хранилищу выдан — данные переносятся в общую папку"
+                    : "Доступ не выдан — данные остаются в папке приложения (Android/data)");
+            if (ok) { lastStorageMode = storageMode(); emitStorageChanged(); }
+        } else super.onRequestPermissionsResult(req, perms, res);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        String m = storageMode();
+        if (lastStorageMode == null) { lastStorageMode = m; return; }
+        if (!m.equals(lastStorageMode)) { lastStorageMode = m; emitStorageChanged(); }
+    }
+
+
+
+    /* JS-мост (совместимость v2.5.2): зеркалирование больше не нужно —
+       данные уже лежат в видимой папке. Без "path" в ответе JS покажет
+       исходный путь и не будет говорить про «копию в общей папке». */
+    @JavascriptInterface
+    public String pubMirror(String srcPath) { return "{\"ok\":true}"; }
+
+    /* JS-мост: видимая папка пользователя (подсказки в UI) */
     @JavascriptInterface
     public String pubDir() {
         JSONObject o = new JSONObject();
         try {
             o.put("ok", true);
-            if (Build.VERSION.SDK_INT >= 29) {
-                o.put("path", "/storage/emulated/0/" + PUB_REL);
-            } else {
-                File base = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "WARPScoutGUI");
-                File alt = getExternalFilesDir(null);
-                if (!base.exists() && !base.mkdirs() && alt != null) base = new File(alt, "WARPScoutGUI");
-                o.put("path", base.getAbsolutePath());
-            }
+            o.put("path", userDir().getAbsolutePath());
             return o.toString();
         } catch (Exception e) {
             return "{\"error\":" + JSONObject.quote(String.valueOf(e)) + "}";
         }
     }
 
+    /* «Открыть папку»: строго своя папка/подпапка (v2.5.3).
+       Пользовательские данные теперь в /storage/emulated/0 — всё, что вне
+       своей папки (приватный filesDir старых версий, системные каталоги,
+       корень тома), показываем как свою папку данных. Корень никогда
+       не открываем. Цепочка попыток с ответом в каждой: */
     @JavascriptInterface
     public void openPath(String path) {
-        // IO (зеркалирование) — на потоке моста; UI — только активити/тосты
         final String p = String.valueOf(path == null ? "" : path);
-        String docId = null;   // documentId для DocumentsUI ("primary:Download/WARPScoutGUI")
-        String human = p;      // путь, который показываем пользователю
-        String note = "";
-        try {
-            if (!p.startsWith("content://")) {
-                File f = new File(p);
-                if (isUnder(getFilesDir(), p)) {
-                    // приватная папка → показываем публичную копию
-                    String rel = pubRelOf(p);
-                    String sub = rel.contains("/") ? rel.substring(0, rel.lastIndexOf('/')) : "";
-                    if (f.isFile()) {
-                        try { pubMirrorFile(f); note = "копия обновлена: "; } catch (Exception ignored) {}
-                        docId = "primary:" + PUB_REL + (sub.isEmpty() ? "" : "/" + sub);
-                    } else {
-                        pubMirrorTree(f);
-                        docId = "primary:" + PUB_REL;
-                    }
-                    human = "/storage/emulated/0/" + docId.substring("primary:".length());
-                } else {
-                    String stRoot = "/storage/emulated/0/";
-                    String abs = (f.exists() && f.isFile()) ? f.getParent() : p;
-                    String a = abs.replace('\\', '/');
-                    if (a.startsWith(stRoot)) {
-                        docId = "primary:" + a.substring(stRoot.length());
-                        human = a;
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-        final String fDocId = docId, fHuman = human, fNote = note;
-        runOnUiThread(() -> {
-            try {
-                if (p.startsWith("content://")) {
-                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(p)));
-                    return;
-                }
-                if (fDocId == null) {
-                    // напр. nativeLibraryDir — системный каталог, менеджеры его не показывают
-                    toast("Системная папка недоступна файловым менеджерам: " + fHuman);
-                    return;
-                }
-                Uri doc = DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", fDocId);
-                if (openInFileManager(doc, fHuman, fNote)) return;
-            } catch (Exception e) {
-                toast("Не удалось открыть: " + fHuman);
-            }
-        });
-    }
-
-    /* DocumentsUI понимает ACTION_VIEW document-URI каталога — открывается
-       нужная папка в системных «Файлах»/файловом менеджере. Цепочка fallback:
-       раздел загрузок → тост с путём. Пользователь всегда получает ответ. */
-    private boolean openInFileManager(Uri docUri, String human, String note) {
-        try {
-            Intent i = new Intent(Intent.ACTION_VIEW);
-            i.setDataAndType(docUri, "vnd.android.document/directory");
-            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(i);
-            toast(fNoteEmpty(note) ? ("Папка открыта: " + human) : (note + human));
-            return true;
-        } catch (Exception e) {
-            try {
-                startActivity(new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS));
-                toast((note.isEmpty() ? "Папка: " : note) + human + " (раздел загрузок)");
-                return true;
-            } catch (Exception e2) {
-                toast("Папка: " + human + " — откройте любым файловым менеджером");
-                return false;
-            }
+        if (p.startsWith("content://")) {
+            runOnUiThread(() -> {
+                try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(p))); toast("Открываю…"); }
+                catch (Throwable e) { toast("Не удалось открыть: нет подходящего приложения"); }
+            });
+            return;
         }
+        String abs = p;
+        try {
+            File f = new File(p);
+            if (f.exists() && f.isFile()) abs = f.getParent(); // файл → его папка
+        } catch (Throwable ignored) {}
+        String ud = userDir().getAbsolutePath().replace('\\', '/');
+        String a = abs.replace('\\', '/');
+        if (!a.startsWith(ud)) a = ud;   // вне своей папки → своя папка данных
+        if (a.equals(EXT_ROOT)) a = ud;  // корень тома не открываем
+        try { File d = new File(a); if (!d.exists()) d.mkdirs(); } catch (Throwable ignored) {}
+        final String fDocId = userDirDocId(a);
+        final String fHuman = a;
+        runOnUiThread(() -> openDirChain(fDocId, fHuman));
     }
 
-    private boolean fNoteEmpty(String s) { return s == null || s.isEmpty(); }
+    /* documentId папки под /storage/emulated/0 ("primary:Android/data/…/WARPScoutGUI/…");
+       null — если своя папка вдруг вне общего хранилища (не бывает на телефонах) */
+    private String userDirDocId(String absUnderUser) {
+        String ud = userDir().getAbsolutePath().replace('\\', '/');
+        if (!ud.startsWith(EXT_ROOT)) return null;
+        String baseRel = ud.substring(EXT_ROOT.length());
+        while (baseRel.startsWith("/")) baseRel = baseRel.substring(1);
+        String rel = absUnderUser.length() > ud.length()
+                ? absUnderUser.substring(ud.length()) : "";
+        while (rel.startsWith("/")) rel = rel.substring(1);
+        return "primary:" + baseRel + (rel.isEmpty() ? "" : "/" + rel);
+    }
 
-    /* копирование потока для публичной папки (у Bridge свой экземплярный copy) */
+    /* Цепочка открытия с гарантированным ответом:
+       1) системные «Файлы» (DocumentsUI ACTION_VIEW каталога);
+       2) SAF-выбор каталога, открытый на нужной папке;
+       3) путь в буфер обмена + явный тост. */
+    private void openDirChain(String docId, String human) {
+        if (docId != null) {
+            try {
+                Uri doc = DocumentsContract.buildDocumentUri(
+                        "com.android.externalstorage.documents", docId);
+                Intent i = new Intent(Intent.ACTION_VIEW);
+                i.setDataAndType(doc, "vnd.android.document/directory");
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(i);
+                toast("Папка открыта: " + human);
+                return;
+            } catch (Throwable ignored) {}
+            try {
+                Uri doc = DocumentsContract.buildDocumentUri(
+                        "com.android.externalstorage.documents", docId);
+                Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                if (Build.VERSION.SDK_INT >= 26)
+                    i.putExtra(DocumentsContract.EXTRA_INITIAL_URI, doc);
+                startActivity(i);
+                toast("Папка показана в выборе файлов: " + human);
+                return;
+            } catch (Throwable ignored) {}
+        }
+        try { clipboardWrite(human); } catch (Throwable ignored) {}
+        toast("Файловый менеджер не смог открыть папку. Путь скопирован: " + human);
+    }
+
+    /* копирование потока (миграция старых данных; у Bridge свой экземплярный copy) */
     private static void copyStream(InputStream in, OutputStream out) throws Exception {
         byte[] b = new byte[8192];
         int n;
         while ((n = in.read(b)) > 0) out.write(b, 0, n);
-    }
-
-    private static String mimeFor(String name) {
-        String n = name.toLowerCase();
-        if (n.endsWith(".json")) return "application/json";
-        if (n.endsWith(".txt") || n.endsWith(".log")) return "text/plain";
-        if (n.endsWith(".conf")) return "text/plain";
-        if (n.endsWith(".png")) return "image/png";
-        if (n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image/jpeg";
-        if (n.endsWith(".svg")) return "image/svg+xml";
-        if (n.endsWith(".csv")) return "text/csv";
-        if (n.endsWith(".html") || n.endsWith(".htm")) return "text/html";
-        return "application/octet-stream";
     }
 
     private void toast(String msg) {
