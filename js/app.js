@@ -935,6 +935,26 @@
     "Тренд PNG скачан: {path}": "Trend PNG downloaded: {path}",
     "Ошибка экспорта PNG: {err}": "PNG export error: {err}",
     "сканов с пингами": "scans with pings",
+    /* — v2.5.2: главная-панель быстрых действий (touch) — */
+    "Просканировать эндпоинты": "Scan endpoints",
+    "Получить рабочий конфиг": "Get a working config",
+    "Разделы": "Sections",
+    "Конфиг сохранён": "Config saved",
+    "Скопировать конфиг": "Copy config",
+    "Скан ещё не запускался": "No scan has been run yet",
+    "Живых эндпоинтов: {n}": "Live endpoints: {n}",
+    "Живых эндпоинтов пока нет": "No live endpoints yet",
+    "Нет живых эндпоинтов — сначала просканируйте": "No live endpoints — run a scan first",
+    "Дождитесь окончания скана — конфиг строится по его результатам": "Wait for the scan to finish — the config is built from its results",
+    "Скан запущен": "Scan started",
+    "Скан уже выполняется — вкладка скана открыта": "A scan is already running — the scan tab is open",
+    "Конфиг готов: {p}": "Config ready: {p}",
+    "Конфиг сохранён: {p}": "Config saved: {p}",
+    "Отчёты и конфиги дублируются в общую папку устройства: Download/WARPScoutGUI": "Reports and configs are duplicated to the device's shared folder: Download/WARPScoutGUI",
+    "пользовательские файлы (отчёты, конфиги, аккаунт)": "user files (reports, configs, account)",
+    "Отчёт скопирован в общую папку: {p}": "Report copied to the shared folder: {p}",
+    "Копия в общей папке: {p}": "Copy in shared folder: {p}",
+    "Скан уже выполняется": "A scan is already running",
     /* — v1.8.0: лендинг — */
     /* — v2.2.0: единая папка данных — (v2.3.0: данные перенесены в папку «<имя exe>», объединение удалено) — */
     "Папка данных": "Data folder",
@@ -2104,6 +2124,9 @@
     renderResults();
     fillEndpointSelect();
     switchSubtab("results");
+    // v2.5.2 (Android): копия отчёта в общую папку Download/WARPScoutGUI —
+    // иначе отчёт лежит в приватном каталоге, недоступном без root
+    if (IS_ANDROID) mirrorPublic(S.paths.reportPath).then((pub) => { if (pub) toast(tF("Отчёт скопирован в общую папку: {p}", { p: pub }), "info"); });
     const working = S.results.filter((r) => !r.torn).length;
     const torn = S.results.length - working;
     // v2.4.6 (F35): отчёт есть, но exit ненулевой — честно показываем фактический код
@@ -4750,6 +4773,8 @@
       // не считается доказательством неудачи
       const newKey = S.account && typeof S.account.private_key === "string" ? S.account.private_key.slice(-12) : "";
       const accountAppeared = !!S.account && (!preId || newId !== preId || (!!preKey && !!newKey && preKey !== newKey));
+      // v2.5.2 (Android): копия файла аккаунта в общую папку Download/WARPScoutGUI
+      if (S.account && IS_ANDROID) mirrorPublic(S.paths.accPath).then((pub) => { if (pub) toast(tF("Копия в общей папке: {p}", { p: pub }), "info"); });
       if (code === 0) {
         appendLog(log, "\n[GUI] " + t("Готово.") + "\n");
         toast(t("Аккаунт готов"), "ok");
@@ -4797,6 +4822,8 @@
           }
         } catch (e) { /* прежнего аккаунта нет */ }
         await fs().writeFile(S.paths.accPath, String(text));
+        // v2.5.2 (Android): копия аккаунта в общую папку — доступна без root
+        mirrorPublic(S.paths.accPath).then((pub) => { if (pub) toast(tF("Копия в общей папке: {p}", { p: pub }), "info"); });
       } catch (e) {
         toast(tF("Не удалось сохранить файл аккаунта: {err}", { err: e && e.message ? e.message : e }), "err");
         return false;
@@ -5156,38 +5183,146 @@
     // без дублирования id: подписка на изменения текста оригиналов
     const ws = $("#stWs"), acc = $("#stAcc");
     if (!ws || !acc) return;
+    // v2.5.2: фаза скана (#scanPhase) и число живых эндпоинтов (#resCount) —
+    // на главной видно, идёт скан и что он дал, без перехода на вкладку
+    const ph = document.getElementById("scanPhase"), rc = document.getElementById("resCount");
+    const syncHome = () => {
+      const hs = document.getElementById("homeScanRow"), hr = document.getElementById("homeResRow");
+      if (!hs && !hr) return;
+      const phase = ph ? String(ph.textContent || "").trim() : "";
+      const n = (rc && !rc.hidden) ? (parseInt(rc.textContent, 10) || 0) : 0;
+      if (hs) hs.textContent = phase ? "● " + t("Скан") + ": " + phase : "● " + t("Скан ещё не запускался");
+      if (hr) {
+        hr.textContent = n ? "● " + tF("Живых эндпоинтов: {n}", { n: n }) : "● " + t("Живых эндпоинтов пока нет");
+        hr.className = "home-status__row" + (n ? " home-done" : "");
+      }
+    };
     const sync = () => {
       const hw = document.getElementById("homeWs"), ha = document.getElementById("homeAcc");
       if (hw) { hw.textContent = ws.textContent; hw.className = "home-status__row " + ws.className; }
       if (ha) { ha.textContent = acc.textContent; ha.className = "home-status__row " + acc.className; }
+      syncHome();
     };
     new MutationObserver(sync).observe(ws, { childList: true, characterData: true, subtree: true });
     new MutationObserver(sync).observe(acc, { childList: true, characterData: true, subtree: true });
+    if (ph) new MutationObserver(syncHome).observe(ph, { childList: true, characterData: true, subtree: true });
+    if (rc) new MutationObserver(syncHome).observe(rc, { attributes: true, childList: true, characterData: true, subtree: true });
     sync();
+    syncHome();
   }
+  /* ── v2.5.2: иконки нижней навигации — штриховые SVG вместо <svg><text>эмодзи</text></svg>:
+     на части Android-устройств эмодзи внутри SVG-текста не отрисовываются
+     (иконка «Ещё» выглядела отсутствующей); контурные пути чёткие и монохромные. ── */
+  const TABBAR_ICONS = {
+    home: '<path d="M4 11 12 4l8 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 10.2V20h11v-9.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    scan: '<path d="M12 3a9 9 0 1 0 9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 7a5 5 0 1 0 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M17 7l4-4M21 3h-4M21 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>',
+    config: '<path d="M9 2h6v4l3 3v2l-3 3v8H9v-8l-3-3V9l3-3V2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="1.4" fill="currentColor"/>',
+    account: '<circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    more: '<circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/>',
+  };
+  const SVG_BOLT = '<path d="M13 2 4.5 13.5H11L9.5 22 19.5 10h-7L13 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>';
+  const SVG_TOOLS = '<circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4.2-4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  const SVG_SOCKS = '<path d="M4 6h16M4 12h10M4 18h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="19" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/>';
+  const SVG_GEAR = '<path d="M12 8.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5zm8.4 3.5a8.4 8.4 0 0 0-.15-1.5l2.05-1.6-2-3.46-2.42.98a8.4 8.4 0 0 0-2.6-1.5L14.9 2h-4l-.37 2.42a8.4 8.4 0 0 0-2.6 1.5l-2.42-.98-2 3.46L5.56 10.5a8.4 8.4 0 0 0 0 3L3.5 15.1l2 3.46 2.42-.98a8.4 8.4 0 0 0 2.6 1.5L10.9 21h4l.37-2.42a8.4 8.4 0 0 0 2.6-1.5l2.42.98 2-3.46-2.06-1.6c.1-.49.17-.99.17-1.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>';
+
+  /* ── v2.5.2: главный экран = панель быстрых действий ──
+     «Просканировать эндпоинты» и «Получить рабочий конфиг» выполняются сразу,
+     а не открывают вкладки. Фаза скана, число живых эндпоинтов и путь
+     сохранённого конфига видны прямо на главной. */
+  function bestResultRow() {
+    const ok = (S.results || []).filter((r) => !r.torn);
+    if (!ok.length) return null;
+    let best = ok[0], bp = pingMs(best.tunPing || best.ping);
+    for (const r of ok) { const p = pingMs(r.tunPing || r.ping); if (p < bp) { best = r; bp = p; } }
+    return best;
+  }
+  async function mirrorPublic(path) {
+    // v2.5.2 (Android): копия пользовательского файла в общую папку
+    // Download/WARPScoutGUI — доступна любому файловому менеджеру без root.
+    if (!IS_ANDROID || !path) return "";
+    const osApi = (window.Neutralino && window.Neutralino.os) || null;
+    if (!osApi || typeof osApi.mirrorToPublic !== "function") return "";
+    try { const r = await osApi.mirrorToPublic(String(path)); return (r && r.path) ? String(r.path) : ""; }
+    catch (e) { return ""; }
+  }
+  async function homeStartScan() {
+    if (S.running.scan) { switchTab("scan"); toast(t("Скан уже выполняется — вкладка скана открыта"), "info"); return; }
+    toast(t("Скан запущен"), "ok");
+    try { await window.__WSGUI.runScan(); } catch (e) {}
+  }
+  async function homeMakeConf() {
+    if (S.running.scan) { toast(t("Дождитесь окончания скана — конфиг строится по его результатам"), "warn"); return; }
+    if (!confExportReady()) return; // свой toast при отсутствии аккаунта
+    const best = bestResultRow();
+    if (!best) { toast(t("Нет живых эндпоинтов — сначала просканируйте"), "err"); return; }
+    // выбранный эндпоинт попадает и на вкладку «Конфиг» — единое состояние
+    $("#cfgEndpoint").value = best.endpoint;
+    syncCfgFromInputs();
+    renderConf();
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const fname = ($("#cfgFileName").textContent || "warp.conf").replace(/\.conf$/, "") + "-" + stamp + ".conf";
+    const text = buildConf();
+    const dir = S.paths.dataDir || (window.NL_PATH || ".");
+    let savedPath = "";
+    try {
+      await ensureDir(dir);
+      savedPath = pxJoin(dir, fname);
+      await fs().writeFile(savedPath, text);
+    } catch (e) {
+      toast(tF("Ошибка записи: {err}", { err: e && e.message ? e.message : e }), "err");
+      return;
+    }
+    const pub = await mirrorPublic(savedPath);
+    window.__homeConfText = text;
+    window.__homeConfPath = savedPath;
+    const box = document.getElementById("homeConfBox");
+    if (box) {
+      box.hidden = false;
+      const p = document.getElementById("homeConfPath");
+      if (p) p.textContent = pub || savedPath;
+    }
+    toast(tF("Конфиг готов: {p}", { p: pub || savedPath }), "ok");
+  }
+
   function setupTouchUi() {
     if (!TOUCH_UI) return;
     document.body.classList.add("touch-ui");
     const main = $("main.main");
     if (!main) return;
     const btn = (id, icon, label, big, tab) =>
-      '<button class="home-act' + (big ? " home-act--big" : "") + '" type="button" data-tab="' + tab + '" id="' + id + '">' +
+      '<button class="home-act' + (big ? " home-act--big" : "") + '" type="button"' + (tab ? ' data-tab="' + tab + '"' : "") + ' id="' + id + '">' +
       '<span class="home-act__ico" aria-hidden="true">' + icon + '</span><span class="home-act__txt"><b>' + label + '</b></span></button>';
-    // ── Главная ──
+    const actIco = (svg) => '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' + svg + '</svg>';
+    // ── Главная: панель быстрых действий (v2.5.2) ──
     const home = el("section", "tab", 
       '<div class="home-wrap">' +
-      '<div class="card home-status"><div class="home-status__row" id="homeWs">● warpscout: проверка…</div>' +
-      '<div class="home-status__row" id="homeAcc">● аккаунт: проверка…</div>' +
-      '<div class="home-status__hint">' + (IS_ANDROID ? "Скан запускается на устройстве, ключи и отчёты остаются в папке приложения." : "Сенсорный режим интерфейса") + '</div></div>' +
+      '<div class="card home-status"><div class="home-status__row" id="homeWs">…</div>' +
+      '<div class="home-status__row" id="homeAcc">…</div>' +
+      '<div class="home-status__row" id="homeScanRow"></div>' +
+      '<div class="home-status__row" id="homeResRow"></div>' +
+      '<div class="home-status__hint">' + (IS_ANDROID
+        ? "Отчёты и конфиги дублируются в общую папку устройства: Download/WARPScoutGUI"
+        : "Сенсорный режим интерфейса") + '</div></div>' +
       '<h2 class="home-title">Основные действия</h2>' +
       '<div class="home-actions">' +
-      btn("homeScan", "📡", "Начать скан", true, "scan") +
-      btn("homeTools", "🛠", "Поиск параметров", true, "tools") +
-      btn("homeConf", "⚙️", "Сгенерировать конфиг", true, "config") +
+      btn("homeScan", actIco(TABBAR_ICONS.scan), "Просканировать эндпоинты", true, "") +
+      btn("homeConf", actIco(SVG_BOLT), "Получить рабочий конфиг", true, "") +
       '</div>' +
-      '<div class="home-actions home-actions--secondary">' +
-      btn("homeSocks", "🔗", "SOCKS-прокси", false, "socks") +
-      btn("homeSettings", "⚙", "Настройки", false, "settings") +
+      '<div class="home-pub" id="homeConfBox" hidden><b>✓ ' + "Конфиг сохранён" + '</b>' +
+      '<span id="homeConfPath"></span>' +
+      '<div class="home-pub__btns"><button class="btn btn--ghost btn--sm" id="homeConfOpen" type="button">📁 ' + "Открыть папку" + '</button>' +
+      '<button class="btn btn--ghost btn--sm" id="homeConfCopy" type="button">📋 ' + "Скопировать конфиг" + '</button></div></div>' +
+      (IS_ANDROID
+        ? '<div class="home-pub" id="homePubBox"><b>Download/WARPScoutGUI</b> — ' + "пользовательские файлы (отчёты, конфиги, аккаунт)" +
+          '<div class="home-pub__btns"><button class="btn btn--ghost btn--sm" id="homePubOpen" type="button">📁 ' + "Открыть папку" + '</button></div></div>'
+        : "") +
+      // v2.5.2: разделы вертикальным списком (как в «Ещё») — в ряд из трёх
+      // кнопок подписи не помещались и распирали страницу по горизонтали
+      '<h2 class="home-title">Разделы</h2>' +
+      '<div class="home-actions home-actions--list">' +
+      btn("homeTools", actIco(SVG_TOOLS), "Поиск параметров", false, "tools") +
+      btn("homeSocks", actIco(SVG_SOCKS), "SOCKS-прокси", false, "socks") +
+      btn("homeSettings", actIco(SVG_GEAR), "Настройки", false, "settings") +
       '</div></div>');
     home.id = "tab-home";
     home.setAttribute("aria-label", "Главная");
@@ -5204,18 +5339,18 @@
       '<div class="home-lang"><div class="lang-switch" role="group" aria-label="Язык / Language">' +
       '<button class="lang-switch__btn' + (LANG === "en" ? "" : " is-active") + '" type="button" data-lang="ru" aria-label="Русский">RU</button>' +
       '<button class="lang-switch__btn' + (LANG === "en" ? " is-active" : "") + '" type="button" data-lang="en" aria-label="English">EN</button>' +
-      '</div></div><div class="home-foot">WARPSCOUT GUI v' + (window.NL_APPVERSION || "2.5.0") + ' · warpscout v0.16.0<br>Android-оболочка: WebView + ядро warpscout (MIT)</div></div>');
+      '</div></div><div class="home-foot">WARPSCOUT GUI v' + (window.NL_APPVERSION || "2.5.2") + ' · warpscout v0.16.0<br>Android-оболочка: WebView + ядро warpscout (MIT)</div></div>');
     more.id = "tab-more";
     more.setAttribute("aria-label", "Ещё");
     main.insertBefore(home, main.firstChild);
     main.appendChild(more);
-    // ── нижняя навигация ──
-    const tabs = [["home", "🏠", "Главная"], ["scan", "📡", "Скан"], ["config", "⚙️", "Конфиг"], ["account", "👤", "Аккаунт"], ["more", "⋯", "Ещё"]];
+    // ── нижняя навигация (v2.5.2: контурные SVG-иконки) ──
+    const tabs = [["home", "home", "Главная"], ["scan", "scan", "Скан"], ["config", "config", "Конфиг"], ["account", "account", "Аккаунт"], ["more", "more", "Ещё"]];
     const bar = el("nav", "tabbar");
     bar.setAttribute("aria-label", "Нижняя навигация");
-    tabs.forEach(([t, ico, label]) => {
+    tabs.forEach(([t, icoKey, label]) => {
       const b = el("button", "nav__item tabbar__btn" + (t === "home" ? " is-active" : ""),
-        '<svg viewBox="0 0 24 24" class="nav__ico" aria-hidden="true" focusable="false"><text x="12" y="17" text-anchor="middle" font-size="14">' + ico + '</text></svg><span>' + label + '</span>');
+        '<svg viewBox="0 0 24 24" class="nav__ico" aria-hidden="true" focusable="false">' + TABBAR_ICONS[icoKey] + '</svg><span>' + label + '</span>');
       b.setAttribute("data-tab", t);
       b.setAttribute("type", "button");
       b.setAttribute("aria-label", label);
@@ -5232,9 +5367,22 @@
       if (!t) return;
       switchTab(t);
       window.scrollTo(0, 0);
-      // v2.5.0 (аудит A1): главная кнопка «Начать скан» не только переключает
-      // вкладку, но и запускает скан (runScan имеет guard от повторного запуска)
-      if (b.id === "homeScan") setTimeout(() => { try { window.__WSGUI.runScan(); } catch (e) {} }, 60);
+    });
+    // v2.5.2: главные действия выполняются сразу (не переход по вкладкам)
+    const hScan = document.getElementById("homeScan");
+    if (hScan) hScan.addEventListener("click", homeStartScan);
+    const hConf = document.getElementById("homeConf");
+    if (hConf) hConf.addEventListener("click", homeMakeConf);
+    const hcOpen = document.getElementById("homeConfOpen");
+    if (hcOpen) hcOpen.addEventListener("click", () => {
+      const target = window.__homeConfPath || S.paths.dataDir || window.NL_PATH || "";
+      try { Promise.resolve(os().open(target)).catch(() => {}); } catch (e) {}
+    });
+    const hcCopy = document.getElementById("homeConfCopy");
+    if (hcCopy) hcCopy.addEventListener("click", () => { if (window.__homeConfText) copyText(window.__homeConfText, t("Конфиг скопирован")); });
+    const hpOpen = document.getElementById("homePubOpen");
+    if (hpOpen) hpOpen.addEventListener("click", () => {
+      try { Promise.resolve(os().open(S.paths.dataDir || window.NL_PATH || "")).catch(() => {}); } catch (e) {}
     });
     // v2.5.0 (аудит B4): переключение языка из touch-меню
     const langWrap = more.querySelector(".home-lang .lang-switch");

@@ -1,21 +1,32 @@
 /* ═══════════════════════════════════════════════════════════════
-   WARPSCOUT GUI — сенсорный режим (v2.5.1)
+   WARPSCOUT GUI — сенсорный режим (v2.5.2)
    Включается body.touch-ui (Android-оболочка APK или ?touch=1).
    Правила применяются ТОЛЬКО в touch-режиме: десктоп-вёрстка
    не затрагивается. Тап-таргеты ≥ 44px, нижняя навигация,
    safe-area (вырезы/жест-бар).
    ═══════════════════════════════════════════════════════════════ */
 
-/* ─── каркас: без сайдбара, скролл внутри main ─── */
-body.touch-ui .app { display: block; height: 100dvh; }
+/* ─── каркас: без сайдбара, скролл внутри main ───
+    v2.5.2: .main фиксируется inset'ами, а не height:100dvh — на старых
+    WebView (Chrome < 108) dvh не поддерживается, из-за чего .main не имел
+    высоты и контент упирался в нижнюю навигацию без возможности доскролла. */
+body.touch-ui .app { display: block; height: auto; }
 body.touch-ui .sidebar { display: none !important; }
 body.touch-ui .main {
-  height: 100dvh;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  height: auto;
+  max-width: 100%;
   overflow-y: auto;
+  overflow-x: hidden; /* v2.5.2: горизонтальный дрейф запрещён — длинные строки переносятся */
   -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   overscroll-behavior: contain;
 }
+/* v2.5.2: ни одна вкладка не должна распирать каркас по горизонтали */
+body.touch-ui .tab { max-width: 100%; min-width: 0; }
+body.touch-ui .scan-grid, body.touch-ui .acc-grid, body.touch-ui .config-grid { min-width: 0; max-width: 100%; }
+body.touch-ui .card { min-width: 0; max-width: 100%; }
 
 /* ─── нижняя навигация ─── */
 body.touch-ui .tabbar {
@@ -51,13 +62,25 @@ body.touch-ui .tabbar__btn {
   touch-action: manipulation;
 }
 body.touch-ui .tabbar__btn .nav__ico { width: 22px; height: 22px; }
-body.touch-ui .tabbar__btn.is-active { color: var(--accent-text); }
+/* v2.5.2: десктопный индикатор .nav__item.is-active::before (полоска СЛЕВА)
+   протекал в нижнюю навигацию — на вкладке он выглядел «сломанной иконкой».
+   Убираем его и фон/рамку пункта сайдбара: остаётся чистый Material-стиль. */
+body.touch-ui .tabbar__btn::before { content: none !important; display: none !important; }
+body.touch-ui .tabbar__btn.is-active {
+  color: var(--accent-text);
+  background: transparent;
+  border-color: transparent;
+}
+/* оранжевая полоска теперь строго ПОД иконкой (между иконкой и подписью) */
+body.touch-ui .tabbar__btn .nav__ico { order: 0; }
+body.touch-ui .tabbar__btn span { order: 2; }
 body.touch-ui .tabbar__btn.is-active::after {
   content: "";
+  order: 1;
   width: 22px; height: 3px;
   border-radius: 2px;
   background: var(--accent);
-  margin-top: 2px;
+  margin: 3px 0 1px;
 }
 body.touch-ui .tabbar__btn:active { transform: scale(0.94); }
 
@@ -148,6 +171,38 @@ body.touch-ui .toast { max-width: 90vw; }
 /* лёгкий отступ сверху под статус-бар/вырез */
 body.touch-ui .tab.is-active { padding-top: env(safe-area-inset-top, 0px); }
 
+/* ─── v2.5.2: длинные пути в статусе аккаунта — перенос, а не гориз. скролл ───
+   .code-clip (nowrap, max-width 340px, rtl) распирал строку «Путь» шире экрана:
+   вкладка «Аккаунт» скроллилась влево-вправо. В touch-режиме путь переносится. */
+body.touch-ui .acc-status__row { flex-wrap: wrap; }
+body.touch-ui .acc-status__row .code-clip {
+  max-width: 100%;
+  flex: 1 1 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  direction: ltr;
+  text-align: left;
+  user-select: text;
+}
+body.touch-ui .acc-status__row b { white-space: normal; text-align: right; }
+
+/* ─── v2.5.2: публичная папка пользователя (Android) ─── */
+body.touch-ui .home-pub {
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+body.touch-ui .home-pub b { color: var(--text); font-weight: 600; }
+body.touch-ui .home-pub__btns { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+body.touch-ui .home-pub__btns .btn { flex: 1 1 auto; }
+body.touch-ui .home-done { color: var(--ok); }
+
 /* светлая тема наследует переменные app.css автоматически — отдельные правила не нужны */
 
 /* ─── v2.5.0 (аудит B4): переключатель языка в touch-меню «Ещё» ─── */
@@ -166,4 +221,44 @@ body.touch-ui .home-lang .lang-switch__btn {
   min-height: 44px;
   font-size: 15px;
   font-weight: 600;
+}
+
+/* ─── v2.5.2: доналадка главной-панели ─── */
+/* путь сохранённого конфига — отдельной строкой */
+body.touch-ui .home-pub span { display: block; margin-top: 2px; }
+/* кнопки-разделы в ряду: width:100% распирал ряд за край экрана */
+body.touch-ui .home-actions--secondary .home-act { width: auto; min-width: 0; }
+body.touch-ui .home-actions--secondary .home-act__ico { flex: 0 0 36px; height: 36px; font-size: 18px; }
+/* тосты — над нижней навигацией, а не за ней */
+body.touch-ui .toasts {
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+}
+
+/* ─── v2.5.2: Скан/Конфиг — одна колонка и перенос длинных строк ───
+   minmax(360px,480px) сетки + непереносимые code-подсказки распирали
+   вкладки шире экрана (горизонтальный скролл вкладки). */
+body.touch-ui .scan-grid, body.touch-ui .config-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+body.touch-ui .hint code, body.touch-ui .switch-row__title code, body.touch-ui .field__label code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+body.touch-ui .chips { flex-wrap: wrap; }
+
+/* сегмент-переключатели (протокол и пр.) — сеткой 2×2: в один ряд 4 кнопки
+   не помещаются на 412px и распирают вкладку скана */
+body.touch-ui .seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+body.touch-ui .seg .seg__btn { width: 100%; }
+
+/* подписи вкладок: десктопная media-квери (≤860px) прячет .nav__item span —
+   в нижней навигации подписи нужны (иконки без подписей нечитаемы) */
+body.touch-ui .tabbar__btn span {
+  display: block !important;
+  font-size: 10.5px;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
