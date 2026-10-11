@@ -395,17 +395,18 @@
   // mock globals, используемые app.js
   window.NL_PATH = "C:\\Users\\Demo\\Apps\\WARPScoutGUI";
   window.NL_CWD = window.NL_PATH;
+  // единая версия демо = версия GUI (не дублировать в ветках — раньше здесь
+  // остался устаревший «2.4.6», из-за чего JS-статусы демо показывали не ту версию)
+  window.NL_APPVERSION = "2.5.0";
   // v2.5.0: ?platform=android — предпросмотр сенсорного режима Android-версии
   // (тот же мок, но платформа Android: TOUCH_UI, бинарь из nativeLibraryDir)
   if (/(?:^|[?&])platform=android/.test(String(window.location.search))) {
     window.NL_PATH = "/data/user/0/ru.warpscout.gui/files";
     window.NL_CWD = window.NL_PATH;
     window.NL_OS = "Android";
-    window.NL_APPVERSION = "2.5.0";
     window.NL_WS_PATH = "/data/app/~~demo/lib/arm64/libwarpscout.so";
   } else {
     window.NL_OS = "Windows";
-    window.NL_APPVERSION = "2.4.6";
   }
   // v2.3.0: демо показывает только статус «всё в одной папке» —
   // виртуальные папки v2.2.0 больше не нужны
