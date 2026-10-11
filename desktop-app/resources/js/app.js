@@ -14,6 +14,83 @@
   const IS_MOCK = typeof window.Neutralino !== "undefined" && window.Neutralino.mock === true;
   const HAS_NL = typeof window.Neutralino !== "undefined";
 
+  /* ───── v2.5.0: платформенный слой (Windows / Linux) ─────
+     Windows — прежнее поведение (ни одна ветка ниже не меняет логику).
+     Linux (NL_OS = "Linux"): бинарник warpscout без .exe, POSIX-разделитель
+     путей, chmod +x вместо PowerShell Unblock-File, папка данных
+     ~/.local/share/<имя>. В браузерном демо (IS_MOCK) остаёмся win-подобными,
+     чтобы демо соответствовало Windows-релизу. */
+  const IS_WIN = IS_MOCK || typeof window.NL_OS !== "string" ? true : /^win/i.test(window.NL_OS || "");
+  const IS_LINUX = !IS_WIN;
+  const WS_EXE = IS_WIN ? "warpscout.exe" : "warpscout";
+  const GUI_EXE = IS_WIN ? "WARPScoutGUI.exe" : "WARPScoutGUI";
+  const PSEP = IS_WIN ? "\\" : "/";
+  // платформенный join: на Windows ведёт себя как старые конкатенации с "\\",
+  // на Linux — с "/" (лишние хвостовые разделители и ведущие у хвоста срезаются)
+  function pxJoin() {
+    let out = "";
+    for (let i = 0; i < arguments.length; i++) {
+      const part = String(arguments[i] == null ? "" : arguments[i]).replace(/[\\/]+$/, "");
+      if (!part) continue;
+      out = out ? out + PSEP + part.replace(/^[\\/]+/, "") : part;
+    }
+    return out;
+  }
+  // Linux-замены целых фраз: [исходный RU-ключ, linux-RU, linux-EN].
+  // Применяются к КЛЮЧУ ДО словаря (platKey), поэтому EN-перевод находится.
+  const LINUX_TEXT = [
+    ["🔓 Разблокировать exe (антивирус)", "🔓 Разрешить запуск (chmod +x)", "🔓 Allow execution (chmod +x)"],
+    ["Unblock-File выполнен: с exe снята метка «скачано из интернета». Попробуйте регистрацию ещё раз.",
+     "chmod +x выполнен: право на запуск выдано. Попробуйте регистрацию ещё раз.",
+     "chmod +x done: the execute permission has been granted. Try registering again."],
+    ["Не удалось выполнить Unblock-File: {err}", "Не удалось выполнить chmod +x: {err}", "Could not run chmod +x: {err}"],
+    ["warpscout.exe не найден. Распакуйте ZIP целиком (рядом с WARPScoutGUI.exe должна лежать папка bin с warpscout.exe) или укажите путь в Настройках. Если файл на месте — добавьте папку в исключения антивируса.",
+     "warpscout не найден. Распакуйте архив целиком (рядом с WARPScoutGUI должна лежать папка bin с warpscout) или укажите путь в Настройках. Если файл на месте — выдайте ему право на запуск: chmod +x bin/warpscout (или кнопкой «Разрешить запуск» во вкладке «Аккаунт»).",
+     "warpscout was not found. Unpack the archive entirely (a bin folder with warpscout must sit next to WARPScoutGUI) or set the path in Settings. If the file is there — grant it the execute permission: chmod +x bin/warpscout (or use the 'Allow execution' button on the 'Account' tab)."],
+    ["Код -1: warpscout.exe не смог запуститься или был закрыт. Причины: антивирус заблокировал файл; ZIP распакован не целиком (нет папки bin с warpscout.exe); неверный путь в Настройках. Проверьте папку кнопкой «Открыть папку» и добавьте её в исключения антивируса.",
+     "Код -1: warpscout не смог запуститься или был закрыт. Причины: нет права на запуск (выдайте: chmod +x bin/warpscout, или кнопкой «Разрешить запуск» во вкладке «Аккаунт»); архив распакован не целиком (нет папки bin с warpscout); неверный путь в Настройках. Проверьте папку кнопкой «Открыть папку».",
+     "Exit code -1: warpscout failed to start or was closed. Causes: no execute permission (grant it: chmod +x bin/warpscout, or via the 'Allow execution' button on the 'Account' tab); the archive was not fully unpacked (no bin folder with warpscout); a wrong path in Settings. Check the folder via 'Open folder'."],
+    ["warpscout не отвечает — проверьте путь и антивирус", "warpscout не отвечает — проверьте путь и право на запуск (chmod +x)", "warpscout is not responding — check the path and the execute permission (chmod +x)"],
+    ["Файл найден ({p}), но версию получить не удалось — вероятно, антивирус мешает запуску. Откройте вкладку «Аккаунт» и нажмите «Разблокировать exe», либо добавьте папку в исключения антивируса.",
+     "Файл найден ({p}), но версию получить не удалось — возможно, у файла нет права на запуск. Выдайте его: chmod +x <файл>, либо кнопкой «Разрешить запуск» во вкладке «Аккаунт».",
+     "The file was found ({p}), but its version could not be obtained — the execute permission may be missing. Grant it: chmod +x <file>, or via the 'Allow execution' button on the 'Account' tab."],
+    ["Если регистрация падает с «кодом -1»: «Проверить warpscout» показывает, запускается ли exe вообще; «Разблокировать exe» снимает метку «скачано из интернета» (PowerShell Unblock-File); папку из предыдущей кнопки добавьте в исключения антивируса.",
+     "Если регистрация падает с «кодом -1»: «Проверить warpscout» показывает, запускается ли warpscout вообще; «Разрешить запуск» выдаёт право на выполнение (chmod +x) — на Linux это частая причина «кода -1» сразу после распаковки архива.",
+     "If registration fails with 'exit code -1': 'Check warpscout' shows whether warpscout starts at all; 'Allow execution' grants the execute permission (chmod +x) — on Linux this is the common cause of 'exit code -1' right after unpacking the archive."],
+    ["Проверка перед запуском показала версию {v} — сам exe запускается, путь верный. Похоже, процесс закрывается уже во время регистрации: добавьте папку в исключения антивируса (и нажмите «Разблокировать exe»), затем повторите.",
+     "Проверка перед запуском показала версию {v} — сам warpscout запускается, путь верный. Похоже, процесс закрывается уже во время регистрации: проверьте системный журнал (journalctl) и повторите попытку.",
+     "The preflight check reported version {v} — warpscout itself starts and the path is correct. The process seems to get closed during registration: check the system journal (journalctl) and retry."],
+    ["Доступно только в приложении Windows", "Доступно только в приложении", "Available in the desktop app only"],
+  ];
+  const LINUX_KEY_MAP = {};
+  LINUX_TEXT.forEach((row) => { LINUX_KEY_MAP[row[0]] = row[1]; });
+  // нормализация ключей/строк для Linux: имена файлов, разделители, пути
+  function platNorm(s) {
+    return String(s)
+      .replace(/warpscout\.exe/g, "warpscout")
+      .replace(/WARPScoutGUI\.exe/g, "WARPScoutGUI")
+      .replace(/bin\\warpscout/g, "bin/warpscout")
+      .replace(/%APPDATA%\\WARPScoutGUI/g, "~/.local/share/WARPScoutGUI")
+      .replace(/ \(EBWebView\)/g, "");
+  }
+  function platKey(s) {
+    if (IS_WIN) return s;
+    const raw = String(s);
+    if (Object.prototype.hasOwnProperty.call(LINUX_KEY_MAP, raw)) return LINUX_KEY_MAP[raw];
+    return platNorm(raw);
+  }
+  function linuxPlatInit() {
+    if (!IS_LINUX) return; // Windows — словарь не трогаем вовсе
+    // EN-словарь ключится исходными RU-строками; продублируем ключи в
+    // linux-нормализованном виде, чтобы t() находил перевод после platKey.
+    Object.keys(I18N_EN).forEach((k) => {
+      const nk = platKey(k);
+      if (nk !== k && I18N_EN[nk] === undefined) I18N_EN[nk] = platNorm(I18N_EN[k]);
+    });
+    LINUX_TEXT.forEach((row) => { if (I18N_EN[row[1]] === undefined) I18N_EN[row[1]] = row[2]; });
+  }
+
+
   function toast(msg, kind) {
     const box = $("#toasts");
     const el = document.createElement("div");
@@ -848,9 +925,10 @@
   let i18nAttrEls = [];     // элементы с переводимыми атрибутами
 
   function t(ru) {
-    if (LANG !== "en") return ru;
-    const v = I18N_EN[ru];
-    return v === undefined ? ru : v;
+    const key = IS_WIN ? ru : platKey(ru); // v2.5.0: на Linux ключ нормализуется до словаря
+    if (LANG !== "en") return key;
+    const v = I18N_EN[key];
+    return v === undefined ? key : v;
   }
   function tF(ru, vars) {
     let s = t(ru);
@@ -907,11 +985,11 @@
       const orig = node.__ru != null ? node.__ru : node.nodeValue;
       let out;
       if (LANG === "en") {
-        const key = orig.trim();
+        const key = platKey(orig.trim()); // v2.5.0: ключ нормализуется до словаря
         const v = I18N_EN[key];
-        out = v === undefined ? orig : orig.replace(key, v);
+        out = v === undefined ? orig.replace(orig.trim(), key) : orig.replace(orig.trim(), v);
       } else {
-        out = orig;
+        out = orig.replace(orig.trim(), platKey(orig.trim())); // v2.5.0
       }
       if (node.nodeValue !== out) node.nodeValue = out;
     });
@@ -919,10 +997,11 @@
       const orig = el.__i18nAttrs || {};
       Object.keys(orig).forEach((a) => {
         if (LANG === "en") {
-          const v = I18N_EN[orig[a].trim()];
-          el.setAttribute(a, v === undefined ? orig[a] : v);
+          const key = platKey(orig[a].trim()); // v2.5.0
+          const v = I18N_EN[key];
+          el.setAttribute(a, v === undefined ? orig[a].replace(orig[a].trim(), key) : orig[a].replace(orig[a].trim(), v));
         } else {
-          el.setAttribute(a, orig[a]);
+          el.setAttribute(a, orig[a].replace(orig[a].trim(), platKey(orig[a].trim()))); // v2.5.0
         }
       });
     });
@@ -1319,7 +1398,7 @@
   }
 
   function quoteExe() {
-    const p = (S.paths.wsPath || "warpscout.exe").replace(/[\\/]+$/, "");
+    const p = (S.paths.wsPath || WS_EXE).replace(/[\\/]+$/, ""); // v2.5.0: платформенное имя
     return '"' + p.replace(/"/g, "") + '"';
   }
 
@@ -4730,10 +4809,10 @@
     const exeDir = String(S.paths.wsPath || "").replace(/[\\/]warpscout(\.exe)?$/i, "").replace(/[\\/]+$/, "");
     const candidates = [];
     const legacy = S.paths.legacyDataDir || ""; // v2.3.0: старая папка данных — первый кандидат
-    if (legacy && legacy.toLowerCase() !== String(S.paths.dataDir || "").toLowerCase()) candidates.push(legacy + "\\warpscout-account.json");
-    if (np) candidates.push(np + "\\warpscout-account.json", np + "\\bin\\warpscout-account.json");
-    if (exeDir && exeDir !== np && exeDir !== base) candidates.push(exeDir + "\\warpscout-account.json");
-    if (base && base !== np) candidates.push(base + "\\warpscout-account.json");
+    if (legacy && legacy.toLowerCase() !== String(S.paths.dataDir || "").toLowerCase()) candidates.push(pxJoin(legacy, "warpscout-account.json")); // v2.5.0
+    if (np) candidates.push(pxJoin(np, "warpscout-account.json"), pxJoin(pxJoin(np, "bin"), "warpscout-account.json")); // v2.5.0
+    if (exeDir && exeDir !== np && exeDir !== base) candidates.push(pxJoin(exeDir, "warpscout-account.json")); // v2.5.0
+    if (base && base !== np) candidates.push(pxJoin(base, "warpscout-account.json")); // v2.5.0
     candidates.push("warpscout-account.json"); // рядом с местом запуска
     for (const src of candidates) {
       let text = "";
@@ -4765,6 +4844,20 @@
       if (IS_MOCK || !HAS_NL) { toast(t("Доступно только в приложении Windows"), "err"); return; }
       const raw = String(S.paths.wsPath || "").replace(/["%!<>|&^`]/g, "");
       if (!raw.trim()) return;
+      if (!IS_WIN) {
+        // v2.5.0: Linux — выдаём право на запуск (chmod +x) вместо снятия
+        // метки Zone.Identifier (PowerShell Unblock-File — только Windows)
+        const pL = raw.replace(/'/g, "'\\''"); // POSIX-одинарные кавычки: ' → '\''
+        appendLog($("#accLog"), "\n$ chmod +x '" + pL + "'\n");
+        try {
+          await os().execCommand("chmod +x '" + pL + "'");
+          appendLog($("#accLog"), "[GUI] " + t("chmod +x выполнен: право на запуск выдано. Попробуйте регистрацию ещё раз.") + "\n");
+          toast(t("Готово — попробуйте регистрацию ещё раз"), "ok");
+        } catch (e) {
+          toast(tF("Не удалось выполнить chmod +x: {err}", { err: e && e.message ? e.message : e }), "err");
+        }
+        return;
+      }
       const p = raw.replace(/'/g, "''"); // v2.4.6 (F04): апостроф удваивается — PowerShell-литерал не разорвать
       appendLog($("#accLog"), "\n$ powershell Unblock-File <warpscout.exe>\n");
       try {
@@ -5267,7 +5360,15 @@
   function exeFileName() {
     const a0 = window.NL_ARGS && window.NL_ARGS[0] ? String(window.NL_ARGS[0]) : "";
     const m = a0.match(/([^\\/"']+)\.exe\s*$/i);
-    return m ? m[1] + ".exe" : "WARPScoutGUI.exe";
+    if (m) return m[1] + ".exe";
+    // v2.5.0: вне Windows бинарник без .exe — берём имя файла из пути запуска
+    if (!IS_WIN) {
+      const i = Math.max(a0.lastIndexOf("\\"), a0.lastIndexOf("/"));
+      const nm = (i >= 0 ? a0.slice(i + 1) : a0).trim();
+      if (nm) return nm;
+      return GUI_EXE;
+    }
+    return "WARPScoutGUI.exe";
   }
 
   // v2.3.0: папка приложения — по полному пути из NL_ARGS[0], а НЕ по window.NL_PATH.
@@ -5279,7 +5380,8 @@
     const i = Math.max(a0.lastIndexOf("\\"), a0.lastIndexOf("/"));
     if (i > 0) {
       const dir = a0.slice(0, i).replace(/[\\/]+$/, "");
-      if (/^[a-zA-Z]:[\\/]/.test(dir) || dir.startsWith("\\\\")) return dir; // только абсолютные пути
+      // v2.5.0: абсолютные пути — буква диска / UNC (Windows) или корень "/" (POSIX)
+      if (/^[a-zA-Z]:[\\/]/.test(dir) || dir.startsWith("\\\\") || dir.startsWith("/")) return dir;
     }
     return window.NL_PATH ? String(window.NL_PATH).replace(/[\\/]+$/, "") : "";
   }
@@ -5309,18 +5411,18 @@
     const custom = String(S.settings.wsPath || "").trim().replace(/[\\/]+$/, "");
     if (custom) {
       push(custom);                          // указан сам exe
-      push(custom + "\\warpscout.exe");      // указана папка, где exe лежит рядом
-      push(custom + "\\bin\\warpscout.exe"); // указана папка приложения (exe внутри bin)
+      push(pxJoin(custom, WS_EXE));          // указана папка, где exe лежит рядом (v2.5.0)
+      push(pxJoin(pxJoin(custom, "bin"), WS_EXE)); // указана папка приложения (exe внутри bin)
     }
     const appDir = String(S.paths.appDir || "").replace(/[\\/]+$/, "");
     if (appDir) {
-      push(appDir + "\\bin\\warpscout.exe"); // штатное место: bin рядом с WARPScoutGUI.exe
-      push(appDir + "\\warpscout.exe");      // warpscout лежит рядом с GUI
+      push(pxJoin(pxJoin(appDir, "bin"), WS_EXE)); // штатное место: bin рядом с WARPScoutGUI (v2.5.0)
+      push(pxJoin(appDir, WS_EXE));          // warpscout лежит рядом с GUI
     }
     const nlPath = window.NL_PATH ? String(window.NL_PATH).replace(/[\\/]+$/, "") : "";
     if (nlPath && nlPath.toLowerCase() !== appDir.toLowerCase()) {
-      push(nlPath + "\\bin\\warpscout.exe");
-      push(nlPath + "\\warpscout.exe");
+      push(pxJoin(pxJoin(nlPath, "bin"), WS_EXE));
+      push(pxJoin(nlPath, WS_EXE));
     }
     const seen = new Set();
     return list.filter((p) => {
@@ -5383,12 +5485,12 @@
       if (!base) base = "."; // крайний случай: относительно CWD
     }
     S.paths.exeName = IS_MOCK ? "WARPScoutGUI.exe" : exeFileName();
-    S.paths.udfPath = base + "\\" + S.paths.exeName; // каталог веб-кэша (жёстко задан рантаймом)
+    S.paths.udfPath = pxJoin(base, S.paths.exeName); // каталог веб-кэша (жёстко задан рантаймом) (v2.5.0)
     // v2.3.0 — НАОБОРОТ (просьба пользователя): данные (аккаунт + отчёты) живут ВНУТРИ
     // папки «<имя exe>», рядом с EBWebView. Эта папка создаётся рантаймом всегда и
     // существует с первого запуска — «одна папка» достигается без junction/PowerShell.
     S.paths.dataDirDefault = S.paths.udfPath;
-    S.paths.legacyDataDir = base + "\\WARPScoutGUI"; // v2.1–2.2: старая папка (для автопереноса)
+    S.paths.legacyDataDir = pxJoin(base, "WARPScoutGUI"); // v2.1–2.2: старая папка (для автопереноса) (v2.5.0)
     // v2.2.0: пользовательская папка данных (Настройки → «Папка данных»)
     let root = (S.settings.dataRoot || "").trim();
     // v2.3.0: нормализация — старое умолчание и сама папка exe больше не считаются «своей папкой»
@@ -5410,8 +5512,8 @@
       }
     }
     S.paths.dataDir = root || S.paths.dataDirDefault;
-    S.paths.accPath = S.paths.dataDir + "\\warpscout-account.json";
-    S.paths.reportsDir = S.paths.dataDir + "\\reports";
+    S.paths.accPath = pxJoin(S.paths.dataDir, "warpscout-account.json"); // v2.5.0
+    S.paths.reportsDir = pxJoin(S.paths.dataDir, "reports"); // v2.5.0
     // v2.4.0: warpscout ищем по всем типичным местам: пользовательский путь (сам exe,
     // папка с exe или папка приложения с bin\), затем bin/папка приложения, затем NL_PATH.
     // Порядок и самозамазка — в wsCandidates()/resolveWarpscoutPath().
@@ -5434,7 +5536,7 @@
       }
     }
     if (!S.paths.wsPath) {
-      S.paths.wsPath = wsCustom || (S.paths.appDir ? S.paths.appDir + "\\bin\\warpscout.exe" : (window.NL_PATH ? window.NL_PATH + "\\bin\\warpscout.exe" : "bin\\warpscout.exe"));
+      S.paths.wsPath = wsCustom || (S.paths.appDir ? pxJoin(pxJoin(S.paths.appDir, "bin"), WS_EXE) : (window.NL_PATH ? pxJoin(pxJoin(window.NL_PATH, "bin"), WS_EXE) : pxJoin("bin", WS_EXE))); // v2.5.0
     }
     S.paths.wsCustom = wsCustom;
     // v2.1.0: папка данных существует с первого запуска — иначе warpscout не сможет
@@ -5619,6 +5721,7 @@
   // маркер в ссылку и ищем его в известных целях (старая папка данных / своя папка).
   // Возвращает "" (настоящая папка), "broken" (битая ссылка) или путь цели ссылки.
   async function detectUdfJunction() {
+    if (!IS_WIN) return ""; // v2.5.0: junction «<имя exe>» — только Windows-история v2.2.0
     const udf = S.paths.udfPath;
     if (!udf) return "";
     const targets = [];
@@ -5649,7 +5752,7 @@
   // (spawnProcess не блокирует очередь нативных вызовов — урок «30 секунд»), саму папку
   // снимаем только когда она опустеет. Трогаем ТОЛЬКО известные нам каталоги.
   function cleanupOldFolder(target) {
-    if (!target || IS_MOCK || !HAS_NL) return;
+    if (!target || IS_MOCK || !HAS_NL || !IS_WIN) return; // v2.5.0: EBWebView-кэш — только Windows
     const t0 = String(target).replace(/[\\/]+$/, "").toLowerCase();
     if (t0 === String(S.paths.dataDir || "").toLowerCase()) return; // текущую папку не трогаем
     const known = [];
@@ -5666,6 +5769,7 @@
   // читаем данные сквозь ссылку, снимаем её (cmd rmdir на ссылке трогает только ссылку),
   // создаём настоящую папку и возвращаем данные в неё — рядом с новым кэшем движка.
   async function repairUdfJunction() {
+    if (!IS_WIN) return; // v2.5.0: junction-уборка v2.2.0 — только Windows
     if (IS_MOCK || !HAS_NL) return;
     const udf = S.paths.udfPath;
     if (!udf) return;
@@ -5712,6 +5816,7 @@
   // v2.3.0: автоперенос аккаунта/отчётов из старой папки v2.1–2.2 (%APPDATA%\WARPScoutGUI)
   // в новую (рядом с EBWebView). Аккаунт переносим только валидный, отчёты — все.
   async function migrateLegacyData() {
+    if (!IS_WIN) return; // v2.5.0: старая папка %APPDATA%\WARPScoutGUI — только Windows
     if (IS_MOCK || !HAS_NL) return;
     const dst = S.paths.dataDir;
     const src = S.paths.legacyDataDir;
@@ -6210,6 +6315,7 @@
   }
 
   async function init() {
+    linuxPlatInit(); // v2.5.0: Linux-нормализация EN-словаря до первого applyLang
     $("#modeBadge").hidden = !IS_MOCK;
     bindProcEvents();
 
