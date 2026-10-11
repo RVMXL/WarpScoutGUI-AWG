@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   WARPSCOUT GUI — Android-оболочка (v2.5.4)
+   WARPSCOUT GUI — Android-оболочка (v2.5.5)
    WebView + JS-мост AndroidNative, реализующий контракт Neutralino
    (см. js/neutralino-android.js): процессы (spawnProcess/execCommand),
    файлы (fs.*), хранилище (storage.*), диалоги (showSave/OpenDialog),
@@ -53,9 +53,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -79,6 +82,25 @@ public class MainActivity extends Activity {
     private CountDownLatch dialogLatch;
     private final AtomicReference<String> dialogResult = new AtomicReference<>("");
     private static final long DIALOG_TIMEOUT_SEC = 600;
+
+    // ── v2.5.5: content:// URI, выданные СОБСТВЕННЫМИ SAF-диалогами приложения ──
+    // файловые операции моста разрешены только с такими URI (или с сохранённым
+    // правом доступа) — произвольные content:// из JS не открываются
+    private final Set<String> uriAllow = Collections.synchronizedSet(new HashSet<String>());
+
+    /* разрешён ли этот content:// URI: вернул наш диалог (сессия) или
+       на URI выдано сохраняемое право доступа (takePersistableUriPermission) */
+    private boolean uriAllowed(String u) {
+        if (u == null || u.isEmpty()) return false;
+        if (uriAllow.contains(u)) return true;
+        try {
+            Uri uri = Uri.parse(u);
+            for (android.content.UriPermission p : getContentResolver().getPersistedUriPermissions()) {
+                if (p.getUri() != null && u.equals(p.getUri().toString())) return true;
+            }
+        } catch (Throwable ignored) {}
+        return false;
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -198,10 +220,27 @@ public class MainActivity extends Activity {
             }
         }
 
-        /* ── процессы ── */
+        /* ── процессы ──
+           v2.5.5 (CodeQL command-line-injection): команда из нашего JS
+           разбирается POSIX-совместимым токенизатором и запускается НАПРЯМУЮ
+           (без "sh -c") — метасимволы шелла (; & | ` $() …) не интерпретируются
+           никогда, инъекция команд исключена по построению. Исполняемый файл —
+           строго своё ядро warpscout (libwarpscout.so) либо chmod (право на
+           запуск). Всё прочее — честная ошибка. */
 
         private Process startProc(String cmd) throws Exception {
-            ProcessBuilder pb = new ProcessBuilder("sh", "-c", cmd);
+            String line = String.valueOf(cmd == null ? "" : cmd).trim();
+            // "exec " был нужен только под sh (замена себя бинарём) — под
+            // ProcessBuilder он не требуется, destroy() и так убьёт бинарь
+            if (line.startsWith("exec ")) line = line.substring(5).trim();
+            ArrayList<String> argv = tokenizeCmd(line);
+            if (argv.isEmpty()) throw new Exception("пустая команда");
+            String exe = argv.get(0);
+            String ws = new File(getApplicationInfo().nativeLibraryDir,
+                    "libwarpscout.so").getAbsolutePath();
+            if (!exe.equals(ws) && !exe.equals("chmod"))
+                throw new Exception("выполнять разрешено только warpscout");
+            ProcessBuilder pb = new ProcessBuilder(argv);
             // v2.5.3: warpscout работает в СВОЕЙ видимой папке — любые его
             // относительные записи тоже попадают в /storage/emulated/0
             pb.directory(userDir());
@@ -214,8 +253,8 @@ public class MainActivity extends Activity {
             final int id;
             final Process p;
             try {
-                // "exec " — sh заменяет себя warpscout: destroy() убьёт сам бинарь,
-                // а не shell-обёртку (иначе потомок остаётся жить)
+                // "exec "-префикс токенизатор отбрасывает (см. startProc):
+                // под ProcessBuilder destroy() убивает сам бинарь warpscout
                 p = startProc("exec " + cmd);
                 synchronized (procsLock) { id = procSeq++; procs.put(id, p); }
             } catch (Exception e) {
@@ -319,18 +358,27 @@ public class MainActivity extends Activity {
 
         /* ── файлы: file-пути и content:// URI (диалоги SAF) ── */
 
+        /* v2.5.5 (CodeQL path-injection / unsafe-content-uri-resolution):
+           файловые пути — только внутри разрешённых корней (guardPath),
+           content:// — только URI, выданные нашими диалогами (uriAllowed). */
         private InputStream openRead(String path) throws Exception {
             if (path.startsWith("content://")) {
+                if (!uriAllowed(path)) throw new Exception("content URI не выдан приложением");
                 return getContentResolver().openInputStream(Uri.parse(path));
             }
-            return new FileInputStream(path);
+            String g = guardPath(path);
+            if (g == null) throw new Exception("путь вне папок приложения");
+            return new FileInputStream(g);
         }
 
         private OutputStream openWrite(String path) throws Exception {
             if (path.startsWith("content://")) {
+                if (!uriAllowed(path)) throw new Exception("content URI не выдан приложением");
                 return getContentResolver().openOutputStream(Uri.parse(path), "wt");
             }
-            File f = new File(path);
+            String g = guardPath(path);
+            if (g == null) throw new Exception("путь вне папок приложения");
+            File f = new File(g);
             File parent = f.getParentFile();
             if (parent != null && !parent.exists()) parent.mkdirs();
             return new FileOutputStream(f);
@@ -389,7 +437,9 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public String fsReadDir(String path) {
             try {
-                File d = new File(path);
+                String g = guardPath(path); // v2.5.5: только свои папки
+                if (g == null) return "{\"error\":\"path not allowed\"}";
+                File d = new File(g);
                 JSONArray a = new JSONArray();
                 File[] list = d.listFiles();
                 if (list != null) {
@@ -410,6 +460,7 @@ public class MainActivity extends Activity {
         public String fsStats(String path) {
             try {
                 if (path.startsWith("content://")) {
+                    if (!uriAllowed(path)) return "{\"error\":\"content URI не выдан приложением\"}";
                     Cursor c = getContentResolver().query(Uri.parse(path), null, null, null, null);
                     long size = -1;
                     if (c != null) {
@@ -424,7 +475,9 @@ public class MainActivity extends Activity {
                     o.put("type", "FILE");
                     return o.toString();
                 }
-                File f = new File(path);
+                String g = guardPath(path); // v2.5.5: только свои папки
+                if (g == null) return "{\"error\":\"path not allowed\"}";
+                File f = new File(g);
                 if (!f.exists()) return "{\"error\":\"not found\"}";
                 JSONObject o = new JSONObject();
                 o.put("size", f.length());
@@ -441,7 +494,9 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public String fsMkdir(String path) {
             try {
-                File f = new File(path);
+                String g = guardPath(path); // v2.5.5: только свои папки
+                if (g == null) return "{\"error\":\"path not allowed\"}";
+                File f = new File(g);
                 boolean ok = f.isDirectory() || f.mkdirs();
                 return ok ? "{\"ok\":true}" : "{\"error\":\"mkdir failed\"}";
             } catch (Exception e) {
@@ -453,10 +508,13 @@ public class MainActivity extends Activity {
         public String fsRemove(String path) {
             try {
                 if (path.startsWith("content://")) {
+                    if (!uriAllowed(path)) return "{\"error\":\"content URI не выдан приложением\"}";
                     getContentResolver().delete(Uri.parse(path), null, null);
                     return "{\"ok\":true}";
                 }
-                File f = new File(path);
+                String g = guardPath(path); // v2.5.5: только свои папки
+                if (g == null) return "{\"error\":\"path not allowed\"}";
+                File f = new File(g);
                 if (!f.exists()) return "{\"ok\":true}";
                 if (f.isDirectory()) {
                     File[] list = f.listFiles();
@@ -495,10 +553,15 @@ public class MainActivity extends Activity {
 
         /* ── хранилище: filesDir/.storage/<key>.neustorage (как у Neutralino) ── */
 
-        private File storageFile(String key) {
+        /* v2.5.5 (CodeQL path-injection): ключ хранилища — только простое имя
+           (state, …); «..», разделители и прочий мусор отвергаются, канонизация
+           гарантирует, что файл не выйдет из files/.storage */
+        private File storageFile(String key) throws Exception {
+            if (key == null || !key.matches("[A-Za-z0-9._-]{1,64}") || key.contains(".."))
+                throw new IllegalArgumentException("bad storage key");
             File d = new File(getFilesDir(), ".storage");
             if (!d.exists()) d.mkdirs();
-            return new File(d, key + ".neustorage");
+            return new File(new File(d, key + ".neustorage").getCanonicalPath());
         }
 
         @JavascriptInterface
@@ -614,6 +677,8 @@ public class MainActivity extends Activity {
             String uri = "";
             if (code == RESULT_OK && data != null && data.getData() != null) {
                 Uri u = data.getData();
+                // v2.5.5: URI, вернувшийся из НАШЕГО диалога, разрешён для файловых операций моста
+                uriAllow.add(u.toString());
                 // сохраняем право доступа на чтение/запись до перезапуска приложения
                 try {
                     int flags = (data.getFlags()
@@ -691,6 +756,72 @@ public class MainActivity extends Activity {
         File d = new File(dataBase(), "WARPScoutGUI");
         if (!d.exists()) d.mkdirs();
         return d;
+    }
+
+    /* ── v2.5.5 (CodeQL path-injection): разрешённые корни файловых операций
+       JS-моста. Фронтенд работает только со СВОИМИ папками (данные, публичные
+       конфиги в Download, внутренние каталоги приложения); всё прочее —
+       системные каталоги, чужие файлы, «..»-обходы — отклоняется с честной
+       ошибкой, которую фронтенд показывает пользователю. */
+    private List<File> guardRoots() {
+        List<File> r = new ArrayList<>();
+        try { r.add(getFilesDir().getCanonicalFile()); } catch (Exception ignored) {}
+        try {
+            File e = getExternalFilesDir(null);
+            if (e != null) r.add(e.getCanonicalFile());
+        } catch (Exception ignored) {}
+        try { r.add(userDir().getCanonicalFile()); } catch (Exception ignored) {}
+        try { r.add(new File(DOWNLOAD_DIR).getCanonicalFile()); } catch (Exception ignored) {}
+        try { r.add(new File(EXT_ROOT, "WARPScoutGUI").getCanonicalFile()); } catch (Exception ignored) {}
+        return r;
+    }
+
+    /* канонический путь внутри разрешённых корней — или null (отказ).
+       getCanonicalPath убирает «..», симлинки и лишние разделители. */
+    private String guardPath(String path) {
+        if (path == null) return null;
+        String p = path.trim();
+        if (p.isEmpty() || p.startsWith("content://")) return null;
+        try {
+            String canon = new File(p).getCanonicalPath();
+            for (File root : guardRoots()) {
+                String rp = root.getPath();
+                if (canon.equals(rp)
+                        || canon.startsWith(rp.endsWith(File.separator) ? rp : rp + File.separator))
+                    return canon;
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    /* POSIX-совместимая токенизация команды (кавычки ' и ", \-экранирование —
+       как у sh, включая '\'' внутри одинарных кавычек). Без шелла метасимволы
+       (; & | ` $()) не интерпретируются — инъекция команд невозможна. */
+    private static ArrayList<String> tokenizeCmd(String s) throws Exception {
+        ArrayList<String> out = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        boolean has = false, inS = false, inD = false;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (inS) {
+                if (c == '\'') inS = false; else cur.append(c);
+            } else if (inD) {
+                if (c == '"') inD = false;
+                else if (c == '\\' && i + 1 < s.length()) {
+                    char n = s.charAt(i + 1);
+                    if (n == '"' || n == '\\' || n == '$' || n == '`') { cur.append(n); i++; }
+                    else cur.append(c);
+                } else cur.append(c);
+            } else if (c == '\'') { inS = true; has = true; }
+            else if (c == '"') { inD = true; has = true; }
+            else if (c == '\\') { if (i + 1 < s.length()) { cur.append(s.charAt(++i)); has = true; } }
+            else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+                if (has) { out.add(cur.toString()); cur.setLength(0); has = false; }
+            } else { cur.append(c); has = true; }
+        }
+        if (inS || inD) throw new Exception("незакрытая кавычка в команде");
+        if (has) out.add(cur.toString());
+        return out;
     }
 
     private String storageMode() { return publicRootAllowed() ? "public" : "app"; }

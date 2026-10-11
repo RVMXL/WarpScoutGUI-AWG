@@ -16,20 +16,20 @@
 
 Готовые сборки — в разделе **[Releases](https://github.com/RVMXL/WarpScoutGUI-AWG/releases)**.
 
-Текущая версия: **v2.5.4** (кроссплатформенный пререлиз) — [releases/tag/v2.5.4](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.5.4). Единый выпуск для шести целевых платформ; 2.5.4 — исправления Android: кнопка «Переключить тему» снова работает, все кнопки «Открыть папку» отвечают мгновенным тостом в каждой ветке (на Android 11+ папка Android/data открывается через системный SAF-выборщик, который её видит), на главной — живой индикатор скана (пульс, фаза, таймер, шаги, кнопка «Остановить»), готовые конфиги по умолчанию сохраняются в публичную папку Download/WARPScoutGUI (видна в любом файловом менеджере; на Android 10+ — без разрешений через MediaStore), технический путь до warpscout из интерфейса убран — подробности в примечаниях к релизу. Стабильный Windows-релиз — **v2.4.6**.
+Текущая версия: **v2.5.5** (кроссплатформенный пререлиз) — [releases/tag/v2.5.5](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.5.5). Единый выпуск для шести целевых платформ; 2.5.5 — защитное улучшение Android-оболочки: закрыты все 19 предупреждений CodeQL (команды warpscout запускаются напрямую через ProcessBuilder без «sh -c» — шелл-метасимволы не интерпретируются, исполнять разрешено только своё ядро; файловые операции ограничены разрешёнными корнями с канонизацией путей; content:// URI — только от собственных диалогов; ключи хранилища валидируются) — поведение пользователя не меняется, подробности в примечаниях к релизу. Стабильный Windows-релиз — **v2.4.6**.
 
 **Политика выпуска:** каждый релиз содержит артефакты **всех** поддерживаемых платформ под единым номером версии — включая платформы, код которых в данном выпуске не менялся; в примечаниях к релизу для каждой платформы указано, что изменилось либо зафиксировано отсутствие изменений.
 
 | Артефакт | Платформа | Размер |
 |---|---|---|
-| `WARPScoutGUI-2.5.4-win64.zip` | Windows 10/11 (x86_64) | 6,3 МБ |
-| `WARPScoutGUI-2.5.4-linux64.zip` | Linux (x86_64) | 4,8 МБ |
-| `WARPScoutGUI-2.5.4-linux-arm64.zip` | Linux (ARM64 / aarch64) | 4,3 МБ |
-| `WARPScoutGUI-2.5.4-mac-arm64.zip` | macOS Apple Silicon (M1–M4) | 5,7 МБ |
-| `WARPScoutGUI-2.5.4-mac-x64.zip` | macOS Intel | 6,1 МБ |
-| `WARPScoutGUI-2.5.4-android-arm64.apk` | Android 7.0+ (ARM64) | 5,0 МБ |
+| `WARPScoutGUI-2.5.5-win64.zip` | Windows 10/11 (x86_64) | 6,3 МБ |
+| `WARPScoutGUI-2.5.5-linux64.zip` | Linux (x86_64) | 4,8 МБ |
+| `WARPScoutGUI-2.5.5-linux-arm64.zip` | Linux (ARM64 / aarch64) | 4,3 МБ |
+| `WARPScoutGUI-2.5.5-mac-arm64.zip` | macOS Apple Silicon (M1–M4) | 5,7 МБ |
+| `WARPScoutGUI-2.5.5-mac-x64.zip` | macOS Intel | 6,1 МБ |
+| `WARPScoutGUI-2.5.5-android-arm64.apk` | Android 7.0+ (ARM64) | 5,0 МБ |
 
-Контрольные суммы SHA-256 всех артефактов — в [примечаниях к релизу](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.5.4) и в разделе [«Проверка целостности»](#проверка-целостности) ниже.
+Контрольные суммы SHA-256 всех артефактов — в [примечаниях к релизу](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.5.5) и в разделе [«Проверка целостности»](#проверка-целостности) ниже.
 
 **Состав desktop-архива** (одинаков на всех платформах, 9 записей):
 
@@ -45,7 +45,7 @@ licenses/               — лицензии всех компонентов (4 
 
 ### Windows (x64)
 
-1. Скачайте `WARPScoutGUI-2.5.4-win64.zip` из [релиза](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/latest).
+1. Скачайте `WARPScoutGUI-2.5.5-win64.zip` из [релиза](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/latest).
 2. Распакуйте папку целиком в любое место (например, `D:\WARPScoutGUI`). Внутри должна остаться структура `WARPScoutGUI.exe`, `resources.neu`, `bin\`, `licenses\` — не разъединяйте их.
 3. Запустите `WARPScoutGUI.exe` — установка не требуется.
 4. Если SmartScreen предупреждает (приложение не подписано сертификатом Microsoft): «Подробнее» → «Выполнить в любом случае».
@@ -96,7 +96,7 @@ Arch:           sudo pacman -S webkit2gtk-4.1
 
 ### Android (ARM64)
 
-1. Скачайте `WARPScoutGUI-2.5.4-android-arm64.apk` из релиза.
+1. Скачайте `WARPScoutGUI-2.5.5-android-arm64.apk` из релиза.
 2. Откройте файл на устройстве и разрешите установку из неизвестных источников для приложения, которым открываете (Chrome/Файлы) — стандартный запрос Android для APK вне Play Market.
 3. Установите APK и запустите приложение **WARPScoutGUI**.
 
@@ -113,24 +113,24 @@ Arch:           sudo pacman -S webkit2gtk-4.1
 
 ### Проверка целостности
 
-SHA-256 артефактов релиза v2.5.4:
+SHA-256 артефактов релиза v2.5.5:
 
 | Файл | SHA-256 |
 |---|---|
-| `WARPScoutGUI-2.5.4-win64.zip` | `d22bf7bbec5a04d5b20e4b43582493e8f6b96ebf363aa6f9fa44687175230fe6` |
-| `WARPScoutGUI-2.5.4-linux64.zip` | `08cc9a5cbd6c153cc3f574a8084e8fbb35b5f5abec2977da424f560a8e8dc884` |
-| `WARPScoutGUI-2.5.4-linux-arm64.zip` | `7bcaec8b3294413570e3df192b5df5722173b3bb098b14aaad165393a11c4a45` |
-| `WARPScoutGUI-2.5.4-mac-arm64.zip` | `48c62d84319b3000992c4e5c9b3852cbcf48274c27660a437bb197d577b6daee` |
-| `WARPScoutGUI-2.5.4-mac-x64.zip` | `5fad1273da68fe3fab086ccfc68d36d77998676353572ec847d7e3dbdf1759e9` |
-| `WARPScoutGUI-2.5.4-android-arm64.apk` | `ef514ee1e39fdb897a0f81493b24ee0487db0d6987121baa854ef5da458d6932` |
+| `WARPScoutGUI-2.5.5-win64.zip` | `306e718cff90ba122f3fd423838dffd3bf8539750b6b47ec9f359ea709006e96` |
+| `WARPScoutGUI-2.5.5-linux64.zip` | `b3fd27f4ce060c08fa5c5f1b33ad17d69cba0e98cab37737d73916252a0a7551` |
+| `WARPScoutGUI-2.5.5-linux-arm64.zip` | `f68736fa1ff76e56e19d37ec7fc85ce1ef11ad57b71680c05b6f62e50626fa62` |
+| `WARPScoutGUI-2.5.5-mac-arm64.zip` | `7da73ca350de140936e51ef2529b16f85dae99a9940dd3c6594b56102473d05b` |
+| `WARPScoutGUI-2.5.5-mac-x64.zip` | `d8131e72f26c28c3e324f4073f905ac28cc3271ee80141587e62ec192a2f68f3` |
+| `WARPScoutGUI-2.5.5-android-arm64.apk` | `d7aa25763f6e0065b2faa31f5a2f23321a59c8bd96ecc0124103961f26151e5e` |
 
 Проверка после скачивания:
 
 ```bash
 # Linux / macOS
-shasum -a 256 WARPScoutGUI-2.5.4-*.zip
+shasum -a 256 WARPScoutGUI-2.5.5-*.zip
 # Windows (PowerShell)
-Get-FileHash WARPScoutGUI-2.5.4-win64.zip -Algorithm SHA256
+Get-FileHash WARPScoutGUI-2.5.5-win64.zip -Algorithm SHA256
 ```
 
 **Подпись APK.** Android-сборка подписана фиксированным ключом — обновления устанавливаются поверх установленной версии без потери данных. Отпечаток сертификата (SHA-256) для проверки:
