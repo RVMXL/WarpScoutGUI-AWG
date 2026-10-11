@@ -16,20 +16,20 @@
 
 Готовые сборки — в разделе **[Releases](https://github.com/RVMXL/WarpScoutGUI-AWG/releases)**.
 
-Текущая версия: **v2.5.0** (кроссплатформенный пререлиз) — [releases/tag/v2.5.0](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.5.0). Первый выпуск на единой кодовой базе для шести целевых платформ. Стабильный Windows-релиз — **v2.4.6**.
+Текущая версия: **v2.5.1** (кроссплатформенный пререлиз) — [releases/tag/v2.5.1](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.5.1). Первый выпуск на единой кодовой базе для шести целевых платформ; 2.5.1 исправляет старт Android-версии (подробности — в примечаниях к релизу). Стабильный Windows-релиз — **v2.4.6**.
 
 **Политика выпуска:** каждый релиз содержит артефакты **всех** поддерживаемых платформ под единым номером версии — включая платформы, код которых в данном выпуске не менялся; в примечаниях к релизу для каждой платформы указано, что изменилось либо зафиксировано отсутствие изменений.
 
 | Артефакт | Платформа | Размер |
 |---|---|---|
-| `WARPScoutGUI-2.5.0-win64.zip` | Windows 10/11 (x86_64) | 6,3 МБ |
-| `WARPScoutGUI-2.5.0-linux64.zip` | Linux (x86_64) | 4,8 МБ |
-| `WARPScoutGUI-2.5.0-linux-arm64.zip` | Linux (ARM64 / aarch64) | 4,3 МБ |
-| `WARPScoutGUI-2.5.0-mac-arm64.zip` | macOS Apple Silicon (M1–M4) | 5,7 МБ |
-| `WARPScoutGUI-2.5.0-mac-x64.zip` | macOS Intel | 6,1 МБ |
-| `WARPScoutGUI-2.5.0-android-arm64.apk` | Android 7.0+ (ARM64) | 4,9 МБ |
+| `WARPScoutGUI-2.5.1-win64.zip` | Windows 10/11 (x86_64) | 6,3 МБ |
+| `WARPScoutGUI-2.5.1-linux64.zip` | Linux (x86_64) | 4,8 МБ |
+| `WARPScoutGUI-2.5.1-linux-arm64.zip` | Linux (ARM64 / aarch64) | 4,3 МБ |
+| `WARPScoutGUI-2.5.1-mac-arm64.zip` | macOS Apple Silicon (M1–M4) | 5,7 МБ |
+| `WARPScoutGUI-2.5.1-mac-x64.zip` | macOS Intel | 6,1 МБ |
+| `WARPScoutGUI-2.5.1-android-arm64.apk` | Android 7.0+ (ARM64) | 4,9 МБ |
 
-Контрольные суммы SHA-256 всех артефактов — в [примечаниях к релизу](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.5.0) и в разделе [«Проверка целостности»](#проверка-целостности) ниже.
+Контрольные суммы SHA-256 всех артефактов — в [примечаниях к релизу](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.5.1) и в разделе [«Проверка целостности»](#проверка-целостности) ниже.
 
 **Состав desktop-архива** (одинаков на всех платформах, 9 записей):
 
@@ -45,7 +45,7 @@ licenses/               — лицензии всех компонентов (4 
 
 ### Windows (x64)
 
-1. Скачайте `WARPScoutGUI-2.5.0-win64.zip` из [релиза](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/latest).
+1. Скачайте `WARPScoutGUI-2.5.1-win64.zip` из [релиза](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/latest).
 2. Распакуйте папку целиком в любое место (например, `D:\WARPScoutGUI`). Внутри должна остаться структура `WARPScoutGUI.exe`, `resources.neu`, `bin\`, `licenses\` — не разъединяйте их.
 3. Запустите `WARPScoutGUI.exe` — установка не требуется.
 4. Если SmartScreen предупреждает (приложение не подписано сертификатом Microsoft): «Подробнее» → «Выполнить в любом случае».
@@ -96,7 +96,7 @@ Arch:           sudo pacman -S webkit2gtk-4.1
 
 ### Android (ARM64)
 
-1. Скачайте `WARPScoutGUI-2.5.0-android-arm64.apk` из релиза.
+1. Скачайте `WARPScoutGUI-2.5.1-android-arm64.apk` из релиза.
 2. Откройте файл на устройстве и разрешите установку из неизвестных источников для приложения, которым открываете (Chrome/Файлы) — стандартный запрос Android для APK вне Play Market.
 3. Установите APK и запустите приложение **WARPScoutGUI**.
 
@@ -111,24 +111,24 @@ Arch:           sudo pacman -S webkit2gtk-4.1
 
 ### Проверка целостности
 
-SHA-256 артефактов релиза v2.5.0:
+SHA-256 артефактов релиза v2.5.1:
 
 | Файл | SHA-256 |
 |---|---|
-| `WARPScoutGUI-2.5.0-win64.zip` | `5f96d97fd8fdad0a19816977575a88c9b186d3a92259b497d246535f99e983c7` |
-| `WARPScoutGUI-2.5.0-linux64.zip` | `5788879c3bf659110fe5ae776ca380f6b50e1b44e646c5d00d3c25ca95616212` |
-| `WARPScoutGUI-2.5.0-linux-arm64.zip` | `804b4ae0f9c4279c331c1b16a4634dd019a511a039a57bddc1580b25b7ed755d` |
-| `WARPScoutGUI-2.5.0-mac-arm64.zip` | `a44a51c21949c2ee86d1f0e7850f4b76798d2836ebe489854a59d027d8efeccc` |
-| `WARPScoutGUI-2.5.0-mac-x64.zip` | `7edaf9dced0ace558b57dd754c547cf06bc2e4db10b8646da316f834aca94512` |
-| `WARPScoutGUI-2.5.0-android-arm64.apk` | `47e6f60e99ccc34483cfdc021e3ed7fb3302bb94c4c65fabb77bfba69230e51a` |
+| `WARPScoutGUI-2.5.1-win64.zip` | `f89b4a0fce8b6690df519962fddbb96fb7f67a998a7cf64b7ec18f2df27f671b` |
+| `WARPScoutGUI-2.5.1-linux64.zip` | `16839d445e1cae44b4a7e1aa7293e064fb6c69307ed062513bbecaacf0c6707e` |
+| `WARPScoutGUI-2.5.1-linux-arm64.zip` | `fe44d3a51c014063aa7b667e13bcea76312cd1684bc903ccfb7a7fcb7f160f4a` |
+| `WARPScoutGUI-2.5.1-mac-arm64.zip` | `731ff0bc773404e75b842f1758fb2d74d08f1c41ac1f6270b30429981501fa69` |
+| `WARPScoutGUI-2.5.1-mac-x64.zip` | `545a7cdc32784007c8283edd3611f3107d0d8435844498f9ec2d392180f9cbca` |
+| `WARPScoutGUI-2.5.1-android-arm64.apk` | `330669bdfacc08691bf279ed2cccd7ce2ddb6f58227c880c408ca6148d4ea4de` |
 
 Проверка после скачивания:
 
 ```bash
 # Linux / macOS
-shasum -a 256 WARPScoutGUI-2.5.0-*.zip
+shasum -a 256 WARPScoutGUI-2.5.1-*.zip
 # Windows (PowerShell)
-Get-FileHash WARPScoutGUI-2.5.0-win64.zip -Algorithm SHA256
+Get-FileHash WARPScoutGUI-2.5.1-win64.zip -Algorithm SHA256
 ```
 
 **Подпись APK.** Android-сборка подписана фиксированным ключом — обновления устанавливаются поверх установленной версии без потери данных. Отпечаток сертификата (SHA-256) для проверки:
@@ -169,7 +169,7 @@ Get-FileHash WARPScoutGUI-2.5.0-win64.zip -Algorithm SHA256
 | `desktop-app/tools/` | Инструменты сборки: `pack-neu.py` (сборка `resources.neu`), `build-zips.py` (детерминированные release-zip), `unpack-neu.py`, `sync-demo.sh` |
 | `desktop-app/android/` | Android-проект без Gradle: `AndroidManifest.xml`, `java/`, `res/`, `build-apk.sh` (aapt2 + d8 + apksigner) |
 | `desktop-app/pkg/WARPScoutGUI-<платформа>/` | Собранные пакеты (бинарь + `resources.neu` + `bin/warpscout` + `licenses/` + `README.txt`) |
-| `desktop-app/AUDIT-v2.5.0.md`, `desktop-app/RELEASE-2.5.0.md` | Отчёт аудита и примечания к релизу v2.5.0 |
+| `desktop-app/AUDIT-v2.5.1.md`, `desktop-app/RELEASE-2.5.1.md` | Отчёт аудита и примечания к релизу v2.5.1 |
 | `docs/` | Скриншоты интерфейса |
 
 ## Сборка из исходников
