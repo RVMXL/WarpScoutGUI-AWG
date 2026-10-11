@@ -984,6 +984,15 @@
     /* — v2.4.3: IPv6-адреса DNS — */
     "Использовать IPv6": "Use IPv6",
     "Добавляет v6-адреса выбранного DNS-провайдера к IPv4 (отключите, если у сети нет IPv6-маршрута)": "Adds the selected DNS provider's v6 addresses to IPv4 (turn off if your network has no IPv6 route)",
+    /* — v2.5.3: Android — видимая «своя папка» на /storage/emulated/0 — */
+    "🌐 В общую папку…": "🌐 To shared folder…",
+    "Перенести данные в /storage/emulated/0/WARPScoutGUI (запросить доступ)": "Move data to /storage/emulated/0/WARPScoutGUI (request access)",
+    "Выдайте доступ «Все файлы» в открывшихся настройках — общая папка подключится автоматически": "Grant «All files» access in the opened settings — the shared folder will connect automatically",
+    "Доступ к хранилищу выдан — данные переносятся в общую папку": "Storage access granted — data is being moved to the shared folder",
+    "Доступ не выдан — данные остаются в папке приложения (Android/data)": "Access not granted — data stays in the app folder (Android/data)",
+    "Системные настройки недоступны — данные остаются в папке приложения": "System settings are unavailable — data stays in the app folder",
+    "Доступно только в приложении Android": "Available in the Android app only",
+    "Данные уже в общей папке /storage/emulated/0/WARPScoutGUI": "Data is already in the shared folder /storage/emulated/0/WARPScoutGUI",
   };
 
   let LANG = "ru";
@@ -5237,8 +5246,10 @@
     return best;
   }
   async function mirrorPublic(path) {
-    // v2.5.2 (Android): копия пользовательского файла в общую папку
-    // Download/WARPScoutGUI — доступна любому файловому менеджеру без root.
+    // v2.5.3 (Android): данные уже лежат в видимой «своей папке» на
+    // /storage/emulated/0 — зеркалирование в Download больше не нужно
+    // (мост отвечает без "path": все вызовы ниже безопасно деградируют
+    // к исходному пути, «копии в общей папке» больше не показываются).
     if (!IS_ANDROID || !path) return "";
     const osApi = (window.Neutralino && window.Neutralino.os) || null;
     if (!osApi || typeof osApi.mirrorToPublic !== "function") return "";
@@ -5283,6 +5294,27 @@
     }
     toast(tF("Конфиг готов: {p}", { p: pub || savedPath }), "ok");
   }
+
+  /* ─── v2.5.3 (Android): режим хранилища изменился ───
+     Java вызывает __wsStorageChanged, когда пользователь выдал/отозвал
+     доступ к общему хранилищу («Все файлы» на API 30+ / WRITE на 24–29).
+     public → переносим данные в /storage/emulated/0/WARPScoutGUI
+     (applyDataRoot сам всё перенесёт и покажет тост); app → computePaths
+     вернёт папку по умолчанию (Android/data/…/files/WARPScoutGUI). */
+  window.__wsStorageChanged = async (info) => {
+    try {
+      const pub = !!(info && info.mode === "public");
+      toast(pub ? t("Доступ к хранилищу выдан — данные переносятся в общую папку")
+                : t("Доступ не выдан — данные остаются в папке приложения (Android/data)"),
+            pub ? "ok" : "warn");
+      if (pub) {
+        await applyDataRoot(pxJoin(String((info && info.base) || "/storage/emulated/0"), "WARPScoutGUI"));
+      } else {
+        await computePaths();
+        await renderDataFolder().catch(() => {});
+      }
+    } catch (e) {}
+  };
 
   function setupTouchUi() {
     if (!TOUCH_UI) return;
@@ -5785,7 +5817,7 @@
     let base = "";
     if (IS_MOCK) {
       // v2.5.0 (аудит A4): android-превью — base по-настоящему андроидный
-      base = IS_ANDROID ? "/data/user/0/ru.warpscout.gui/files" : "C:\\Users\\Demo\\AppData\\Roaming";
+      base = IS_ANDROID ? "/storage/emulated/0/Android/data/ru.warpscout.gui/files" : "C:\\Users\\Demo\\AppData\\Roaming";
     } else {
       let dataDir = "";
       try { dataDir = await os().getPath("data"); } catch (e) { dataDir = ""; }
@@ -6418,6 +6450,33 @@
       if (IS_MOCK) { toast(t("Только в приложении Windows"), "err"); return; }
       os().open(S.paths.dataDir).catch(() => toast(t("Не удалось открыть папку"), "err"));
     });
+    // v2.5.3 (Android): перенос данных в общую папку /storage/emulated/0/WARPScoutGUI
+    const bPub = $("#btnDataRootPublic");
+    if (bPub) {
+      if (!IS_ANDROID || IS_MOCK) { bPub.hidden = true; }
+      else {
+        bPub.hidden = false;
+        bPub.title = t("Перенести данные в /storage/emulated/0/WARPScoutGUI (запросить доступ)");
+        bPub.addEventListener("click", async () => {
+          const osApi = os();
+          if (!osApi || typeof osApi.requestPublicAccess !== "function") {
+            toast(t("Доступно только в приложении Android"), "err"); return;
+          }
+          let r = null;
+          try { r = await osApi.requestPublicAccess(); } catch (e) { r = null; }
+          if (r && r.mode === "public") {
+            // доступ уже выдан — просто переносим
+            await applyDataRoot(pxJoin(String(r.base || "/storage/emulated/0"), "WARPScoutGUI"));
+          } else if (r && r.asked === "manage") {
+            toast(t("Выдайте доступ «Все файлы» в открывшихся настройках — общая папка подключится автоматически"), "info");
+          } else if (r && r.asked === "write") {
+            // системный диалог права поверх приложения — результат придёт в __wsStorageChanged
+          } else {
+            toast(t("Системные настройки недоступны — данные остаются в папке приложения"), "err");
+          }
+        });
+      }
+    }
     // v2.1.1: перепроверка / копирование пути / помощь при «коде -1»
     $("#btnAccRecheck").addEventListener("click", async () => {
       const has = await recheckAccount();

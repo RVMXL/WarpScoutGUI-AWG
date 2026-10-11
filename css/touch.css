@@ -262,3 +262,11 @@ body.touch-ui .tabbar__btn span {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* v2.5.3: «своя папка» на /storage/emulated/0 длиннее приватного пути
+   (Android/data/ru.warpscout.gui/files/…) — подсказка и статус папки
+   данных обязаны переноситься, иначе распирают вкладку настроек */
+body.touch-ui #dataRootHint { overflow-wrap: anywhere; word-break: break-word; }
+body.touch-ui #udfState { white-space: normal; }
+body.touch-ui #setWsPath, body.touch-ui #setAccPath,
+body.touch-ui #setReportDir, body.touch-ui #setDataRoot { min-width: 0; }
