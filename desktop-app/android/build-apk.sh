@@ -49,14 +49,16 @@ print("   www/index.html: neutralino.js → neutralino-android.js")
 EOF
 
 # ── 2. jniLibs: warpscout android_arm64 как libwarpscout.so ──
-mkdir -p "$BUILD/jniLibs/arm64-v8a"
+# Путь в APK обязан быть lib/arm64-v8a/ — иначе PackageManager НЕ извлечёт
+# библиотеку (nativeLibraryDir будет пуст, warpscout не запустится).
+mkdir -p "$BUILD/lib/arm64-v8a"
 if [ -f "/tmp/ws-android/warpscout" ]; then
-  cp /tmp/ws-android/warpscout "$BUILD/jniLibs/arm64-v8a/libwarpscout.so"
+  cp /tmp/ws-android/warpscout "$BUILD/lib/arm64-v8a/libwarpscout.so"
 else
   echo "✗ /tmp/ws-android/warpscout не найден — скачайте warpscout_0.16.0_android_arm64.tar.gz" >&2
   exit 1
 fi
-chmod 755 "$BUILD/jniLibs/arm64-v8a/libwarpscout.so"
+chmod 755 "$BUILD/lib/arm64-v8a/libwarpscout.so"
 
 # ── 3. ресурсы: aapt2 compile+link ──
 "$BT/aapt2" compile --dir "$A/res" -o "$BUILD/res.zip"
@@ -68,8 +70,9 @@ chmod 755 "$BUILD/jniLibs/arm64-v8a/libwarpscout.so"
   --min-sdk-version 24 --target-sdk-version 34 \
   --version-code "$VERCODE" --version-name "$VER" \
   --auto-add-overlay
-# jniLibs добавим сжатыми (extractNativeLibs=true — распакуются на устройстве)
-(cd "$BUILD/jniLibs" && zip -q -r "$BUILD/base.apk" .)
+# нативная библиотека добавляется по пути lib/arm64-v8a/… (сжатой;
+# extractNativeLibs=true — PackageManager распакует в nativeLibraryDir)
+(cd "$BUILD" && zip -q -r "$BUILD/base.apk" lib)
 
 # ── 4. java → dex ──
 mkdir -p "$BUILD/classes" "$BUILD/dex"

@@ -149,3 +149,21 @@ body.touch-ui .toast { max-width: 90vw; }
 body.touch-ui .tab.is-active { padding-top: env(safe-area-inset-top, 0px); }
 
 /* светлая тема наследует переменные app.css автоматически — отдельные правила не нужны */
+
+/* ─── v2.5.0 (аудит B4): переключатель языка в touch-меню «Ещё» ─── */
+body.touch-ui .home-lang {
+  display: flex;
+  justify-content: center;
+  padding: 2px 0 14px;
+}
+body.touch-ui .home-lang .lang-switch {
+  display: inline-flex;
+  gap: 10px;
+  padding: 6px;
+}
+body.touch-ui .home-lang .lang-switch__btn {
+  min-width: 76px;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+}

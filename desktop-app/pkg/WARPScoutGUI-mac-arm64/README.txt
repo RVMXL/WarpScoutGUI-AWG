@@ -12,11 +12,11 @@
  (M1/M2/M3/M4 и новее) и WARPScoutGUI-2.5.0-mac-x64.zip для
  Intel-маков. Какая у вас: меню  → «Об этом Mac», или в
  Терминале uname -m (arm64 — Apple Silicon, x86_64 — Intel).
- Это кроссплатформенный выпуск v2.5.0 (пререлиз — могут быть
- баги): одна кодовая база для Windows, Linux (x64/arm64), macOS
- (Intel/Apple Silicon) и Android. Стабильный Windows-релиз:
+ Статус выпуска: ПРЕРЕЛИЗ 2.5.0 — первый кроссплатформенный выпуск
+ на единой кодовой базе (Windows, Linux x64/arm64, macOS Intel/
+ Apple Silicon, Android). Стабильный Windows-релиз:
  WARPScoutGUI-2.4.6-win64.zip. Все исправления аудита v2.4.6
- сохранены.
+ сохранены. См. ниже раздел «СТАТУС ВЕРИФИКАЦИИ».
 
  СОСТАВ АРХИВА
  WARPScoutGUI            — исполняемый файл GUI (Neutralino, arm64/x64)
@@ -141,5 +141,18 @@
  - warpscout: MIT — licenses/LICENSE-warpscout.txt.
  - Neutralinojs: MIT — licenses/LICENSE-neutralino.txt.
  - qrcode: licenses/LICENSE-qrcode.txt.
+
+ СТАТУС ВЕРИФИКАЦИИ (ПРЕРЕЛИЗ 2.5.0)
+ - Выполнено: статический аудит кода и пакетов (методика аудита
+   2.4.6); регрессионные E2E платформенного слоя на живом
+   Linux-рантайме (регистрация аккаунта через Cloudflare API,
+   скан с отчётом, генерация конфигов); побайтовая сверка
+   resources.neu во всех пяти пакетах.
+ - Требует ручной проверки на реальном Mac: первый запуск под
+   Gatekeeper (см. «УСТАНОВКА»), окно WKWebView, системные диалоги.
+   Бинари Neutralino/warpscout не подписаны сертификатом
+   разработчика — карантин снимается через xattr (см. «УСТАНОВКА»).
+ - О найденных проблемах сообщайте в Issues:
+   github.com/RVMXL/WarpScoutGUI-AWG/issues
 
  WARPSCOUT GUI v2.5.0 · warpscout v0.16.0

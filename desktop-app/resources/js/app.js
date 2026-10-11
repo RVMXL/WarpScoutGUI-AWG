@@ -5198,7 +5198,13 @@
       btn("moreSocks", "🔗", "SOCKS-прокси", false, "socks") +
       btn("moreSettings", "⚙", "Настройки", false, "settings") +
       btn("moreTheme", "🌓", "Переключить тему", false, "") +
-      '</div><div class="home-foot">WARPSCOUT GUI v' + (window.NL_APPVERSION || "2.5.0") + ' · warpscout v0.16.0<br>Android-оболочка: WebView + ядро warpscout (MIT)</div></div>');
+      '</div>' +
+      // v2.5.0 (аудит B4): переключатель языка доступен из touch-навигации
+      // (классы .lang-switch — applyLang сам синхронизирует is-active)
+      '<div class="home-lang"><div class="lang-switch" role="group" aria-label="Язык / Language">' +
+      '<button class="lang-switch__btn' + (LANG === "en" ? "" : " is-active") + '" type="button" data-lang="ru" aria-label="Русский">RU</button>' +
+      '<button class="lang-switch__btn' + (LANG === "en" ? " is-active" : "") + '" type="button" data-lang="en" aria-label="English">EN</button>' +
+      '</div></div><div class="home-foot">WARPSCOUT GUI v' + (window.NL_APPVERSION || "2.5.0") + ' · warpscout v0.16.0<br>Android-оболочка: WebView + ядро warpscout (MIT)</div></div>');
     more.id = "tab-more";
     more.setAttribute("aria-label", "Ещё");
     main.insertBefore(home, main.firstChild);
@@ -5229,6 +5235,14 @@
       // v2.5.0 (аудит A1): главная кнопка «Начать скан» не только переключает
       // вкладку, но и запускает скан (runScan имеет guard от повторного запуска)
       if (b.id === "homeScan") setTimeout(() => { try { window.__WSGUI.runScan(); } catch (e) {} }, 60);
+    });
+    // v2.5.0 (аудит B4): переключение языка из touch-меню
+    const langWrap = more.querySelector(".home-lang .lang-switch");
+    if (langWrap) langWrap.addEventListener("click", (ev) => {
+      const b = ev.target && ev.target.closest ? ev.target.closest("[data-lang]") : null;
+      if (!b) return;
+      const lg = b.getAttribute("data-lang");
+      if (LANG !== lg) { applyLang(lg); toast(lg === "en" ? "Language: English" : "Язык: русский", "ok"); }
     });
     touchStatusMirror();
     // стартовая вкладка — главная

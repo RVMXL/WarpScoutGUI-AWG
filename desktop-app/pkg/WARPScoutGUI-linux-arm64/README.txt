@@ -11,11 +11,11 @@
  Сборка для 64-битных ARM-систем: Raspberry Pi 5 (64-битная ОС),
  ARM-ноутбуки и серверы, Apple Silicon (Mac M1/M2/M3/M4) под
  виртуальной машиной или эмуляцией с Linux ARM64.
- Это кроссплатформенный выпуск v2.5.0 (пререлиз — могут быть
- баги): одна кодовая база для Windows, Linux (x64/arm64), macOS
- (Intel/Apple Silicon) и Android. Стабильный Windows-релиз:
+ Статус выпуска: ПРЕРЕЛИЗ 2.5.0 — первый кроссплатформенный выпуск
+ на единой кодовой базе (Windows, Linux x64/arm64, macOS Intel/
+ Apple Silicon, Android). Стабильный Windows-релиз:
  WARPScoutGUI-2.4.6-win64.zip. Все исправления аудита v2.4.6
- сохранены.
+ сохранены. См. ниже раздел «СТАТУС ВЕРИФИКАЦИИ».
 
  СОСТАВ АРХИВА
  WARPScoutGUI            — исполняемый файл GUI (Neutralino, ARM64)
@@ -131,5 +131,17 @@
  - warpscout: MIT — licenses/LICENSE-warpscout.txt.
  - Neutralinojs: MIT — licenses/LICENSE-neutralino.txt.
  - qrcode: licenses/LICENSE-qrcode.txt.
+
+ СТАТУС ВЕРИФИКАЦИИ (ПРЕРЕЛИЗ 2.5.0)
+ - Выполнено: статический аудит кода и пакетов (методика аудита
+   2.4.6); E2E на живом Linux-рантайме (регистрация аккаунта через
+   Cloudflare API, скан с отчётом, генерация конфигов, SOCKS);
+   побайтовая сверка resources.neu во всех пяти пакетах. Ядро
+   warpscout linux_arm64 дополнительно проверено под эмуляцией
+   AArch64 (version / register / scan).
+ - Требует ручной проверки на целевом устройстве: графическое окно
+   WebKitGTK на ARM-системе (зависимости — в разделе «ТРЕБОВАНИЯ»).
+ - О найденных проблемах сообщайте в Issues:
+   github.com/RVMXL/WarpScoutGUI-AWG/issues
 
  WARPSCOUT GUI v2.5.0 · warpscout v0.16.0
