@@ -4,11 +4,14 @@
      desktop-app/android/keystore/) — новая версия ставится как апдейт. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="ru.warpscout.gui"
-    android:versionCode="20501"
-    android:versionName="2.5.1">
+    android:versionCode="20502"
+    android:versionName="2.5.2">
 
     <!-- Сеть: регистрация аккаунта в Cloudflare и сканирование (ядро warpscout) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- v2.5.2: запись пользовательских файлов в Downloads/WARPScoutGUI на
+         Android 7–9 (на 10+ используется MediaStore — разрешение не нужно) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
     <application
         android:label="@string/app_name"

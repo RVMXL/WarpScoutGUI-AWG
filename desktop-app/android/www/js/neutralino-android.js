@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.1)
+   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.2)
    Подключается в APK вместо js/neutralino.js (до app.js/mock.js).
    Реализует через AndroidNative-мост ровно тот сурфейс, что
    использует app.js (см. также mock.js — тот же контракт):
@@ -114,6 +114,15 @@
       getPath(kind) {
         return asyncCall(() => B.getPath(String(kind || "data")))
           .then((r) => r.path || r.data || "");
+      },
+      /* v2.5.2: публичная папка пользователя (Download/WARPScoutGUI).
+         mirrorToPublic(absPath) → { ok, path } — копия файла, видимая
+         файловым менеджерам без root; publicDir() → { ok, path }. */
+      mirrorToPublic(path) {
+        return asyncCall(() => B.pubMirror(String(path)));
+      },
+      publicDir() {
+        return asyncCall(() => B.pubDir());
       },
     },
     filesystem: {

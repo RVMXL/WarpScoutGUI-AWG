@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-# WARPSCOUT GUI — сборка Android APK (v2.5.1)
+# WARPSCOUT GUI — сборка Android APK (v2.5.2)
 # Тулчейн: aapt2 + javac + d8 + zipalign + apksigner (без Gradle).
 # Путь к SDK-компонентам: SDK_DIR (android-34 platform + build-tools 34).
 # Выход: download/WARPScoutGUI-<ver>-android-arm64.apk
