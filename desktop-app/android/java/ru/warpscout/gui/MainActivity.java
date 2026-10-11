@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   WARPSCOUT GUI — Android-оболочка (v2.5.0)
+   WARPSCOUT GUI — Android-оболочка (v2.5.1)
    WebView + JS-мост AndroidNative, реализующий контракт Neutralino
    (см. js/neutralino-android.js): процессы (spawnProcess/execCommand),
    файлы (fs.*), хранилище (storage.*), диалоги (showSave/OpenDialog),
@@ -132,7 +132,11 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
-        web.loadUrl("file:///android_asset/www/index.html");
+        // v2.5.1 (fix): aapt2 -A кладёт содержимое www/ в КОРЕНЬ assets
+        // (assets/index.html), подпуть www/ в APK не существует —
+        // file:///android_asset/www/... давал net::ERR_FILE_NOT_FOUND (первый
+        // баг с реального устройства, smoke-тест 2026-10-11).
+        web.loadUrl("file:///android_asset/index.html");
     }
 
     /* ── доставка событий в JS (eval, буферизация до готовности страницы) ── */

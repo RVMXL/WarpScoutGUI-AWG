@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-# WARPSCOUT GUI — сборка Android APK (v2.5.0)
+# WARPSCOUT GUI — сборка Android APK (v2.5.1)
 # Тулчейн: aapt2 + javac + d8 + zipalign + apksigner (без Gradle).
 # Путь к SDK-компонентам: SDK_DIR (android-34 platform + build-tools 34).
 # Выход: download/WARPScoutGUI-<ver>-android-arm64.apk
@@ -61,6 +61,13 @@ fi
 chmod 755 "$BUILD/lib/arm64-v8a/libwarpscout.so"
 
 # ── 3. ресурсы: aapt2 compile+link ──
+# v2.5.1 (fix): aapt2 link --version-code НЕ перебивает явно заданный
+# android:versionCode в манифесте (эмпирически: APK 2.5.1 получил 20500
+# вместо 20501). Синхронизируем манифест из config — единый источник версии.
+sed -i -E \
+  -e "s/android:versionCode=\"[0-9]+\"/android:versionCode=\"$VERCODE\"/" \
+  -e "s/android:versionName=\"[^\"]*\"/android:versionName=\"$VER\"/" \
+  "$A/AndroidManifest.xml"
 "$BT/aapt2" compile --dir "$A/res" -o "$BUILD/res.zip"
 "$BT/aapt2" link -o "$BUILD/base.apk" \
   -I "$PLATFORM" \

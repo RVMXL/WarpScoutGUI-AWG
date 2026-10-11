@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.0)
+   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.1)
    Подключается в APK вместо js/neutralino.js (до app.js/mock.js).
    Реализует через AndroidNative-мост ровно тот сурфейс, что
    использует app.js (см. также mock.js — тот же контракт):
