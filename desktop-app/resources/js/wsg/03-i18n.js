@@ -212,6 +212,7 @@
     "acc.28": { ru: "Подключён готовый аккаунт, найденный рядом: {src}", en: "Connected a ready-made account found nearby: {src}" },
     "acc.29": { ru: "Это не JSON-файл. Нужен аккаунт warpscout: JSON с ключами private_key и peer_public_key.", en: "This is not a JSON file. A warpscout account is expected: JSON with private_key and peer_public_key keys." },
     "acc.30": { ru: "В файле нет ключей аккаунта (private_key/peer_public_key) — это не warpscout-account.json. Возможно, вы выбрали .conf-конфиг или файл другой программы.", en: "No account keys in the file (private_key/peer_public_key) — this isn't a warpscout-account.json. You may have picked a .conf config or a file from another app." },
+    "acc.cwd.01": { ru: "Найден аккаунт в текущей папке запуска (это может быть чужой файл из другого сценария). Использовать его как рабочий?\n\nИсточник: {src}", en: "An account was found in the current working directory (it may belong to a different scenario). Use it as the working account?\n\nSource: {src}" },
     "acc.31": { ru: "Не удалось распознать файл аккаунта.", en: "Could not recognize the account file." },
     "acc.32": { ru: "файл есть, но это не JSON", en: "file exists but is not valid JSON" },
     "acc.33": { ru: "в файле нет ключей private_key/peer_public_key", en: "no private_key/peer_public_key keys in the file" },
@@ -690,6 +691,7 @@
     "data.19": { ru: "Папка данных изменена", en: "Data folder changed" },
     "data.20": { ru: "Демо: путь к новой папке данных:", en: "Demo: path of the new data folder:" },
     "data.21": { ru: "Выберите папку для данных WARPSCOUT GUI", en: "Choose a folder for WARPSCOUT GUI data" },
+    "data.22": { ru: "Указанный путь к warpscout не используется — бинарь найден в штатном месте: {p}. Настройка сохранена — очистите поле в Настройках, чтобы убрать предупреждение.", en: "The custom warpscout path is not in use — the binary was found at the standard location: {p}. The setting is kept — clear the field in Settings to dismiss this warning." },
     /* — junction — */
     /* — v2.3.0: разбор junction v2.2.0 и перенос данных из старой папки — */
     "junction.01": { ru: "Не удалось снять ссылку «<имя exe>» — данные доступны, папка осталась ссылкой. Закройте приложение и удалите ссылку вручную (Проводник удаляет только ссылку), затем запустите снова.", en: "Could not remove the «<exe name>» link — data is accessible, the folder remained a link. Close the app and delete the link manually (Explorer removes only the link), then start the app again." },

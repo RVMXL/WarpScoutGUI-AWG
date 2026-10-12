@@ -71,7 +71,8 @@ function elementStub(tag) {
   return el;
 }
 
-function makeDocument() {
+function makeDocument(opts) {
+  const o = opts || {};
   const doc = {
     readyState: "loading",
     title: "",
@@ -90,6 +91,21 @@ function makeDocument() {
     createDocumentFragment: () => elementStub("#fragment"),
   };
   doc.body.ownerDocument = doc;
+  // v2.6.2 (QUAL-B/FE-21): авто-DOM для тестов функций, трогающих поля формы
+  // (computePaths): «#id»-селекторы получают/создают заглушку из реестра —
+  // можно проверять и значение полей, и содержимое тостов (#toasts → children).
+  if (o.autoDom) {
+    const reg = new Map();
+    const bySel = (sel) => {
+      const m = /^#([A-Za-z0-9_-]+)$/.exec(String(sel || ""));
+      if (!m) return null;
+      if (!reg.has(m[1])) reg.set(m[1], elementStub(m[1]));
+      return reg.get(m[1]);
+    };
+    doc.querySelector = bySel;
+    doc.getElementById = (id) => bySel("#" + id);
+    doc.__domRegistry = reg;
+  }
   return doc;
 }
 
@@ -103,8 +119,8 @@ function makeDocument() {
  * Инициализация UI НЕ выполняется: "load" не эмитится, readyState="loading".
  */
 function loadApp(opts) {
-  const o = Object.assign({ nlOs: "Windows", appVersion: "0.0.0-test", mock: false, search: "" }, opts || {});
-  const doc = makeDocument();
+  const o = Object.assign({ nlOs: "Windows", appVersion: "0.0.0-test", mock: false, search: "", autoDom: false }, opts || {});
+  const doc = makeDocument({ autoDom: o.autoDom });
   const docListeners = [];
   const winListeners = [];
   const win = {

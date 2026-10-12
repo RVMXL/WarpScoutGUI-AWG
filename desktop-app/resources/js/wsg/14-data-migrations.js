@@ -79,6 +79,31 @@
         if (!verified) throw new Error("аккаунт не прошёл проверку записи — перенос отменён, старая папка не тронута");
         try { await fs().remove(pxJoin(oldRoot, "warpscout-account.json")); } catch (e) { /* удалим при следующем переносе */ }
         moved.push("warpscout-account.json");
+        // v2.6.2 (SEC-A1, пересечение с FE-22): резервные копии аккаунта (.bak-*)
+        // несут копии приватного ключа — переносим их вместе с аккаунтом по той же
+        // схеме (копия + проверка + удаление источника). Иначе источник остаётся
+        // с ключами, а повторная миграция плодит дубли.
+        try {
+          const bakItems = await fs().readDirectory(oldRoot);
+          if (Array.isArray(bakItems)) {
+            for (const it of bakItems) {
+              if (String(it.type || "").toUpperCase() === "DIRECTORY") continue;
+              const name = String(it.path || "").split(/[\\/]/).pop();
+              if (!name || !/^warpscout-account\.json\.bak-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$/.test(name)) continue;
+              let bakTxt = "";
+              try { bakTxt = await fs().readFile(it.path); } catch (e) { continue; }
+              let bakDest = false;
+              try { await fs().readFile(pxJoin(newRoot, name)); bakDest = true; } catch (e) {}
+              if (bakDest) { conflicts.push(name); continue; }
+              try { await fs().writeFile(pxJoin(newRoot, name), bakTxt); } catch (e) { continue; }
+              let bakVerified = false;
+              try { bakVerified = (await fs().readFile(pxJoin(newRoot, name))) === bakTxt; } catch (e) { bakVerified = false; }
+              if (!bakVerified) continue;
+              try { await fs().remove(it.path); } catch (e) { /* удалим при следующем переносе */ }
+              moved.push(name);
+            }
+          }
+        } catch (e) { /* каталог источника не читается — не ломаем основной перенос */ }
       }
     }
     // отчёты

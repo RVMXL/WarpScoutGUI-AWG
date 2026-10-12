@@ -870,13 +870,18 @@
     async function finishRegister(code, synthetic) {
       try { await loadAccount(); } catch (e) {}
       renderAccount();
+      // v2.6.2 (SEC-A1): аккаунт мог быть записан самим CLI (права по umask CLI) —
+      // после успешной регистрации права файла снимаются до 0600 (best effort)
+      hardenAccountPerms();
       const newId = S.account && S.account.id ? String(S.account.id) : "";
       // v2.4.6 (F40): ротация меняет КЛЮЧИ, сохраняя id — неизменный id больше
       // не считается доказательством неудачи
       const newKey = S.account && typeof S.account.private_key === "string" ? S.account.private_key.slice(-12) : "";
       const accountAppeared = !!S.account && (!preId || newId !== preId || (!!preKey && !!newKey && preKey !== newKey));
-      // v2.5.2 (Android): копия файла аккаунта в общую папку Download/WARPScoutGUI
-      if (S.account && IS_ANDROID) mirrorPublic(S.paths.accPath).then((pub) => { if (pub) toast(tF("conf.57", { p: pub }), "info"); });
+      // v2.6.2 (FE-25): латентное зеркалирование АККАУНТА (с private_key) в публичный
+      // Download УБРАНО — приватный ключ покидает app-private каталог только по явному
+      // действию пользователя. Автомиррор остался только у отчётов и конфигов — это
+      // и есть «явное действие» (сохранение конфига/завершение скана).
       if (code === 0) {
         appendLog(log, "\n[GUI] " + t("misc.29") + "\n");
         toast(t("acc.20"), "ok");
@@ -905,6 +910,39 @@
   // fs().copyFile (есть только fs().copy) — импорт падал, и готовый аккаунт
   // «не подхватывался». Теперь вызывающий код уже прочитал и проверил JSON —
   // остаётся сохранить текст в accPath через writeFile (есть во всех версиях).
+  // v2.6.2 (SEC-A1): приватный ключ не должен быть читаем всем локальными
+  // пользователями. Обычная запись Neutralino filesystem даёт права по umask
+  // (типично 0644) — после записи снимаем их до 0600 нативным fs.setPermissions
+  // (REPLACE). Только desktop: на Android файл уже в app-private каталоге моста
+  // (права контролирует ОС), на Windows POSIX-права неприменимы. Best effort:
+  // неудача (старый рантайм/ФС) не ломает подключение аккаунта.
+  async function hardenAccountPerms() {
+    if (IS_MOCK || IS_ANDROID || IS_WIN || !HAS_NL) return;
+    if (!S.paths.accPath) return;
+    try {
+      await fs().setPermissions(S.paths.accPath, { all: false, ownerAll: false, ownerRead: true, ownerWrite: true, ownerExec: false, groupAll: false, groupRead: false, groupWrite: false, groupExec: false, othersAll: false, othersRead: false, othersWrite: false, othersExec: false }, "REPLACE");
+    } catch (e) { /* best effort: нет прав/старый рантайм — подключение аккаунта важнее */ }
+  }
+
+  // v2.6.2 (SEC-A1): ротация резервных копий аккаунта — не более N=3 последних
+  // .bak-ГГГГ-ММ-ДДЧЧ-ММ-СС, старшие удаляются. Раньше копии накапливались
+  // бесконечно, и каждая несла копию приватного ключа без защиты и очистки.
+  async function pruneAccountBackups(keep) {
+    if (IS_MOCK || !S.paths.dataDir) return;
+    try {
+      const items = await fs().readDirectory(S.paths.dataDir);
+      if (!Array.isArray(items)) return;
+      const baks = items
+        .map((it) => String((it && it.path) || ""))
+        .filter((p) => /(^|[\\/])warpscout-account\.json\.bak-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$/.test(p))
+        .sort()
+        .reverse(); // новее — раньше (метка времени в имени сортируется лексикографически)
+      for (const p of baks.slice(Math.max(1, keep || 3))) {
+        try { await fs().remove(p); } catch (e) { /* удалим при следующей ротации */ }
+      }
+    } catch (e) { /* каталог не читается — не критично */ }
+  }
+
   async function adoptImportedAccount(source, text) {
     if (!IS_MOCK) {
       try {
@@ -921,11 +959,14 @@
             const bak = S.paths.accPath + ".bak-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
             await fs().writeFile(bak, old);
             toast(tF("extra.38", { f: bak.split(/[\\/]/).pop() }), "info");
+            pruneAccountBackups(3); // v2.6.2 (SEC-A1): ротация .bak — не копим приватные ключи бесконечно
           }
         } catch (e) { /* прежнего аккаунта нет */ }
         await fs().writeFile(S.paths.accPath, String(text));
-        // v2.5.2 (Android): копия аккаунта в общую папку — доступна без root
-        mirrorPublic(S.paths.accPath).then((pub) => { if (pub) toast(tF("conf.57", { p: pub }), "info"); });
+        await hardenAccountPerms(); // v2.6.2 (SEC-A1): 0600 сразу после записи
+        // v2.6.2 (FE-25): зеркалирование АККАУНТА в публичный Download убрано —
+        // приватный ключ покидает app-private каталог только по явному решению
+        // пользователя, а не латентно при каждом импорте/регистрации
       } catch (e) {
         toast(tF("acc.26", { err: e && e.message ? e.message : e }), "err");
         return false;
@@ -995,6 +1036,12 @@
       try { text = await fs().readFile(src); } catch (e) { continue; }
       const r = accountFromText(text);
       if (r.error) continue;
+      // v2.6.2 (SEC-A4): кандидат из текущего рабочего каталога — ТОЛЬКО с явным
+      // подтверждением: случайно лежащий рядом warpscout-account.json (например,
+      // после запуска CLI из домашней папки) мог иметь отношение к другому
+      // сценарию — GUI не должен молча принять его как рабочий. Источник принятого
+      // аккаунта и так виден в тосте ниже (acc.28).
+      if (src === "warpscout-account.json" && !confirm(tF("acc.cwd.01", { src: src }))) continue;
       if (await adoptImportedAccount(src, text)) {
         toast(tF("acc.28", { src }), "ok");
         return true;

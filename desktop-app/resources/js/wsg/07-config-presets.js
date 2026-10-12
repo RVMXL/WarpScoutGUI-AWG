@@ -284,7 +284,13 @@
       toast(t("live.04"), "err");
       return;
     }
-    const valid = data.presets.filter((p) => p && typeof p.name === "string" && p.name.trim() && p.scan && typeof p.scan === "object");
+    // v2.6.2 (FE-4): пресеты из чужого файла идут через ТЕ ЖЕ санитайзеры, что и
+    // бэкап-состояние (sanitizePresets → sanitizeScan): типы, лимиты длин,
+    // управляющие символы. Собственное свойство __proto__ из JSON.parse при этом
+    // не проходит — Object.assign в sanitizeScan заполняет ТОЛЬКО известные поля
+    // с явной валидацией, прототипное загрязнение исключено (раньше канал был
+    // единственным неочищенным: бэкап санитизировался, пресеты — нет).
+    const valid = sanitizePresets(data.presets).filter((p) => p.name.trim());
     if (!valid.length) {
       toast(t("live.11"), "err");
       return;
@@ -292,9 +298,10 @@
     const have = new Set(S.customPresets.map((p) => p.name.toLowerCase()));
     let added = 0, dup = 0;
     valid.forEach((p) => {
-      if (have.has(p.name.toLowerCase())) { dup++; return; }
-      S.customPresets.push({ name: p.name.trim(), scan: Object.assign({}, DEFAULT_SCAN, p.scan) });
-      have.add(p.name.toLowerCase());
+      const name = p.name.trim();
+      if (have.has(name.toLowerCase())) { dup++; return; }
+      S.customPresets.push({ name: name, scan: p.scan });
+      have.add(name.toLowerCase());
       added++;
     });
     if (S.customPresets.length > 20) S.customPresets = S.customPresets.slice(-20);
@@ -312,6 +319,9 @@
           if (!picked) return;
           try {
             const text = await fs().readFile(picked);
+            // v2.6.2 (FE-4): тот же лимит размера ДО парсинга, что у бэкапа (extra.18) —
+            // гигантский файл не блокирует UI
+            if (String(text).length > 2000000) { toast(t("extra.18"), "err"); return; }
             applyImportedPresets(JSON.parse(text));
           } catch (e) {
             toast(tF("extra.10", { err: e && e.message ? e.message : e }), "err");
@@ -335,7 +345,9 @@
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          applyImportedPresets(JSON.parse(String(reader.result)));
+          const text = String(reader.result);
+          if (text.length > 2000000) { toast(t("extra.18"), "err"); return; } // v2.6.2 (FE-4)
+          applyImportedPresets(JSON.parse(text));
         } catch (err) {
           toast(tF("extra.11", { err: err && err.message ? err.message : err }), "err");
         }
