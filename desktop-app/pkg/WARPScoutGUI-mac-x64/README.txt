@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════
- WARPSCOUT GUI v2.5.6 — macOS (Apple Silicon / Intel)
+ WARPSCOUT GUI v2.5.7 — macOS (Apple Silicon / Intel)
  Графическая оболочка для warpscout v0.16.0 (github.com/vernette/warpscout)
 ════════════════════════════════════════════════════════════
 

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   WARPSCOUT GUI — Android-оболочка (v2.5.5)
+   WARPSCOUT GUI — Android-оболочка (v2.5.7)
    WebView + JS-мост AndroidNative, реализующий контракт Neutralino
    (см. js/neutralino-android.js): процессы (spawnProcess/execCommand),
    файлы (fs.*), хранилище (storage.*), диалоги (showSave/OpenDialog),
@@ -35,6 +35,7 @@ import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
+import android.webkit.MimeTypeMap;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -54,6 +55,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -662,6 +664,10 @@ public class MainActivity extends Activity {
                 try {
                     Intent i;
                     String m = (mime == null || mime.trim().isEmpty()) ? "*/*" : mime;
+                    // v2.5.7: SAF-пикеры прошивок переименовывают «*.conf» в «*.txt»,
+                    // если mime не совпадает с их таблицей — отдаём родной для
+                    // расширения mime (или не имеющий канонического расширения)
+                    if (req == REQ_SAVE) m = mimeForName(defaultName, m);
                     if (req == REQ_SAVE) {
                         i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
                         i.addCategory(Intent.CATEGORY_OPENABLE);
@@ -757,11 +763,54 @@ public class MainActivity extends Activity {
             }
         }
 
+        /* v2.5.7: MIME, при котором провайдер НЕ переклеит имя файла.
+           MediaStore и SAF-пикеры ряда прошивок дописывают каноническое
+           расширение MIME к имени, чьё расширение не совпадает с MIME
+           («*.conf» + text/plain → «*.conf.txt» / «*.txt»). Правило:
+           • платформа знает расширение → отдаём ЕЁ mime (mimeType(ext) == mime
+             → reform-логика имени не срабатывает);
+           • платформа НЕ знает расширение → mime без канонического расширения
+             (application/x-warpscout-<ext>) — дописывать нечем.
+           fallbackMime используется, только когда расширения нет вовсе. */
+    /* (вызывается из Bridge; не static — javac -source 8 запрещает static во inner-классах) */
+    private String mimeForName(String name, String fallbackMime) {
+        String ext = "";
+        if (name != null) {
+            int dot = name.lastIndexOf('.');
+            if (dot > 0 && dot < name.length() - 1)
+                ext = name.substring(dot + 1).toLowerCase(Locale.US).replaceAll("[^a-z0-9]", "");
+        }
+        if (ext.isEmpty())
+            return (fallbackMime == null || fallbackMime.trim().isEmpty()) ? "application/octet-stream" : fallbackMime;
+        try {
+            String dm = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext);
+            if (dm != null && !dm.trim().isEmpty()) return dm;
+        } catch (Throwable ignored) {}
+        return "application/x-warpscout-" + ext;
+    }
+
+    /* фактическое DISPLAY_NAME вставленной записи MediaStore */
+    private String mediaDisplayName(ContentResolver cr, Uri uri) {
+        try {
+            Cursor c = cr.query(uri, new String[]{MediaStore.MediaColumns.DISPLAY_NAME}, null, null, null);
+            if (c != null) {
+                try { if (c.moveToFirst()) { String n = c.getString(0); if (n != null && !n.isEmpty()) return n; } }
+                finally { try { c.close(); } catch (Exception ignored) {} }
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
         /* ── v2.5.4: сохранение готовых конфигов в Download/WARPScoutGUI ──
            API 29+ (Android 10+): MediaStore.Downloads — БЕЗ каких-либо разрешений;
            API 24–28 (Android 7–9): прямая запись при выданном WRITE_EXTERNAL_STORAGE
            (legacy-режим в манифесте); иначе {fallback:true} — JS сохранит в
            папку приложения и честно скажет об этом.
+           v2.5.7: mime подбирается под расширение (см. mimeForName) — имя
+           «*.conf» больше не превращается в «*.conf.txt»; IS_PENDING убран
+           (файл пишется одним куском, а «висящие» pending-записи ряд
+           прошивок показывает в Downloads призрачными папками); имя после
+           вставки читается обратно, и в ответе уходит РЕАЛЬНЫЙ путь.
            Ответ: {ok:true, path, uri?} | {fallback:true} | {error} */
         @JavascriptInterface
         public String saveToDownloads(String name, String mime, String b64) {
@@ -770,7 +819,7 @@ public class MainActivity extends Activity {
                 byte[] bytes = Base64.decode(b64 == null ? "" : b64, Base64.NO_WRAP);
                 String safeName = String.valueOf(name == null || name.trim().isEmpty() ? "warp.conf" : name.trim());
                 safeName = safeName.replaceAll("[\\\\/:*?\"<>|]", "_");
-                String m = (mime == null || mime.trim().isEmpty()) ? "text/plain" : mime;
+                String m = mimeForName(safeName, mime);
                 if (Build.VERSION.SDK_INT >= 29) {
                     ContentResolver cr = getContentResolver();
                     ContentValues cv = new ContentValues();
@@ -778,17 +827,25 @@ public class MainActivity extends Activity {
                     cv.put(MediaStore.MediaColumns.MIME_TYPE, m);
                     cv.put(MediaStore.MediaColumns.RELATIVE_PATH,
                             Environment.DIRECTORY_DOWNLOADS + "/WARPScoutGUI");
-                    cv.put(MediaStore.MediaColumns.IS_PENDING, 1);
                     Uri uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
                     if (uri == null) throw new Exception("MediaStore insert failed");
                     OutputStream os = cr.openOutputStream(uri);
                     if (os == null) throw new Exception("openOutputStream failed");
                     try { os.write(bytes); os.flush(); } finally { try { os.close(); } catch (Exception ignored) {} }
-                    ContentValues done = new ContentValues();
-                    done.put(MediaStore.MediaColumns.IS_PENDING, 0);
-                    try { cr.update(uri, done, null, null); } catch (Throwable ignored) {}
+                    // v2.5.7: честное имя — провайдер мог переименовать вопреки mime
+                    String realName = mediaDisplayName(cr, uri);
+                    if (realName != null && !realName.equals(safeName)) {
+                        try {
+                            ContentValues fix = new ContentValues();
+                            fix.put(MediaStore.MediaColumns.DISPLAY_NAME, safeName);
+                            cr.update(uri, fix, null, null);
+                            String again = mediaDisplayName(cr, uri);
+                            if (again != null) realName = again;
+                        } catch (Throwable ignored) {}
+                    }
+                    if (realName == null || realName.isEmpty()) realName = safeName;
                     o.put("ok", true);
-                    o.put("path", DOWNLOAD_DIR + "/" + safeName);
+                    o.put("path", DOWNLOAD_DIR + "/" + realName);
                     o.put("uri", uri.toString());
                     return o.toString();
                 }
@@ -1112,21 +1169,41 @@ public class MainActivity extends Activity {
         return "primary:" + rel;
     }
 
-    /* Цепочка открытия с гарантированным ответом (v2.5.4):
+    /* Цепочка открытия с гарантированным ответом (v2.5.4 → v2.5.7):
        0) тост «Открываю папку…» — реакция на нажатие видна ВСЕГДА;
-       1) системные «Файлы» (ACTION_VIEW каталога) — только для ПУБЛИЧНЫХ
-          папок: на Android 11+ «Файлы» показывают Android/data ПУСТОЙ,
-          что выглядело как «кнопка ничего не делает»;
-       2) SAF-выбор каталога, открытый на нужной папке — системный выборщик
-          видит Android/data даже на 11+, где обычные менеджеры не бывают;
-       3) путь в буфер обмена + явный тост. */
+       1) СИСТЕМНЫЕ «Файлы» (DocumentsUI) ЯВНО по классу — только для
+          ПУБЛИЧНЫХ папок: OEM-проводники перехватывают ACTION_VIEW каталога
+          и открывают свой КОРЕНЬ, игнорируя URI («открывает проводник, а не
+          нужную папку»); явный setClassName гарантирует навигацию к папке;
+       2) обычный ACTION_VIEW каталога — если системных «Файлов» нет;
+       3) SAF-выбор каталога, открытый на нужной папке — для Android/data
+          (на 11+ «Файлы» показывают его пустым; системный выборщик видит);
+       4) путь в буфер обмена + явный тост. */
     private void openDirChain(String docId, String human) {
         toast("Открываю папку: " + human);
         boolean restricted = human.startsWith(EXT_ROOT + "/Android/data/");
         if (docId != null && !restricted) {
+            Uri doc = DocumentsContract.buildDocumentUri(
+                    "com.android.externalstorage.documents", docId);
+            /* v2.5.7: сначала ЯВНО системный DocumentsUI (две сборки под
+               разные ROM/AOSP-версии): он честно переходит к папке из URI */
+            String[][] sysFiles = {
+                    {"com.android.documentsui", "com.android.documentsui.files.FilesActivity"},
+                    {"com.android.documentsui", "com.android.documentsui.DocumentsActivity"},
+                    {"com.google.android.documentsui", "com.android.documentsui.files.FilesActivity"}
+            };
+            for (String[] pa : sysFiles) {
+                try {
+                    Intent i = new Intent(Intent.ACTION_VIEW);
+                    i.setClassName(pa[0], pa[1]);
+                    i.setDataAndType(doc, "vnd.android.document/directory");
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(i);
+                    toast("Папка открыта: " + human);
+                    return;
+                } catch (Throwable ignored) {}
+            }
             try {
-                Uri doc = DocumentsContract.buildDocumentUri(
-                        "com.android.externalstorage.documents", docId);
                 Intent i = new Intent(Intent.ACTION_VIEW);
                 i.setDataAndType(doc, "vnd.android.document/directory");
                 i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);

@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════
- WARPSCOUT GUI v2.5.6 — LINUX (ARM64 / AArch64)
+ WARPSCOUT GUI v2.5.7 — LINUX (ARM64 / AArch64)
  Графическая оболочка для warpscout v0.16.0 (github.com/vernette/warpscout)
 ════════════════════════════════════════════════════════════
 
