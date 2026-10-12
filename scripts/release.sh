@@ -15,11 +15,17 @@
 #                      (в CI используйте встроенный GITHUB_TOKEN)
 #   WS_GH_REPO       — репозиторий (по умолчанию: origin этого клона)
 #
-# Что делает: auth-проверка → push main (только fast-forward) → push тега
-# vX.Y.Z → создание пререлиза (notes из desktop-app/RELEASE-X.Y.Z.md,
-# reuse если уже существует) → загрузка артефактов download/WARPScoutGUI-
-# X.Y.Z-* (уже прикреплённые пропускаются) → round-trip-проверка SHA-256.
-# Идемпотентен: безопасен к перезапуску, не форсит, ничего не удаляет.
+# Что делает: pre-flight проверки релизной политики (fail-fast, см. WS_FORCE) →
+# гейт CI на коммите тега (публикация не уезжает при красной/непрогнанной сборке)
+# → auth-проверка → push main (только fast-forward) → push тега vX.Y.Z → создание
+# пререлиза (notes из desktop-app/RELEASE-X.Y.Z.md, reuse если уже существует) →
+# загрузка артефактов download/WARPScoutGUI-X.Y.Z-* (уже прикреплённые пропускаются)
+# → round-trip-проверка SHA-256. Идемпотентен: безопасен к перезапуску, не форсит,
+# ничего не удаляет.
+#
+# v2.6.2 (аудит INFRA-K/SEC-A5): секреты не в argv и не в разбросанных /tmp-файлах —
+# все временные файлы живут в одном mktemp-каталоге (0700) с trap-очисткой
+# EXIT/INT/TERM; токен в curl идёт через --header @файл (0600), а не аргументом.
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
 
@@ -27,6 +33,12 @@ PROJ="$(git -C "$(dirname "$0")/.." rev-parse --show-toplevel)"
 cd "$PROJ"
 
 [ -n "${WS_GH_TOKEN:-}" ] || { echo "FATAL: WS_GH_TOKEN не задан (окружение, не argv)"; exit 1; }
+
+# v2.6.2 (INFRA-K): один временный каталог на всё (askpass, curl-заголовки, round-trip)
+TMPD="$(mktemp -d)"
+chmod 700 "$TMPD"
+cleanup() { rm -rf "$TMPD"; }
+trap cleanup EXIT INT TERM
 
 VER="${WS_VERSION:-${1:-}}"
 if [ -z "$VER" ]; then
@@ -36,6 +48,17 @@ TAG="v$VER"
 RNOTES="$PROJ/desktop-app/RELEASE-$VER.md"
 DL="$PROJ/download"
 RELNAME="WarpScoutGUI $VER (prerelease)"
+
+# v2.6.2 (аудит INFRA-G): pre-flight проверки — FATAL при нарушении.
+# Мягкий режим — только за явным WS_FORCE=1 (с логом причины).
+FORCE="${WS_FORCE:-}"
+PFAIL=0
+pfail() { echo "FATAL (preflight): $1"; PFAIL=$((PFAIL+1)); }
+
+echo "== 0/6 pre-flight (release policy, fail-fast) =="
+python3 desktop-app/tools/gen-version.py --check >/dev/null || pfail "версии не согласованы — запустите python3 desktop-app/tools/gen-version.py"
+grep -q "## \[$VER\]" CHANGELOG.md || pfail "в CHANGELOG.md нет секции [$VER] — заполните перед публикацией"
+[ -f "$RNOTES" ] || pfail "нет $RNOTES — примечания релиза обязательны"
 
 REPO="${WS_GH_REPO:-}"
 if [ -z "$REPO" ]; then
@@ -54,14 +77,29 @@ ARTIFACTS=(
   "WARPScoutGUI-$VER-android-arm64.apk"
 )
 
-auth=(-H "Authorization: Bearer $WS_GH_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
+for f in "${ARTIFACTS[@]}"; do
+  [ -f "$DL/$f" ] || pfail "нет собранного артефакта $DL/$f (сборка артефактов — часть релизной политики)"
+done
+if [ "$PFAIL" -gt 0 ]; then
+  if [ "$FORCE" = "1" ]; then
+    echo "WS_FORCE=1 — продолжаем вопреки $PFAIL незакрытым pre-flight проверкам (причина должна быть в логе релиза)"
+  else
+    exit 1
+  fi
+fi
+
+# v2.6.2 (аудит SEC-A5): токен не в argv — curl читает заголовки из файла 0600
+# (--header @файл); файл в TMPD, удаляется trap-ом вместе с каталогом
+HDRS="$TMPD/headers"
+printf 'Authorization: Bearer %s\nAccept: application/vnd.github+json\nX-GitHub-Api-Version: 2022-11-28\n' "$WS_GH_TOKEN" > "$HDRS"
+chmod 600 "$HDRS"
+auth=(-H "@$HDRS")
 
 # GIT_ASKPASS: git читает токен из окружения-обёртки (токен не попадает
 # в argv/URL процессов)
-ASKPASS="$(mktemp)"
+ASKPASS="$TMPD/askpass"
 printf '#!/usr/bin/env bash\ncase "$1" in Username*) echo x-access-token ;; *) printf "%%s" "$WS_GH_TOKEN" ;; esac\n' > "$ASKPASS"
 chmod 700 "$ASKPASS"
-trap 'rm -f "$ASKPASS"' EXIT
 export GIT_ASKPASS="$ASKPASS"
 
 echo "== 1/6 auth check ($REPO) =="
@@ -80,6 +118,43 @@ else
   git tag -a "$TAG" -m "WarpScoutGUI $VER — all platforms per release policy" 2>/dev/null || true
   git push origin "$TAG"
   echo "   tag pushed -> $(git rev-parse --short "$TAG")"
+fi
+
+# v2.6.2 (аудит INFRA-H): публикация гейтится CI. ci.yml прогоняется и на тегах —
+# ждём зелёный прогон «ci» на SHA тега; красный/невыполненный = публикация не уезжает.
+# Период ожидания: CI обычно ~2 мин, таймаут 10 мин. Пропуск — только явным
+# WS_SKIP_CI_GATE=1 (например, републикация давно проверенного тега).
+if [ "${WS_SKIP_CI_GATE:-}" != "1" ]; then
+  echo "== 3.5/6 CI gate on $TAG ($(git rev-parse --short HEAD)) =="
+  SHA="$(git rev-parse HEAD)"
+  DEADLINE=$(( $(date +%s) + 600 ))
+  while :; do
+    STATUS="$(curl -sfS "${auth[@]}" "$API/repos/$REPO/commits/$SHA/check-runs?per_page=100" \
+      | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+runs = [r for r in d.get("check_runs", []) if r.get("name") == "ci"]
+if not runs:
+    print("none")
+elif any(r["status"] != "completed" for r in runs):
+    print("pending")
+elif any(r["conclusion"] not in ("success", "skipped", "neutral") for r in runs):
+    print("failure")
+else:
+    print("success")
+' 2>/dev/null || echo none)"
+    case "$STATUS" in
+      success) echo "   CI: success — гейт пройден"; break ;;
+      failure) echo "FATAL: CI на $SHA красная — публикация отменена (аудит INFRA-H)"; exit 1 ;;
+      *)
+        if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+          echo "FATAL: CI на $SHA не завершён за 10 мин (статус: $STATUS) — публикация отменена (аудит INFRA-H)"; exit 1
+        fi
+        echo "   CI: $STATUS — жду…"
+        sleep 20
+        ;;
+    esac
+  done
 fi
 
 echo "== 4/6 create release (or reuse) =="
@@ -124,7 +199,8 @@ for f in "${ARTIFACTS[@]}"; do
 done
 
 echo "== 6/6 round-trip sha256 verification =="
-VERIFY_DIR="$(mktemp -d)"
+VERIFY_DIR="$TMPD/verify" # v2.6.2 (INFRA-K): всё временное — в одном каталоге с trap-очисткой
+mkdir -p "$VERIFY_DIR"
 curl -sfS "${auth[@]}" "$API/repos/$REPO/releases/tags/$TAG" \
   | python3 -c 'import json,sys;[print(a["browser_download_url"]) for a in json.load(sys.stdin)["assets"]]' > "$VERIFY_DIR/urls.txt"
 N="$(wc -l < "$VERIFY_DIR/urls.txt")"

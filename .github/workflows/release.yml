@@ -1,0 +1,72 @@
+# WARPScoutGUI-AWG — релизный гейт (v2.6.2, аудит INFRA-H).
+# Публикация релиза больше не существует в вакууме: на пуш тега v* запускается
+# эта цепочка — ПОЛНЫЙ набор проверок CI + сборка десктоп-артефактов ТЕМ ЖЕ
+# инструментарием, что собирает релиз, + сверка детерминизма. Зелёный прогон на
+# теге — обязательное условие публикации (scripts/release.sh сам ждёт его —
+# шаг «CI gate», аудит INFRA-H). APK не собирается в CI сознательно: ключ
+# подписи не покидает машину сборщика (SECURITY.md).
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  gate-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: юнит-тесты чистых функций (ARCH-4)
+        run: node --test desktop-app/tests/*.test.js
+
+      - name: версия согласована везде (ARCH-2 + таблица-тест versionCode INFRA-F)
+        run: python3 desktop-app/tools/gen-version.py --check
+
+      - name: i18n по идентификаторам (QUAL-1)
+        run: python3 desktop-app/tools/check-i18n.py
+
+      - name: index.html ↔ js/wsg/*.js — состав и порядок script-тегов (QUAL-C)
+        run: node --test desktop-app/tests/structure.test.js
+
+      - name: восстановление бинарников последнего релиза (INFRA-A)
+        run: python3 desktop-app/tools/fetch-binaries.py --latest-published
+        env:
+          WS_GH_TOKEN: ${{ github.token }}
+
+      - name: хэши согласованы с deps.json (INFRA-2/INFRA-C/AND-2)
+        run: python3 desktop-app/tools/verify-deps.py
+
+      - name: детерминизм resources.neu (двойная сборка)
+        run: |
+          python3 desktop-app/tools/pack-neu.py desktop-app /tmp/rel1.neu
+          python3 desktop-app/tools/pack-neu.py desktop-app /tmp/rel2.neu
+          A=$(sha256sum /tmp/rel1.neu | cut -d" " -f1)
+          B=$(sha256sum /tmp/rel2.neu | cut -d" " -f1)
+          if [ "$A" != "$B" ]; then
+            echo "NON-DETERMINISTIC: $A != $B"; exit 1
+          fi
+          echo "resources.neu reproducible: $A"
+
+      - name: сборка release-zip той же цепочкой, что и релиз (INFRA-H)
+        run: |
+          python3 desktop-app/tools/pack-neu.py desktop-app pkg/WARPScoutGUI-win64/resources.neu
+          for p in win64 linux64 linux-arm64 mac-arm64 mac-x64; do
+            cp pkg/WARPScoutGUI-win64/resources.neu "pkg/WARPScoutGUI-$p/resources.neu"
+          done
+          python3 desktop-app/tools/build-zips.py
+          sha256sum download/WARPScoutGUI-*.zip
+
+      - name: артефакты тега — в итоги workflow (проверяемость релиза)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-zips-${{ github.ref_name }}
+          path: download/WARPScoutGUI-*.zip
+          retention-days: 14
