@@ -122,7 +122,7 @@ SHA-256 артефактов релиза v2.5.7:
 | `WARPScoutGUI-2.5.7-linux-arm64.zip` | `3d52a8b64d7aab0ed0fabb68b33a29ff0b7e16510a1444f34713462a0971f4bf` |
 | `WARPScoutGUI-2.5.7-mac-arm64.zip` | `d707111d877404f7cd78a0a862e1f9701ecb57f688a3b18af7cfd15a01a91bba` |
 | `WARPScoutGUI-2.5.7-mac-x64.zip` | `27957a6b488d1dea58446fa2e7d138db0000bf0c9a2914b980042d50d1b9011e` |
-| `WARPScoutGUI-2.5.7-android-arm64.apk` | `0689644830fd170347de52f05ac7fea0c2e61d8c1673c4cf918a3e0c9f6c6fbb` |
+| `WARPScoutGUI-2.5.7-android-arm64.apk` | `69b0dae66b624eb2d0592d6f3ca04846987bbf4fe2c15813b98cba447f75923f` |
 
 Проверка после скачивания:
 
