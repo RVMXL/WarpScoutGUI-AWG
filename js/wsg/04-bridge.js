@@ -64,21 +64,30 @@
       if (h) h(d);
       else if (d.id != null) backlogPush(d.id, d);
     });
-    // страховка: если exit-событие потеряно — раз в 5 сек сверяемся со списком живых процессов
+    // страховка: если exit-событие потеряно — раз в 5 сек сверяемся со списком живых процессов.
+    // v2.6.2 (FE-3): подтверждение ДВУМЯ тиками подряд. Процесс исчез из списка живых,
+    // но реальное exit-событие может ещё быть в пути — раньше синтетический exit улетал
+    // немедленно, затирал настоящий код (он приходил позже и падал в backlog незарегист-
+    // рированного id) и пользователь видел -1 вместо фактического кода. Второй тик
+    // подтверждает, что событие потеряно навсегда; гонка «свип vs доставка события» закрыта.
+    const missingTicks = new Set();
     setInterval(async () => {
-      const ids = Object.keys(procRegistry);
-      if (!ids.length) return;
-      if (!os().getSpawnedProcesses) return;
       try {
+        for (const key of missingTicks) if (!procRegistry[key]) missingTicks.delete(key);
+        const ids = Object.keys(procRegistry);
+        if (!ids.length) return;
+        if (!os().getSpawnedProcesses) return;
         const live = await os().getSpawnedProcesses();
         const liveIds = new Set((live || []).map((p) => String(p.id)));
         for (const id of ids) {
-          if (!liveIds.has(String(id))) {
-            const h = procRegistry[id];
-            delete procRegistry[id];
-            // v2.1.1: synthetic — exit-событие потеряно, это НЕ настоящий код -1
-            if (h) h({ id: Number(id), type: "exit", data: -1, synthetic: true });
-          }
+          const key = String(id);
+          if (liveIds.has(key)) { missingTicks.delete(key); continue; }
+          // v2.1.1: synthetic — exit-событие потеряно, это НЕ настоящий код -1
+          if (!missingTicks.has(key)) { missingTicks.add(key); continue; } // первый пропуск: событие могло ещё не доехать
+          missingTicks.delete(key);
+          const h = procRegistry[id];
+          delete procRegistry[id];
+          if (h) h({ id: Number(id), type: "exit", data: -1, synthetic: true });
         }
       } catch (e) { /* рантайм недоступен — не страшно */ }
     }, 5000);

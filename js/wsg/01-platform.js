@@ -62,8 +62,8 @@
     }
     return out;
   }
-  // Linux-замены целых фраз: [исходный RU-ключ, linux-RU, linux-EN].
-  // Применяются к КЛЮЧУ ДО словаря (platKey), поэтому EN-перевод находится.
+  // Linux-замены целых фраз: [канонический RU, linux-RU, linux-EN].
+  // v2.6.2 (QUAL-1): применяются к ЗНАЧЕНИЮ по идентификатору (platPhraseOf в 03-i18n).
   const LINUX_TEXT = [
     ["🔓 Разблокировать exe (антивирус)", "🔓 Разрешить запуск (chmod +x)", "🔓 Allow execution (chmod +x)"],
     ["Unblock-File выполнен: с exe снята метка «скачано из интернета». Попробуйте регистрацию ещё раз.",
@@ -91,7 +91,7 @@
   const LINUX_KEY_MAP = {};
   LINUX_TEXT.forEach((row) => { LINUX_KEY_MAP[row[0]] = row[1]; });
   /* v2.5.1: mac-замены целых фраз поверх linux-вариантов: [linux-RU, mac-RU, mac-EN].
-     Применяются только на macOS (IS_MAC) — на Linux поведение прежнее. */
+     v2.6.2 (QUAL-1): применяются к ЗНАЧЕНИЮ по идентификатору (platPhraseOf в 03-i18n). */
   const MAC_TEXT = [
     ["Если регистрация падает с «кодом -1»: «Проверить warpscout» показывает, запускается ли warpscout вообще; «Разрешить запуск» выдаёт право на выполнение (chmod +x) — на Linux это частая причина «кода -1» сразу после распаковки архива.",
      "Если регистрация падает с «кодом -1»: «Проверить warpscout» показывает, запускается ли warpscout вообще; «Разрешить запуск» выдаёт право на выполнение (chmod +x) — на macOS это частая причина «кода -1» сразу после распаковки архива (метку quarantine Gatekeeper снимает: xattr -cr . в папке программы — см. README).",
@@ -124,20 +124,25 @@
     }
     return platNorm(raw);
   }
-  function linuxPlatInit() {
-    if (!IS_LINUX) return; // Windows — словарь не трогаем вовсе
-    // EN-словарь ключится исходными RU-строками; продублируем ключи в
-    // linux-нормализованном виде, чтобы t() находил перевод после platKey.
-    Object.keys(I18N_EN).forEach((k) => {
-      const nk = platKey(k);
-      if (nk !== k && I18N_EN[nk] === undefined) I18N_EN[nk] = platNorm(I18N_EN[k]);
-    });
-    LINUX_TEXT.forEach((row) => { if (I18N_EN[row[1]] === undefined) I18N_EN[row[1]] = row[2]; });
-    if (IS_MAC) {
-      // v2.5.1: mac-варианты фраз (Console.app вместо journalctl и т. п.) —
-      // ключ и EN-перевод добавляются поверх linux-дублей.
-      MAC_TEXT.forEach((row) => { if (I18N_EN[row[1]] === undefined) I18N_EN[row[1]] = row[2]; });
+  // v2.6.2 (аудит QUAL-1): платформенные фразы применяются к ЗНАЧЕНИЮ по
+  // идентификатору (раньше — заменой ключа до словаря). Канонический RU записи
+  // сопоставляется с row[0] LINUX_TEXT (и row[1] MAC_TEXT поверх — на macOS).
+  function platPhraseOf(id, lang) {
+    if (IS_WIN) return null;
+    const e = (typeof I18N !== "undefined") && I18N[id];
+    if (!e) return null;
+    const canon = e.ru;
+    for (let li = 0; li < LINUX_TEXT.length; li++) {
+      const row = LINUX_TEXT[li];
+      if (row[0] !== canon) continue;
+      if (IS_MAC) {
+        for (let mi = 0; mi < MAC_TEXT.length; mi++) {
+          if (MAC_TEXT[mi][0] === row[1]) return lang === "en" ? MAC_TEXT[mi][2] : MAC_TEXT[mi][1];
+        }
+      }
+      return lang === "en" ? row[2] : row[1];
     }
+    return null;
   }
 
 
@@ -188,7 +193,7 @@
   async function copyText(text, okMsg) {
     try {
       await navigator.clipboard.writeText(text);
-      toast(okMsg || t("Скопировано"), "ok");
+      toast(okMsg || t("toasts.01"), "ok");
     } catch (e) {
       const ta = document.createElement("textarea");
       ta.value = text;
@@ -197,8 +202,8 @@
       let ok = false;
       try { ok = document.execCommand("copy"); } catch (e2) { ok = false; } // v2.4.6 (F55): false — тоже неудача
       ta.remove();
-      if (ok) toast(okMsg || t("Скопировано"), "ok");
-      else toast(t("Не удалось скопировать"), "err");
+      if (ok) toast(okMsg || t("toasts.01"), "ok");
+      else toast(t("toasts.02"), "err");
     }
   }
 

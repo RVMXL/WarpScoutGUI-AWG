@@ -12,8 +12,8 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data:; font-src 'self' file: data:; connect-src 'self' ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*; object-src 'none'; base-uri 'none'; form-action 'none'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=v2.6.1" />
-  <link rel="stylesheet" href="css/touch.css?v=v2.6.1" />
+  <link rel="stylesheet" href="css/app.css?v=v2.6.2" />
+  <link rel="stylesheet" href="css/touch.css?v=v2.6.2" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -63,7 +63,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светлую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v2.6.1 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v2.6.2 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -586,7 +586,7 @@
         <div class="tools-grid">
           <div class="card">
             <div class="card__head"><h2>find-junk — подбор junk-параметров</h2></div>
-            <p class="hint">Если <code>scan -p awg</code> ничего не находит ни с одним I1 — запустите подбор junk-набора. Остановить можно в любой момент, лучший набор сохранится в логе.</p>
+            <p class="hint" data-i18n="off">Если <code>scan -p awg</code> ничего не находит ни с одним I1 — запустите подбор junk-набора. Остановить можно в любой момент, лучший набор сохранится в логе.</p>
             <div class="form-grid form-grid--2">
               <label class="field">
                 <span class="field__label">Профиль I1 <code>-gen-i1</code></span>
@@ -716,7 +716,7 @@
           </div>
           <div class="card">
             <div class="card__head"><h2>О приложении</h2></div>
-            <p class="hint">
+            <p class="hint" data-i18n="off">
               WARPSCOUT GUI — графическая оболочка для консольной утилиты
               <a href="https://github.com/vernette/warpscout" data-ext>warpscout</a> (v0.16.0, MIT).
               Ищет живые эндпоинты Cloudflare WARP из вашей сети, показывает узел и регион выхода и генерирует готовые конфиги WireGuard / AmneziaWG.<br/><br/>
@@ -837,24 +837,23 @@
     <option value="cdn.jsdelivr.net"></option>
   </datalist>
 
-  <script src="js/mock.js?v=v2.6.1"></script>
-  <script src="js/qrcode.js?v=v2.6.1"></script>
+  <script src="js/mock.js?v=v2.6.2"></script>
+  <script src="js/qrcode.js?v=v2.6.2"></script>
   <!-- ARCH-1 (v2.6.0): монолит app.js нарезан на модули — порядок загрузки строго по номеру -->
-  <script src="js/wsg/01-platform.js?v=v2.6.1"></script>
-  <script src="js/wsg/02-state.js?v=v2.6.1"></script>
-  <script src="js/wsg/03-i18n.js?v=v2.6.1"></script>
-  <script src="js/wsg/04-bridge.js?v=v2.6.1"></script>
-  <script src="js/wsg/05-scan-core.js?v=v2.6.1"></script>
-  <script src="js/wsg/06-results-scan.js?v=v2.6.1"></script>
-  <script src="js/wsg/07-config-presets.js?v=v2.6.1"></script>
-  <script src="js/wsg/08-live-qr.js?v=v2.6.1"></script>
-  <script src="js/wsg/09-state-io.js?v=v2.6.1"></script>
-  <script src="js/wsg/10-ui-panels.js?v=v2.6.1"></script>
-  <script src="js/wsg/11-conf-qc-account.js?v=v2.6.1"></script>
-  <script src="js/wsg/12-socks-tools-ui.js?v=v2.6.1"></script>
-  <script src="js/wsg/13-form-paths.js?v=v2.6.1"></script>
-  <script src="js/wsg/14-data-migrations.js?v=v2.6.1"></script>
-  <script src="js/wsg/15-init.js?v=v2.6.1"></script>
+  <script src="js/wsg/01-platform.js?v=v2.6.2"></script>
+  <script src="js/wsg/02-state.js?v=v2.6.2"></script>
+  <script src="js/wsg/03-i18n.js?v=v2.6.2"></script>
+  <script src="js/wsg/04-bridge.js?v=v2.6.2"></script>
+  <script src="js/wsg/05-scan-core.js?v=v2.6.2"></script>
+  <script src="js/wsg/06-results-scan.js?v=v2.6.2"></script>
+  <script src="js/wsg/07-config-presets.js?v=v2.6.2"></script>
+  <script src="js/wsg/08-live-qr.js?v=v2.6.2"></script>
+  <script src="js/wsg/09-state-io.js?v=v2.6.2"></script>
+  <script src="js/wsg/10-ui-panels.js?v=v2.6.2"></script>
+  <script src="js/wsg/11-conf-qc-account.js?v=v2.6.2"></script>
+  <script src="js/wsg/12-socks-tools-ui.js?v=v2.6.2"></script>
+  <script src="js/wsg/13-form-paths.js?v=v2.6.2"></script>
+  <script src="js/wsg/14-data-migrations.js?v=v2.6.2"></script>
+  <script src="js/wsg/15-init.js?v=v2.6.2"></script>
 </body>
 </html>
-<!-- demo build 14:17:54 -->

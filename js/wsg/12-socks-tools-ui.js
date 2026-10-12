@@ -24,12 +24,13 @@
     if (!epParsed) {
       S.running.socks = false;
       socksUi();
-      toast(t("Укажите эндпоинт в формате ip:порт (например 188.114.98.58:2408)"), "err");
+      toast(t("socks.10"), "err");
       return;
     }
     const socksPort = clampInt($("#socksPort").value || "1080", 1, 65535, 1080);
     const proto = enumOf($("#socksProto").value, SCAN_ENUMS.proto, "awg");
-    const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
+    // v2.6.2 (аудит FE-23): путь аккаунта — через argPath (дубль FE-1)
+    const acc = S.paths.accPath ? " -a " + argPath(S.paths.accPath) : "";
     // v2.4.6 (F18): генератор I1 из параметров скана — SOCKS воспроизводит проверенный туннель
     let awgArgs = "";
     const lp = S.lastRunParams;
@@ -40,7 +41,7 @@
     const cmd = quoteExe() + " socks -e " + epParsed.host + ":" + epParsed.port + " -p " + proto + awgArgs + " -P " + socksPort + acc;
     $("#socksLog").textContent = "";
     let proc;
-    try { proc = await os().spawnProcess(cmd); } catch (e) { S.running.socks = false; socksUi(); toast(t("Не удалось запустить"), "err"); return; }
+    try { proc = await os().spawnProcess(cmd); } catch (e) { S.running.socks = false; socksUi(); toast(t("misc.20"), "err"); return; }
     // v2.4.6 (F32): Stop успели нажать ДО возврата spawn — убиваем немедленно
     if (S.socksCancelRequested) {
       try { await os().killProcess(proc.id); } catch (e) {}
@@ -59,7 +60,7 @@
         // v2.4.6 (F39): после exit прокси больше не слушает — прячем адрес и инфоблок
         $("#socksAddr").textContent = "";
         $("#socksInfo").hidden = true;
-        appendLog($("#socksLog"), "\n[GUI] " + t("Прокси остановлен.") + "\n");
+        appendLog($("#socksLog"), "\n[GUI] " + t("extra.39") + "\n");
       }
     });
     // v2.4.6 (F39): адрес показываем только после успешного запуска процесса
@@ -92,12 +93,12 @@
         " -threshold " + (+$("#fjThreshold").value || 95) +
         " -n " + (+$("#fjSample").value || 5) +
         " -jt " + (+$("#fjJt").value || 10) +
-        (S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "");
+        (S.paths.accPath ? " -a " + argPath(S.paths.accPath) : ""); // v2.6.2 (FE-23)
     } else {
       cmd =
         quoteExe() + " find-sni -p " + $("#fsProto").value +
         " -threshold " + (+$("#fsThreshold").value || 70) +
-        (S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "");
+        (S.paths.accPath ? " -a " + argPath(S.paths.accPath) : ""); // v2.6.2 (FE-23)
     }
     appendLog(log, "$ " + (IS_MOCK ? cmd.replace(/^"[^"]*"/, "warpscout") : cmd) + "\n\n");
     try {
@@ -112,7 +113,7 @@
         if (m && S.running[key]) {
           $("#foundCmdBadge").classList.remove("hidden");
           S.foundCmd = "warpscout " + m[1].trim();
-          appendLog(log, "\n[GUI] " + t("Нажмите «Применить к скану».") + "\n");
+          appendLog(log, "\n[GUI] " + t("tools.14") + "\n");
         }
       };
       registerProc(proc.id, (d) => {
@@ -133,7 +134,7 @@
     } catch (e) {
       S.running[key] = false;
       toolsUi(key);
-      toast(t("Не удалось запустить"), "err");
+      toast(t("misc.20"), "err");
     }
   }
 
@@ -146,7 +147,7 @@
 
   function applyFoundCmd() {
     const cmd = strField(S.foundCmd, 1000);
-    if (!cmd) { toast(t("Сначала найдите команду"), "err"); return; }
+    if (!cmd) { toast(t("tools.16"), "err"); return; }
     // v2.4.6 (F21): строим НОВЫЙ согласованный профиль с нуля, а не подмешиваем
     // найденные флаги в текущую форму (старые through/target/gen-junk искажали смысл)
     const s = Object.assign({}, DEFAULT_SCAN);
@@ -189,9 +190,9 @@
     persist();
     switchTab("scan");
     if (sawRawI1) {
-      toast(t("Найден конкретный I1 — GUI применяет генераторы; raw-I1 задаётся командой из вкладки «Поиск параметров»"), "warn");
+      toast(t("extra.40"), "warn");
     } else {
-      toast(t("Параметры применены к скану"), "ok");
+      toast(t("tools.15"), "ok");
     }
   }
 
@@ -237,13 +238,13 @@
       const n = (rc && !rc.hidden) ? (parseInt(rc.textContent, 10) || 0) : 0;
       // v2.5.4: после завершения не висим на «Читаем отчёт…» — честный финал
       if (hs) {
-        if (S.running.scan) hs.textContent = "● " + t("Скан") + ": " + phase;
-        else if (S.results.length) hs.textContent = "● " + t("Скан завершён");
-        else hs.textContent = "● " + t("Скан ещё не запускался");
+        if (S.running.scan) hs.textContent = "● " + t("nav.02") + ": " + phase;
+        else if (S.results.length) hs.textContent = "● " + t("conf.48");
+        else hs.textContent = "● " + t("touch.06");
         hs.className = "home-status__row" + (!S.running.scan && S.results.length ? " home-done" : "");
       }
       if (hr) {
-        hr.textContent = n ? "● " + tF("Живых эндпоинтов: {n}", { n: n }) : "● " + t("Живых эндпоинтов пока нет");
+        hr.textContent = n ? "● " + tF("touch.07", { n: n }) : "● " + t("touch.08");
         hr.className = "home-status__row" + (n ? " home-done" : "");
       }
     };
@@ -309,12 +310,12 @@
      каждой ветке: открыл / показал в выборе файлов / путь в буфер. */
   async function openFolderUi(path, what) {
     const target = String(path || S.paths.dataDir || window.NL_PATH || "");
-    if (IS_MOCK) { toast(t("Только в приложении (в демо папки нет)"), "info"); return; }
-    toast(tF("Открываю папку{what}: {p}", { what: what ? " (" + what + ")" : "", p: target }), "info");
+    if (IS_MOCK) { toast(t("conf.37"), "info"); return; }
+    toast(tF("conf.36", { what: what ? " (" + what + ")" : "", p: target }), "info");
     try {
       await Promise.resolve(os().open(target));
     } catch (e) {
-      toast(t("Не удалось открыть папку") + ": " + (e && e.message ? e.message : e), "err");
+      toast(t("misc.25") + ": " + (e && e.message ? e.message : e), "err");
     }
   }
   /* ── v2.5.4 (fix): realtime-индикатор скана на главной ──
@@ -331,9 +332,9 @@
     const btnH = document.getElementById("homeScan");
     if (btnH) {
       const lbl = btnH.querySelector(".home-act__txt b");
-      if (lbl) lbl.textContent = run ? t("■ Остановить скан") : t("Просканировать эндпоинты");
+      if (lbl) lbl.textContent = run ? t("conf.39") : t("touch.01");
       btnH.classList.toggle("home-act--busy", run);
-      btnH.setAttribute("aria-label", run ? t("Остановить скан") : t("Просканировать эндпоинты"));
+      btnH.setAttribute("aria-label", run ? t("conf.40") : t("touch.01"));
     }
     homeScanTick();
     // v2.5.4: зеркала статуса на главной (скан/аккаунт/фаза) — доспустить вручную,
@@ -359,16 +360,16 @@
       try { await stopScan(); } catch (e) {}
       return;
     }
-    toast(t("Скан запущен"), "ok");
+    toast(t("touch.11"), "ok");
     homeScanUi();
     try { await window.__WSGUI.runScan(); } catch (e) {}
     homeScanUi();
   }
   async function homeMakeConf() {
-    if (S.running.scan) { toast(t("Дождитесь окончания скана — конфиг строится по его результатам"), "warn"); return; }
+    if (S.running.scan) { toast(t("touch.10"), "warn"); return; }
     if (!confExportReady()) return; // свой toast при отсутствии аккаунта
     const best = bestResultRow();
-    if (!best) { toast(t("Нет живых эндпоинтов — сначала просканируйте"), "err"); return; }
+    if (!best) { toast(t("touch.09"), "err"); return; }
     // выбранный эндпоинт попадает и на вкладку «Конфиг» — единое состояние
     $("#cfgEndpoint").value = best.endpoint;
     syncCfgFromInputs();
@@ -394,14 +395,14 @@
               const p = document.getElementById("homeConfPath");
               if (p) p.textContent = String(r.path);
             }
-            toast(t("Конфиг сохранён в Download/WARPScoutGUI"), "ok");
+            toast(t("conf.41"), "ok");
             return;
           }
           if (r && r.fallback) {
-            toast(t("Download недоступен без разрешения — конфиг сохранён в папку приложения"), "warn");
+            toast(t("conf.42"), "warn");
           }
         } catch (e) {
-          toast(tF("Download недоступен ({err}) — сохраняю в папку приложения", { err: e && e.message ? e.message : e }), "warn");
+          toast(tF("conf.43", { err: e && e.message ? e.message : e }), "warn");
         }
       }
     }
@@ -412,7 +413,7 @@
       savedPath = pxJoin(dir, fname);
       await fs().writeFile(savedPath, text);
     } catch (e) {
-      toast(tF("Ошибка записи: {err}", { err: e && e.message ? e.message : e }), "err");
+      toast(tF("extra.30", { err: e && e.message ? e.message : e }), "err");
       return;
     }
     const pub = await mirrorPublic(savedPath);
@@ -424,7 +425,7 @@
       const p = document.getElementById("homeConfPath");
       if (p) p.textContent = pub || savedPath;
     }
-    toast(tF("Конфиг готов: {p}", { p: pub || savedPath }), "ok");
+    toast(tF("touch.13", { p: pub || savedPath }), "ok");
   }
 
   function setupTouchUi() {
@@ -450,66 +451,66 @@
       '<div class="home-status__row" id="homeAcc">…</div>' +
       '<div class="home-scanlive hidden" id="homeScanLive" role="status" aria-live="polite">' +
         '<span class="home-scanlive__dot" aria-hidden="true"></span>' +
-        '<span class="home-scanlive__main"><b>' + t("Сканирую…") + '</b><span id="homeScanPhase"></span></span>' +
+        '<span class="home-scanlive__main"><b>' + t("scan.run.03") + '</b><span id="homeScanPhase"></span></span>' +
         '<span class="home-scanlive__meta"><span id="homeScanTime">00:00</span><span id="homeScanSteps"></span></span>' +
-        '<button class="home-scanlive__stop" id="homeScanStop" type="button">■ ' + t("Остановить") + '</button>' +
+        '<button class="home-scanlive__stop" id="homeScanStop" type="button">■ ' + t("scan.run.04") + '</button>' +
       '</div>' +
       '<div class="home-status__row" id="homeScanRow"></div>' +
       '<div class="home-status__row" id="homeResRow"></div>' +
       '<div class="home-status__hint">' + (IS_ANDROID
-        ? "Готовые конфиги сохраняются в Download/WARPScoutGUI — папка видна в любом файловом менеджере"
-        : "Сенсорный режим интерфейса") + '</div></div>' +
-      '<h2 class="home-title">Основные действия</h2>' +
+        ? t("conf.44")
+        : t("misc.07")) + '</div></div>' +
+      '<h2 class="home-title">' + t("misc.03") + '</h2>' +
       '<div class="home-actions">' +
-      btn("homeScan", actIco(TABBAR_ICONS.scan), "Просканировать эндпоинты", true, "") +
-      btn("homeConf", actIco(SVG_BOLT), "Получить рабочий конфиг", true, "") +
+      btn("homeScan", actIco(TABBAR_ICONS.scan), t("touch.01"), true, "") +
+      btn("homeConf", actIco(SVG_BOLT), t("touch.02"), true, "") +
       '</div>' +
-      '<div class="home-pub" id="homeConfBox" hidden><b>✓ ' + "Конфиг сохранён" + '</b>' +
+      '<div class="home-pub" id="homeConfBox" hidden><b>✓ ' + t("touch.04") + '</b>' +
       '<span id="homeConfPath"></span>' +
-      '<div class="home-pub__btns"><button class="btn btn--ghost btn--sm" id="homeConfOpen" type="button">📁 ' + "Открыть папку" + '</button>' +
-      '<button class="btn btn--ghost btn--sm" id="homeConfCopy" type="button">📋 ' + "Скопировать конфиг" + '</button></div></div>' +
+      '<div class="home-pub__btns"><button class="btn btn--ghost btn--sm" id="homeConfOpen" type="button">📁 ' + t("extra.79") + '</button>' +
+      '<button class="btn btn--ghost btn--sm" id="homeConfCopy" type="button">📋 ' + t("touch.05") + '</button></div></div>' +
       (IS_ANDROID
-        ? '<div class="home-pub" id="homePubBox"><b>Download/WARPScoutGUI</b> — ' + "готовые конфиги (видны в любом файловом менеджере)" +
-          '<div class="home-pub__btns"><button class="btn btn--ghost btn--sm" id="homePubOpen" type="button">📁 ' + "Открыть папку" + '</button></div></div>'
+        ? '<div class="home-pub" id="homePubBox"><b>Download/WARPScoutGUI</b> — ' + t("conf.45") +
+          '<div class="home-pub__btns"><button class="btn btn--ghost btn--sm" id="homePubOpen" type="button">📁 ' + t("extra.79") + '</button></div></div>'
         : "") +
       // v2.5.2: разделы вертикальным списком (как в «Ещё») — в ряд из трёх
       // кнопок подписи не помещались и распирали страницу по горизонтали
-      '<h2 class="home-title">Разделы</h2>' +
+      '<h2 class="home-title">' + t("touch.03") + '</h2>' +
       '<div class="home-actions home-actions--list">' +
-      btn("homeTools", actIco(SVG_TOOLS), "Поиск параметров", false, "tools") +
-      btn("homeSocks", actIco(SVG_SOCKS), "SOCKS-прокси", false, "socks") +
-      btn("homeSettings", actIco(SVG_GEAR), "Настройки", false, "settings") +
+      btn("homeTools", actIco(SVG_TOOLS), t("nav.06"), false, "tools") +
+      btn("homeSocks", actIco(SVG_SOCKS), t("nav.05"), false, "socks") +
+      btn("homeSettings", actIco(SVG_GEAR), t("nav.07"), false, "settings") +
       '</div></div>');
     home.id = "tab-home";
-    home.setAttribute("aria-label", "Главная");
+    home.setAttribute("aria-label", t("misc.01"));
     // ── Ещё ──
     const more = el("section", "tab",
-      '<div class="home-wrap"><h2 class="home-title">Ещё</h2><div class="home-actions home-actions--list">' +
-      btn("moreTools", "🛠", "Поиск параметров", false, "tools") +
-      btn("moreSocks", "🔗", "SOCKS-прокси", false, "socks") +
-      btn("moreSettings", "⚙", "Настройки", false, "settings") +
-      btn("moreTheme", "🌓", "Переключить тему", false, "") +
+      '<div class="home-wrap"><h2 class="home-title">' + t("misc.02") + '</h2><div class="home-actions home-actions--list">' +
+      btn("moreTools", "🛠", t("nav.06"), false, "tools") +
+      btn("moreSocks", "🔗", t("nav.05"), false, "socks") +
+      btn("moreSettings", "⚙", t("nav.07"), false, "settings") +
+      btn("moreTheme", "🌓", t("misc.05"), false, "") +
       '</div>' +
       // v2.5.0 (аудит B4): переключатель языка доступен из touch-навигации
       // (классы .lang-switch — applyLang сам синхронизирует is-active)
-      '<div class="home-lang"><div class="lang-switch" role="group" aria-label="Язык / Language">' +
+      '<div class="home-lang"><div class="lang-switch" role="group" data-i18n="off" aria-label="Язык / Language">' +
       '<button class="lang-switch__btn' + (LANG === "en" ? "" : " is-active") + '" type="button" data-lang="ru" aria-label="Русский">RU</button>' +
       '<button class="lang-switch__btn' + (LANG === "en" ? " is-active" : "") + '" type="button" data-lang="en" aria-label="English">EN</button>' +
-      '</div></div><div class="home-foot">WARPSCOUT GUI v' + (window.NL_APPVERSION || "2.5.2") + ' · warpscout v0.16.0<br>Android-оболочка: WebView + ядро warpscout (MIT)</div></div>');
+      '</div></div><div class="home-foot">WARPSCOUT GUI v' + (window.NL_APPVERSION || "2.5.2") + ' · warpscout v0.16.0<br>' + t("misc.08") + '</div></div>');
     more.id = "tab-more";
-    more.setAttribute("aria-label", "Ещё");
+    more.setAttribute("aria-label", t("misc.02"));
     main.insertBefore(home, main.firstChild);
     main.appendChild(more);
     // ── нижняя навигация (v2.5.2: контурные SVG-иконки) ──
-    const tabs = [["home", "home", "Главная"], ["scan", "scan", "Скан"], ["config", "config", "Конфиг"], ["account", "account", "Аккаунт"], ["more", "more", "Ещё"]];
+    const tabs = [["home", "home", "misc.01"], ["scan", "scan", "nav.02"], ["config", "config", "nav.03"], ["account", "account", "nav.04"], ["more", "more", "misc.02"]]; // v2.6.2 (QUAL-1): id-ключи
     const bar = el("nav", "tabbar");
-    bar.setAttribute("aria-label", "Нижняя навигация");
-    tabs.forEach(([t, icoKey, label]) => {
-      const b = el("button", "nav__item tabbar__btn" + (t === "home" ? " is-active" : ""),
-        '<svg viewBox="0 0 24 24" class="nav__ico" aria-hidden="true" focusable="false">' + TABBAR_ICONS[icoKey] + '</svg><span>' + label + '</span>');
-      b.setAttribute("data-tab", t);
+    bar.setAttribute("aria-label", t("extra.80"));
+    tabs.forEach(([tabId, icoKey, label]) => { // v2.6.2 (QUAL-1): tabId — не "t" (затеняет переводчик)
+      const b = el("button", "nav__item tabbar__btn" + (tabId === "home" ? " is-active" : ""),
+        '<svg viewBox="0 0 24 24" class="nav__ico" aria-hidden="true" focusable="false">' + TABBAR_ICONS[icoKey] + '</svg><span>' + t(label) + '</span>');
+      b.setAttribute("data-tab", tabId);
       b.setAttribute("type", "button");
-      b.setAttribute("aria-label", label);
+      b.setAttribute("aria-label", t(label));
       bar.appendChild(b);
     });
     document.body.appendChild(bar);
@@ -540,15 +541,15 @@
     const hcOpen = document.getElementById("homeConfOpen");
     if (hcOpen) hcOpen.addEventListener("click", () => {
       // v2.5.4: единый хелпер — мгновенный тост + явная ошибка (было .catch(() => {}))
-      openFolderUi(window.__homeConfPath || S.paths.dataDir || window.NL_PATH || "", "конфиги");
+      openFolderUi(window.__homeConfPath || S.paths.dataDir || window.NL_PATH || "", t("touch.17")); // v2.6.2 (FE-24)
     });
     const hcCopy = document.getElementById("homeConfCopy");
-    if (hcCopy) hcCopy.addEventListener("click", () => { if (window.__homeConfText) copyText(window.__homeConfText, t("Конфиг скопирован")); });
+    if (hcCopy) hcCopy.addEventListener("click", () => { if (window.__homeConfText) copyText(window.__homeConfText, t("toasts.09")); });
     const hpOpen = document.getElementById("homePubOpen");
     if (hpOpen) hpOpen.addEventListener("click", () => {
       // v2.5.4 (Android): конфиги по умолчанию лежат в Download/WARPScoutGUI —
       // она видна в ЛЮБОМ файловом менеджере (Android/data — нет)
-      openFolderUi(IS_ANDROID ? ANDROID_DOWNLOAD_DIR : (S.paths.dataDir || window.NL_PATH || ""), "готовые конфиги");
+      openFolderUi(IS_ANDROID ? ANDROID_DOWNLOAD_DIR : (S.paths.dataDir || window.NL_PATH || ""), t("touch.18")); // v2.6.2 (FE-24)
     });
     // v2.5.0 (аудит B4): переключение языка из touch-меню
     const langWrap = more.querySelector(".home-lang .lang-switch");

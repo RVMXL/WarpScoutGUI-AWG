@@ -17,17 +17,17 @@
     const el = $("#udfState");
     if (!el) return "default";
     const custom = !!String(S.settings.dataRoot || "").trim();
-    el.textContent = custom ? t("⚠ своя папка данных") : t("✓ аккаунт, отчёты и кэш — в одной папке");
+    el.textContent = custom ? t("data.08") : t("data.07");
     el.className = custom ? "is-warn" : "is-ok";
     const hint = $("#dataRootHint");
     if (hint) {
       hint.textContent = custom
-        ? tF("Данные (аккаунт, отчёты): {d}. Веб-кэш движка рантайм всегда держит в {u} — техническая папка останется рядом.", { d: S.paths.dataDir, u: S.paths.udfPath })
-        : tF("Всё вместе — в одной папке: {u}. Она создаётся программой сама, поэтому всегда на месте.", { u: S.paths.udfPath });
+        ? tF("data.10", { d: S.paths.dataDir, u: S.paths.udfPath })
+        : tF("data.09", { u: S.paths.udfPath });
       // v2.6.0 (SEC-6): на Android данные приватны (app-specific), а наружу
       // (файловым менеджерам) копируются в единую папку Download/WARPScoutGUI
       if (IS_ANDROID) {
-        hint.textContent += " " + t("Отчёты и конфиги дублируются в общую папку устройства: Download/WARPScoutGUI");
+        hint.textContent += " " + t("touch.15");
       }
     }
     return custom ? "custom" : "default";
@@ -62,7 +62,7 @@
     const moved = [];
     const conflicts = [];
     if (!oldRoot || !newRoot || isSameWinPath(oldRoot, newRoot)) return { moved, conflicts };
-    if (isWinPathInside(newRoot, oldRoot)) throw new Error(t("новая папка находится внутри старой — выберите папку вне её"));
+    if (isWinPathInside(newRoot, oldRoot)) throw new Error(t("extra.41"));
     await ensureDir(newRoot);
     // аккаунт
     let accText = "";
@@ -79,6 +79,31 @@
         if (!verified) throw new Error("аккаунт не прошёл проверку записи — перенос отменён, старая папка не тронута");
         try { await fs().remove(pxJoin(oldRoot, "warpscout-account.json")); } catch (e) { /* удалим при следующем переносе */ }
         moved.push("warpscout-account.json");
+        // v2.6.2 (SEC-A1, пересечение с FE-22): резервные копии аккаунта (.bak-*)
+        // несут копии приватного ключа — переносим их вместе с аккаунтом по той же
+        // схеме (копия + проверка + удаление источника). Иначе источник остаётся
+        // с ключами, а повторная миграция плодит дубли.
+        try {
+          const bakItems = await fs().readDirectory(oldRoot);
+          if (Array.isArray(bakItems)) {
+            for (const it of bakItems) {
+              if (String(it.type || "").toUpperCase() === "DIRECTORY") continue;
+              const name = String(it.path || "").split(/[\\/]/).pop();
+              if (!name || !/^warpscout-account\.json\.bak-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$/.test(name)) continue;
+              let bakTxt = "";
+              try { bakTxt = await fs().readFile(it.path); } catch (e) { continue; }
+              let bakDest = false;
+              try { await fs().readFile(pxJoin(newRoot, name)); bakDest = true; } catch (e) {}
+              if (bakDest) { conflicts.push(name); continue; }
+              try { await fs().writeFile(pxJoin(newRoot, name), bakTxt); } catch (e) { continue; }
+              let bakVerified = false;
+              try { bakVerified = (await fs().readFile(pxJoin(newRoot, name))) === bakTxt; } catch (e) { bakVerified = false; }
+              if (!bakVerified) continue;
+              try { await fs().remove(it.path); } catch (e) { /* удалим при следующем переносе */ }
+              moved.push(name);
+            }
+          }
+        } catch (e) { /* каталог источника не читается — не ломаем основной перенос */ }
       }
     }
     // отчёты
@@ -96,6 +121,14 @@
           try { await fs().readFile(pxJoin(newRoot, "reports", name)); destExists = true; } catch (e) {}
           if (destExists) { conflicts.push("reports/" + name); continue; } // F15: имя занято — файл остаётся в старой папке
           try { await fs().writeFile(pxJoin(newRoot, "reports", name), txt2); } catch (e) { continue; } // не скопировался — НЕ удаляем источник
+          // v2.6.2 (аудит FE-22): перенос = копия + проверка записи + удаление
+          // источника (как для аккаунта выше). Раньше источник оставался —
+          // отчёты дублировались в двух папках и при повторной миграции
+          // копировались снова. Не подтвердилась запись — источник сохранён.
+          let verified2 = false;
+          try { verified2 = (await fs().readFile(pxJoin(newRoot, "reports", name))) === txt2; } catch (e) { verified2 = false; }
+          if (!verified2) continue;
+          try { await fs().remove(it.path); } catch (e) { /* удалим при следующем переносе */ }
           moved.push("reports/" + name);
         }
         // v2.4.6 (F14): старый reports удаляем ТОЛЬКО если он опустел
@@ -137,7 +170,7 @@
         renderAccount();
         renderAccountStatusline();
       }
-      toast(tF("Данные из прежней папки приложения перенесены: {n} ({list})", { n: copiedAll.length, list: copiedAll.slice(0, 3).join(", ") + (copiedAll.length > 3 ? "…" : "") }), "ok");
+      toast(tF("data.14", { n: copiedAll.length, list: copiedAll.slice(0, 3).join(", ") + (copiedAll.length > 3 ? "…" : "") }), "ok");
     }
     return copiedAll;
   }
@@ -149,15 +182,15 @@
   async function applyDataRoot(newRoot) {
     if (!newRoot) return;
     if (await anyProcRunning()) {
-      toast(t("Сначала остановите скан/регистрацию/прокси — перенос данных посреди работы невозможен"), "err");
+      toast(t("data.13"), "err");
       return;
     }
-    if (newRoot === S.paths.dataDir) { toast(t("Данные уже хранятся в этой папке"), "ok"); return; }
+    if (newRoot === S.paths.dataDir) { toast(t("data.16"), "ok"); return; }
     try {
       await ensureDir(newRoot);
       await fs().readDirectory(newRoot); // проверка, что папка доступна
     } catch (e) {
-      toast(t("Папка недоступна для записи — выберите другую"), "err");
+      toast(t("data.17"), "err");
       return;
     }
     let moved = [];
@@ -169,7 +202,7 @@
     } catch (e) {
       // v2.4.6 (F14/F15): при ошибке переноса активный корень НЕ меняем —
       // «половина данных там, половина здесь» хуже явного отказа
-      toast(tF("Перенос данных не выполнен: {err}. Активной осталась прежняя папка.", { err: e && e.message ? e.message : e }), "err");
+      toast(tF("extra.42", { err: e && e.message ? e.message : e }), "err");
       return;
     }
     S.settings.dataRoot = newRoot;
@@ -180,12 +213,12 @@
     renderDataFolder().catch(() => {});
     toast(
       moved.length
-        ? tF("Папка данных изменена, перенесено файлов: {n} ({list})", { n: moved.length, list: moved.slice(0, 3).join(", ") + (moved.length > 3 ? "…" : "") })
-        : t("Папка данных изменена"),
+        ? tF("data.18", { n: moved.length, list: moved.slice(0, 3).join(", ") + (moved.length > 3 ? "…" : "") })
+        : t("data.19"),
       "ok"
     );
     if (conflicts.length) {
-      toast(tF("Не перенесены — уже есть в новой папке: {n}", { n: conflicts.length }) + ": " + conflicts.slice(0, 3).join("; ") + (conflicts.length > 3 ? "…" : ""), "warn");
+      toast(tF("extra.43", { n: conflicts.length }) + ": " + conflicts.slice(0, 3).join("; ") + (conflicts.length > 3 ? "…" : ""), "warn");
     }
   }
 
@@ -194,11 +227,11 @@
       // v2.6.0 (аудит QUAL-2): window.prompt в демо убран — блокирующий диалог
       // не имеет отношения к реальному SAF/нативному диалогу и дезинформирует.
       // Демо честно говорит, что выбор папки — только в приложении.
-      toast(t("Выбор папки данных работает только в приложении"), "info");
+      toast(t("touch.16"), "info");
       return;
     }
     let p = null;
-    try { p = await os().showFolderDialog(t("Выберите папку для данных WARPSCOUT GUI")); } catch (e) { p = null; }
+    try { p = await os().showFolderDialog(t("data.21")); } catch (e) { p = null; }
     if (!p) return;
     await applyDataRoot(String(p).replace(/[\\/]+$/, ""));
   }
@@ -304,7 +337,7 @@
     let okDir = true;
     try { await ensureDir(udf); } catch (e) { okDir = false; }
     if (!okDir) {
-      toast(t("Не удалось снять ссылку «<имя exe>» — данные доступны, папка осталась ссылкой. Закройте приложение и удалите ссылку вручную (Проводник удаляет только ссылку), затем запустите снова."), "err");
+      toast(t("junction.01"), "err");
       return;
     }
     if (accText) { try { await fs().writeFile(udf + "\\warpscout-account.json", accText); } catch (e) {} }
@@ -313,7 +346,7 @@
       for (const r of savedReports) { try { await fs().writeFile(udf + "\\reports\\" + r.name, r.text); } catch (e) {} }
     } catch (e) {}
     cleanupOldFolder(det);
-    toast(t("Ссылка «<имя exe>» разобрана: аккаунт и отчёты снова в обычной папке, рядом с кэшем движка"), "ok");
+    toast(t("junction.02"), "ok");
   }
 
   // v2.3.0: автоперенос аккаунта/отчётов из старой папки v2.1–2.2 (%APPDATA%\WARPScoutGUI)
@@ -355,7 +388,7 @@
       }
     } catch (e) { /* папки отчётов нет */ }
     if (copied.length) {
-      toast(tF("Данные перенесены рядом с кэшем движка ({n}): {list}", { n: copied.length, list: copied.slice(0, 3).join(", ") + (copied.length > 3 ? "…" : "") }), "ok");
+      toast(tF("junction.03", { n: copied.length, list: copied.slice(0, 3).join(", ") + (copied.length > 3 ? "…" : "") }), "ok");
       cleanupOldFolder(src); // старая папка опустеет и уберётся фоном
     }
     return copied;
@@ -372,10 +405,17 @@
       if (st.scan) S.scan = sanitizeScan(st.scan);
       if (st.cfg) S.cfg = sanitizeCfg(st.cfg);
       if (st.settings && typeof st.settings === "object") {
-        S.settings = Object.assign({}, S.settings, {
+        // v2.6.2 (аудит FE-20): тема и язык переживают рестарт — persist их
+        // сохраняет, restore обязан читать. Валидация по enum; невалидное
+        // значение НЕ затирает текущее (patch собираем только из валидных
+        // полей: Object.assign с undefined стёр бы настройку до дефолта).
+        const patch = {
           wsPath: strField(st.settings.wsPath, 500),
           dataRoot: strField(st.settings.dataRoot, 500),
-        });
+        };
+        if (st.settings.theme === "dark" || st.settings.theme === "light") patch.theme = st.settings.theme;
+        if (st.settings.lang === "ru" || st.settings.lang === "en") patch.lang = st.settings.lang;
+        S.settings = Object.assign({}, S.settings, patch);
       }
       if (Array.isArray(st.customPresets)) S.customPresets = sanitizePresets(st.customPresets);
       S.compact = !!st.compact;

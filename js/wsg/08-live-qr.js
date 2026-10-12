@@ -64,7 +64,7 @@
     const meta = $("#scanLiveMeta");
     if (meta && live.steps.length) {
       const last = live.steps[live.steps.length - 1];
-      meta.textContent = t("шагов") + " " + last.done + "/" + last.total + " · " + t("узлов") + " " + live.nodes.length;
+      meta.textContent = t("live.14") + " " + last.done + "/" + last.total + " · " + t("live.15") + " " + live.nodes.length;
     }
     try { homeScanTick(); } catch (e) {} // v2.5.4: шаги/узлы на главной
   }
@@ -88,7 +88,7 @@
     if (live.steps.length < 1) {
       ctx.fillStyle = "rgba(255,255,255,0.25)";
       ctx.font = "11px " + (getComputedStyle(document.body).fontFamily || "sans-serif");
-      ctx.fillText(t("Ждём первый шаг прогресса…"), 8, h / 2 + 4);
+      ctx.fillText(t("live.12"), 8, h / 2 + 4);
       return;
     }
     const T = Math.max(8000, live.steps[live.steps.length - 1].t);
@@ -141,13 +141,13 @@
     const fmt = (list) => list.slice(0, 6).join(", ") + (list.length > 6 ? " … +" + (list.length - 6) : "");
     const panel =
       '<div class="history__cmp">' +
-        '<div class="history__cmp-title">' + t("Δ сравнение с текущей таблицей:") + "</div>" +
+        '<div class="history__cmp-title">' + t("history.14") + "</div>" +
         '<div class="history__cmp-row">' +
-          '<span class="is-ok">' + t("➕ новых: ") + "<b>" + newList.length + "</b></span>" +
+          '<span class="is-ok">' + t("history.15") + "<b>" + newList.length + "</b></span>" +
           (newList.length ? '<span class="history__cmp-list">' + esc(fmt(newList)) + "</span>" : "") +
         "</div>" +
         '<div class="history__cmp-row">' +
-          '<span class="is-err">' + t("➖ пропали: ") + "<b>" + goneList.length + "</b></span>" +
+          '<span class="is-err">' + t("history.16") + "<b>" + goneList.length + "</b></span>" +
           (goneList.length ? '<span class="history__cmp-list">' + esc(fmt(goneList)) + "</span>" : "") +
         "</div>" +
       "</div>";
@@ -158,9 +158,9 @@
     if (oldPanel) oldPanel.remove();
     item.insertAdjacentHTML("afterend", panel);
     if (!newList.length && !goneList.length) {
-      toast(t("Различий нет — наборы эндпоинтов совпадают"), "ok");
+      toast(t("history.17"), "ok");
     } else {
-      toast(tF("Δ: новых {n}, пропали {g}", { n: newList.length, g: goneList.length }), "info");
+      toast(tF("history.18", { n: newList.length, g: goneList.length }), "info");
     }
   }
 
@@ -177,7 +177,7 @@
     S.compact = !S.compact;
     applyCompact();
     persist();
-    toast(t(S.compact ? "Компактная таблица включена" : "Обычная таблица"), "info");
+    toast(t(S.compact ? "misc.42" : "misc.41"), "info");
   }
 
   /* ───────── QR-код конфига (v1.4.0; v2.4.4: многостраничный QR для длинных конфигов — формат AmneziaVPN) ───────── */
@@ -233,16 +233,16 @@
     if (!S.qrPages) return;
     const qr = qrMake(S.qrPages[S.qrPage]);
     $("#qrBox").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 3, scalable: true });
-    $("#qrPageLabel").textContent = tF("страница {i} из {n}", { i: S.qrPage + 1, n: S.qrPages.length });
+    $("#qrPageLabel").textContent = tF("misc.11", { i: S.qrPage + 1, n: S.qrPages.length });
     $("#btnQrPrev").disabled = S.qrPage === 0;
     $("#btnQrNext").disabled = S.qrPage === S.qrPages.length - 1;
   }
 
   function showConfQr() {
-    if (typeof window.qrcode !== "function") { toast(t("QR-модуль не загружен"), "err"); return; }
+    if (typeof window.qrcode !== "function") { toast(t("misc.10"), "err"); return; }
     if (!confExportReady()) return; // v2.4.6 (F27)
     const conf = buildConf();
-    const tooBigErr = () => toast(tF("Конфиг {n} симв. — не помещается в QR (лимит 2953). Обычно виноват длинный I1: уберите его или сохраните конфиг файлом.", { n: conf.length }), "err");
+    const tooBigErr = () => toast(tF("misc.16", { n: conf.length }), "err");
     try {
       if (new TextEncoder().encode(conf).length <= QR_SINGLE_LIMIT) {
         // одиночный QR — как раньше (plain-текст конфига, его же читает и WireGuard)
@@ -273,7 +273,7 @@
       let text = conf, pageIdx = 0, pageCount = 1;
       if (multi) {
         const pages = qrPagesFor(conf);
-        if (!pages) { toast(tF("Конфиг {n} симв. — не помещается в QR (лимит 2953). Обычно виноват длинный I1: уберите его или сохраните конфиг файлом.", { n: conf.length }), "err"); return; }
+        if (!pages) { toast(tF("misc.16", { n: conf.length }), "err"); return; }
         pageIdx = Math.min(S.qrPage || 0, pages.length - 1);
         text = pages[pageIdx];
         pageCount = pages.length;
@@ -305,10 +305,10 @@
         document.body.appendChild(a);
         a.click();
         a.remove();
-        toast(tF("PNG скачан: {path}", { path: name }), "ok");
+        toast(tF("extra.12", { path: name }), "ok");
         return;
       }
-      const path = await os().showSaveDialog(t("Сохранить QR-код"), { defaultPath: name });
+      const path = await os().showSaveDialog(t("qr.modal.04"), { defaultPath: name });
       if (!path) return;
       const base64 = dataUrl.split(",")[1];
       const bin = atob(base64);
@@ -316,9 +316,9 @@
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       if (fs().writeBinaryFile) await fs().writeBinaryFile(path, bytes.buffer);
       else await fs().writeFile(path, dataUrl);
-      toast(tF("QR сохранён: {path}", { path: path }), "ok");
+      toast(tF("extra.13", { path: path }), "ok");
     } catch (e) {
-      toast(tF("Не удалось построить QR: {err}", { err: e && e.message ? e.message : e }), "err");
+      toast(tF("extra.14", { err: e && e.message ? e.message : e }), "err");
     }
   }
 

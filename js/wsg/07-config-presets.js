@@ -50,7 +50,7 @@
     const kv = (k, v) => lines.push(k + " = " + String(v).replace(/[\r\n\t]+/g, " ").trim());
 
     sec("Interface");
-    kv("PrivateKey", acc ? acc.private_key : t("<запустите регистрацию на вкладке «Аккаунт»>"));
+    kv("PrivateKey", acc ? acc.private_key : t("misc.37"));
     if (acc) {
       const addr = [acc.ipv4, acc.ipv6].filter(Boolean).join(", ");
       kv("Address", addr || "172.16.0.2");
@@ -118,14 +118,14 @@
     $("#cfgAwg31Grid").style.display = ver === "awg31" ? "" : "none";
     $("#cfgVerHint").textContent = t(VER_HINTS[ver]);
     const keys = $("#cfgKeysState");
-    if (S.account) { keys.textContent = t("аккаунт загружен"); keys.className = "badge badge--accent"; }
-    else { keys.textContent = t("нет аккаунта"); keys.className = "badge"; }
+    if (S.account) { keys.textContent = t("conf.30"); keys.className = "badge badge--accent"; }
+    else { keys.textContent = t("conf.31"); keys.className = "badge"; }
   }
 
   function fillEndpointSelect() {
     const sel = $("#cfgEndpointSel");
     const cur = sel.value;
-    const options = ['<option value="">' + t("— выберите из результатов скана —") + "</option>"];
+    const options = ['<option value="">' + t("conf.04") + "</option>"];
     S.results.filter((r) => !r.torn).forEach((r) => {
       options.push(
         '<option value="' + esc(r.endpoint) + '">' +
@@ -167,7 +167,7 @@
   function renderHistoryBtn() {
     const btn = $("#btnHistory");
     if (!btn) return;
-    btn.textContent = t("🕘 История") + (S.history.length ? " (" + S.history.length + ")" : "");
+    btn.textContent = t("results.03") + (S.history.length ? " (" + S.history.length + ")" : "");
   }
 
   /* ───────── пользовательские пресеты (v1.4.0) ───────── */
@@ -178,9 +178,9 @@
       .map(
         (p, i) =>
           '<span class="chip chip--custom" role="button" tabindex="0" data-pi="' + i +
-          '" title="' + t("Пресет: применить. ✕ — удалить") + '">' +
+          '" title="' + t("presets.toasts.08") + '">' +
             '<span class="chip__custom-name">' + esc(p.name) + "</span>" +
-            '<button type="button" class="chip__del" data-del-preset="' + i + '" title="' + t("Удалить пресет") + '" aria-label="' + t("Удалить пресет") + ' ' + esc(p.name) + '">✕</button>' +
+            '<button type="button" class="chip__del" data-del-preset="' + i + '" title="' + t("presets.toasts.07") + '" aria-label="' + t("presets.toasts.07") + ' ' + esc(p.name) + '">✕</button>' +
           "</span>"
       )
       .join("");
@@ -193,9 +193,9 @@
         updateCmdPreview();
         $$("#presetChips .chip").forEach((c) => c.classList.remove("is-active"));
         el.classList.add("is-active");
-        $("#presetHint").innerHTML = tF("Пресет «<b>{name}</b>» применён. Команду можно посмотреть над кнопкой скана.", { name: esc(p.name) });
+        $("#presetHint").innerHTML = tF("presets.17", { name: esc(p.name) });
         persist();
-        toast(tF("Пресет применён: {name}", { name: p.name }), "ok");
+        toast(tF("presets.toasts.04", { name: p.name }), "ok");
       };
       el.addEventListener("click", (e) => {
         if (e.target.closest("[data-del-preset]")) return;
@@ -215,7 +215,7 @@
         S.customPresets.splice(i, 1);
         renderCustomPresets();
         persist();
-        toast(t("Пресет удалён"), "ok");
+        toast(t("presets.toasts.05"), "ok");
       })
     );
   }
@@ -232,7 +232,7 @@
 
   function saveCurrentPreset() {
     const name = ($("#presetName").value || "").trim();
-    if (!name) { toast(t("Введите название пресета"), "warn"); $("#presetName").focus(); return; }
+    if (!name) { toast(t("presets.toasts.01"), "warn"); $("#presetName").focus(); return; }
     if (S.customPresets.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
       if (!confirm(tF('Пресет "{name}" уже есть — перезаписать?', { name: name }))) return;
       S.customPresets = S.customPresets.filter((p) => p.name.toLowerCase() !== name.toLowerCase());
@@ -243,13 +243,13 @@
     renderCustomPresets();
     togglePresetSaveRow(false);
     persist();
-    toast(tF("Пресет сохранён: {name}", { name: name }), "ok");
+    toast(tF("presets.toasts.03", { name: name }), "ok");
   }
 
   /* ───────── шаринг пресетов: экспорт/импорт JSON (v1.8.0) ───────── */
   function exportPresets() {
     if (!S.customPresets.length) {
-      toast(t("Своих пресетов пока нет — сохраните хотя бы один (кнопка «＋ Свой»)"), "warn");
+      toast(t("live.03"), "warn");
       return;
     }
     const json = JSON.stringify(
@@ -266,55 +266,65 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-      toast(tF("Пресеты скачаны: {path}", { path: name }), "ok");
+      toast(tF("live.06", { path: name }), "ok");
       return;
     }
     os()
-      .showSaveDialog(t("Экспорт пресетов"), { defaultPath: name })
+      .showSaveDialog(t("live.07"), { defaultPath: name })
       .then(async (path) => {
         if (!path) return;
         await fs().writeFile(path, json);
-        toast(tF("Пресеты экспортированы: {path}", { path: path }), "ok");
+        toast(tF("live.05", { path: path }), "ok");
       })
-      .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
+      .catch((e) => toast(tF("extra.09", { err: e && e.message ? e.message : e }), "err"));
   }
 
   function applyImportedPresets(data) {
     if (!data || typeof data !== "object" || data.app !== "WARPSCOUT GUI presets" || !Array.isArray(data.presets)) {
-      toast(t("Файл не похож на набор пресетов WARPSCOUT GUI"), "err");
+      toast(t("live.04"), "err");
       return;
     }
-    const valid = data.presets.filter((p) => p && typeof p.name === "string" && p.name.trim() && p.scan && typeof p.scan === "object");
+    // v2.6.2 (FE-4): пресеты из чужого файла идут через ТЕ ЖЕ санитайзеры, что и
+    // бэкап-состояние (sanitizePresets → sanitizeScan): типы, лимиты длин,
+    // управляющие символы. Собственное свойство __proto__ из JSON.parse при этом
+    // не проходит — Object.assign в sanitizeScan заполняет ТОЛЬКО известные поля
+    // с явной валидацией, прототипное загрязнение исключено (раньше канал был
+    // единственным неочищенным: бэкап санитизировался, пресеты — нет).
+    const valid = sanitizePresets(data.presets).filter((p) => p.name.trim());
     if (!valid.length) {
-      toast(t("В файле нет ни одного корректного пресета"), "err");
+      toast(t("live.11"), "err");
       return;
     }
     const have = new Set(S.customPresets.map((p) => p.name.toLowerCase()));
     let added = 0, dup = 0;
     valid.forEach((p) => {
-      if (have.has(p.name.toLowerCase())) { dup++; return; }
-      S.customPresets.push({ name: p.name.trim(), scan: Object.assign({}, DEFAULT_SCAN, p.scan) });
-      have.add(p.name.toLowerCase());
+      const name = p.name.trim();
+      if (have.has(name.toLowerCase())) { dup++; return; }
+      S.customPresets.push({ name: name, scan: p.scan });
+      have.add(name.toLowerCase());
       added++;
     });
     if (S.customPresets.length > 20) S.customPresets = S.customPresets.slice(-20);
     renderCustomPresets();
     persist();
-    toast(dup ? tF("Импорт пресетов: добавлено {n}, пропущено (дубли) {d}", { n: added, d: dup }) : tF("Импорт пресетов: добавлено {n}", { n: added }), "ok");
+    toast(dup ? tF("live.09", { n: added, d: dup }) : tF("live.10", { n: added }), "ok");
   }
 
   function importPresets() {
     if (!IS_MOCK && HAS_NL) {
       os()
-        .showOpenDialog(t("Выберите файл пресетов"), { multiSelections: false })
+        .showOpenDialog(t("live.08"), { multiSelections: false })
         .then(async (p) => {
           const picked = Array.isArray(p) ? p[0] : p;
           if (!picked) return;
           try {
             const text = await fs().readFile(picked);
+            // v2.6.2 (FE-4): тот же лимит размера ДО парсинга, что у бэкапа (extra.18) —
+            // гигантский файл не блокирует UI
+            if (String(text).length > 2000000) { toast(t("extra.18"), "err"); return; }
             applyImportedPresets(JSON.parse(text));
           } catch (e) {
-            toast(tF("Не удалось прочитать файл: {err}", { err: e && e.message ? e.message : e }), "err");
+            toast(tF("extra.10", { err: e && e.message ? e.message : e }), "err");
           }
         })
         .catch(() => {});
@@ -335,9 +345,11 @@
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          applyImportedPresets(JSON.parse(String(reader.result)));
+          const text = String(reader.result);
+          if (text.length > 2000000) { toast(t("extra.18"), "err"); return; } // v2.6.2 (FE-4)
+          applyImportedPresets(JSON.parse(text));
         } catch (err) {
-          toast(tF("Некорректный JSON: {err}", { err: err && err.message ? err.message : err }), "err");
+          toast(tF("extra.11", { err: err && err.message ? err.message : err }), "err");
         }
       };
       reader.readAsText(file);

@@ -251,12 +251,12 @@
   async function browseWsPath() {
     let p;
     try {
-      p = await os().showOpenDialog(t("Выберите warpscout.exe"), { multiSelections: false, filters: [{ name: "warpscout.exe", extensions: ["exe"] }] });
+      p = await os().showOpenDialog(t("misc.23"), { multiSelections: false, filters: [{ name: "warpscout.exe", extensions: ["exe"] }] });
     } catch (e) { p = null; }
     let picked = null;
     if (Array.isArray(p) && p[0]) picked = p[0];
     else if (typeof p === "string" && p) picked = p;
-    if (IS_MOCK && !picked) { toast(t("Выбор файла работает только в приложении"), "err"); return; }
+    if (IS_MOCK && !picked) { toast(t("misc.22"), "err"); return; }
     if (!picked) return;
     S.settings.wsPath = picked;
     S.paths.wsPath = picked;
@@ -425,7 +425,7 @@
       if (!ok) {
         S.settings.dataRoot = "";
         root = "";
-        toast(t("Пользовательская папка данных недоступна — вернулись к папке по умолчанию"), "err");
+        toast(t("data.12"), "err");
       }
     }
     S.paths.dataDir = root || S.paths.dataDirDefault;
@@ -445,11 +445,15 @@
     S.paths.wsFound = wsRes.found;
     if (wsRes.found) {
       S.paths.wsPath = wsRes.path;
-      // custom указывает не на найденный exe (мусор/переезд папки)? — самоочистка,
-      // иначе он навсегда перекрыл бы штатное место (корень регресса v2.3.0)
+      // v2.6.2 (FE-21): пользовательская настройка больше не самоуничтожается молча.
+      // Если custom не совпал с найденным (мусор/переезд папки) — показываем
+      // тост-конфликт, но НАСТРОЙКУ СОХРАНЯЕМ: битый custom больше не перекрывает
+      // штатные места (wsCandidates проверяет ВСЕХ кандидатов по порядку — корень
+      // регресса v2.3.0 устранён конструктивно), а легитимный сценарий «сознательно
+      // держу другую версию CLI» не ломается. Сброс — только явным действием
+      // пользователя в настройках (очистка поля).
       if (wsCustom && wsCustom.toLowerCase() !== wsRes.path.toLowerCase()) {
-        S.settings.wsPath = "";
-        persist();
+        toast(tF("data.22", { p: wsRes.path }), "warn");
       }
     }
     if (!S.paths.wsPath) {
