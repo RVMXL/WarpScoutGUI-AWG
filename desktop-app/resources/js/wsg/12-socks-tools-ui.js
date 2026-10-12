@@ -541,7 +541,7 @@
     const hcOpen = document.getElementById("homeConfOpen");
     if (hcOpen) hcOpen.addEventListener("click", () => {
       // v2.5.4: единый хелпер — мгновенный тост + явная ошибка (было .catch(() => {}))
-      openFolderUi(window.__homeConfPath || S.paths.dataDir || window.NL_PATH || "", "конфиги");
+      openFolderUi(window.__homeConfPath || S.paths.dataDir || window.NL_PATH || "", t("touch.17")); // v2.6.2 (FE-24)
     });
     const hcCopy = document.getElementById("homeConfCopy");
     if (hcCopy) hcCopy.addEventListener("click", () => { if (window.__homeConfText) copyText(window.__homeConfText, t("toasts.09")); });
@@ -549,7 +549,7 @@
     if (hpOpen) hpOpen.addEventListener("click", () => {
       // v2.5.4 (Android): конфиги по умолчанию лежат в Download/WARPScoutGUI —
       // она видна в ЛЮБОМ файловом менеджере (Android/data — нет)
-      openFolderUi(IS_ANDROID ? ANDROID_DOWNLOAD_DIR : (S.paths.dataDir || window.NL_PATH || ""), "готовые конфиги");
+      openFolderUi(IS_ANDROID ? ANDROID_DOWNLOAD_DIR : (S.paths.dataDir || window.NL_PATH || ""), t("touch.18")); // v2.6.2 (FE-24)
     });
     // v2.5.0 (аудит B4): переключение языка из touch-меню
     const langWrap = more.querySelector(".home-lang .lang-switch");

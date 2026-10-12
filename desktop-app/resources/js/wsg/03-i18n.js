@@ -640,6 +640,8 @@
     "touch.14": { ru: "Конфиг сохранён: {p}", en: "Config saved: {p}" },
     "touch.15": { ru: "Отчёты и конфиги дублируются в общую папку устройства: Download/WARPScoutGUI", en: "Reports and configs are duplicated to the device's shared folder: Download/WARPScoutGUI" },
     "touch.16": { ru: "Выбор папки данных работает только в приложении", en: "Data folder selection works in the app only" },
+    "touch.17": { ru: "конфиги", en: "configs" }, // v2.6.2 (аудит FE-24): was hardcoded RU
+    "touch.18": { ru: "готовые конфиги", en: "ready-made configs" }, // v2.6.2 (аудит FE-24)
     /* — conf — */
     /* — v2.5.4: главная, открытие папок, конфиги в Download — */
     "conf.36": { ru: "Открываю папку{what}: {p}", en: "Opening folder{what}: {p}" },
