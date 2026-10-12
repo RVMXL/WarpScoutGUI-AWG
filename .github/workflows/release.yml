@@ -56,10 +56,15 @@ jobs:
           echo "resources.neu reproducible: $A"
 
       - name: сборка release-zip той же цепочкой, что и релиз (INFRA-H)
+        # v2.6.2 (пост-аудит): пути пакета — с префиксом desktop-app/ (чекоут
+        # корневой, каталога pkg/ в корне НЕТ; первый прогон на теге v2.6.2
+        # падал FileNotFoundError: pkg/WARPScoutGUI-win64/resources.neu);
+        # win64 исключён из цикла cp — pack-neu уже пишет его напрямую,
+        # self-copy под bash -e валил бы шаг («are the same file» → exit 1).
         run: |
-          python3 desktop-app/tools/pack-neu.py desktop-app pkg/WARPScoutGUI-win64/resources.neu
-          for p in win64 linux64 linux-arm64 mac-arm64 mac-x64; do
-            cp pkg/WARPScoutGUI-win64/resources.neu "pkg/WARPScoutGUI-$p/resources.neu"
+          python3 desktop-app/tools/pack-neu.py desktop-app desktop-app/pkg/WARPScoutGUI-win64/resources.neu
+          for p in linux64 linux-arm64 mac-arm64 mac-x64; do
+            cp desktop-app/pkg/WARPScoutGUI-win64/resources.neu "desktop-app/pkg/WARPScoutGUI-$p/resources.neu"
           done
           python3 desktop-app/tools/build-zips.py
           sha256sum download/WARPScoutGUI-*.zip
