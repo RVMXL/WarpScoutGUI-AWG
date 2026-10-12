@@ -38,10 +38,10 @@
       b.addEventListener("click", () => {
         S.scan.proto = b.getAttribute("data-proto");
         const hints = {
-          wg: t("Обычный WireGuard — работает там, где трафик не фильтруется."),
-          awg: t("Обфусцированный WireGuard — проходит там, где обычный WG фильтруется."),
-          masque: t("CONNECT-IP поверх QUIC, второй транспорт Cloudflare. Узел один на всю сеть."),
-          "masque-h2": t("MASQUE поверх TCP — те же проверки, но транспорт HTTP/2."),
+          wg: t("scan.proto.03"),
+          awg: t("scan.proto.02"),
+          masque: t("scan.proto.04"),
+          "masque-h2": t("scan.proto.05"),
         };
         $("#protoHint").textContent = hints[S.scan.proto];
         syncInputsFromState();
@@ -69,7 +69,7 @@
     // скан
     $("#btnRunScan").addEventListener("click", runScan);
     $("#btnStopScan").addEventListener("click", stopScan);
-    $("#btnCopyCmd").addEventListener("click", () => copyText(buildScanCmd(S.scan), t("Команда скопирована")));
+    $("#btnCopyCmd").addEventListener("click", () => copyText(buildScanCmd(S.scan), t("toasts.08")));
     $("#btnSortPing").addEventListener("click", () => {
       // v1.6.0: тумблер «↕ пинг» синхронизирован с сортировкой по заголовку
       if (S.sortByPing || S.sortKey === "ping") { S.sortByPing = false; S.sortKey = "report"; S.sortDir = 1; }
@@ -93,7 +93,7 @@
     $("#btnQrPrev").addEventListener("click", () => { if (S.qrPages && S.qrPage > 0) { S.qrPage--; renderQrPage(); } });
     $("#btnQrNext").addEventListener("click", () => { if (S.qrPages && S.qrPage < S.qrPages.length - 1) { S.qrPage++; renderQrPage(); } });
     $("#btnQrPng").addEventListener("click", saveQrPng);
-    $("#btnQrCopy").addEventListener("click", () => { if (confExportReady()) copyText(buildConf(), t("Конфиг скопирован")); }); // v2.4.6 (F27)
+    $("#btnQrCopy").addEventListener("click", () => { if (confExportReady()) copyText(buildConf(), t("toasts.09")); }); // v2.4.6 (F27)
     $("#btnExportState").addEventListener("click", exportState);
     $("#btnImportState").addEventListener("click", importState);
     bindImportStateFile();
@@ -111,10 +111,10 @@
     $("#btnTheme").addEventListener("click", toggleTheme);
     $("#btnToConfig").addEventListener("click", () => {
       const best = S.results.find((r) => !r.torn);
-      if (!best) { toast(t("Сначала выполните скан"), "err"); return; }
+      if (!best) { toast(t("toasts.10"), "err"); return; }
       if (S.viewProto === "masque" || S.viewProto === "masque-h2") {
         // v2.4.6 (F19): для MASQUE нет WG/AWG .conf — честный отказ
-        toast(t("MASQUE-эндпоинт нельзя упаковать в WG/AWG .conf — используйте SOCKS-прокси или CLI warpscout"), "warn");
+        toast(t("extra.02"), "warn");
         return;
       }
       S.cfg.endpoint = best.endpoint;
@@ -129,7 +129,7 @@
       }
       syncCfgInputsFromState();
       switchTab("config");
-      toast(tF("Лучший эндпоинт из скана: {ep}", { ep: best.endpoint }), "ok");
+      toast(tF("toasts.11", { ep: best.endpoint }), "ok");
     });
 
     // таблица: двойной клик = копия ip:port
@@ -167,7 +167,7 @@
       const info = $("#cfgEndpointInfo");
       if (r) {
         info.hidden = false;
-        info.textContent = t("Узел") + " " + r.node + " · " + r.loc + " · " + t("пинг") + " " + (r.tunPing || r.ping) + (r.loss ? " · " + t("потери") + " " + r.loss : "");
+        info.textContent = t("misc.31") + " " + r.node + " · " + r.loc + " · " + t("misc.32") + " " + (r.tunPing || r.ping) + (r.loss ? " · " + t("misc.33") + " " + r.loss : "");
       }
       renderConf();
       persist();
@@ -186,13 +186,13 @@
       };
       syncCfgInputsFromState();
       renderConf();
-      toast(t("Параметры обфускации восстановлены из примера"), "ok");
+      toast(t("extra.44"), "ok");
     });
     $("#btnClearI1").addEventListener("click", () => { $("#cfgI1").value = ""; syncCfgFromInputs(); renderConf(); });
     $("#btnImportI1").addEventListener("click", importI1);
     $("#btnImportConf").addEventListener("click", importConf); // v1.5.0
     bindImportConfFile(); // v1.5.0
-    $("#btnCopyConf").addEventListener("click", () => { if (confExportReady()) copyText(buildConf(), t("Конфиг скопирован")); }); // v2.4.6 (F27)
+    $("#btnCopyConf").addEventListener("click", () => { if (confExportReady()) copyText(buildConf(), t("toasts.09")); }); // v2.4.6 (F27)
     $("#btnSaveConf").addEventListener("click", saveConf);
 
     // аккаунт
@@ -232,9 +232,9 @@
     // v2.1.1: перепроверка / копирование пути / помощь при «коде -1»
     $("#btnAccRecheck").addEventListener("click", async () => {
       const has = await recheckAccount();
-      toast(has ? t("Аккаунт найден") : t("Аккаунт не найден — смотрите путь выше"), has ? "ok" : "err");
+      toast(has ? t("acc.recheck.04") : t("acc.recheck.05"), has ? "ok" : "err");
     });
-    $("#btnAccCopyPath").addEventListener("click", () => copyText(S.paths.accPath || "", t("Путь скопирован")));
+    $("#btnAccCopyPath").addEventListener("click", () => copyText(S.paths.accPath || "", t("acc.recheck.03")));
     bindExeHelpers();
 
     // socks
@@ -242,12 +242,12 @@
     $("#btnSocksStop").addEventListener("click", socksToggle);
     $("#btnSocksBest").addEventListener("click", () => {
       const best = S.results.find((r) => !r.torn);
-      if (!best) { toast(t("Нет результатов скана"), "err"); return; }
+      if (!best) { toast(t("misc.35"), "err"); return; }
       $("#socksEndpoint").value = best.endpoint;
       $("#socksProto").value = S.scan.proto;
-      toast(tF("Взят лучший эндпоинт: {ep}", { ep: best.endpoint }), "ok");
+      toast(tF("misc.36", { ep: best.endpoint }), "ok");
     });
-    $("#btnCopySocks").addEventListener("click", () => copyText($("#socksAddr").textContent, t("Адрес прокси скопирован")));
+    $("#btnCopySocks").addEventListener("click", () => copyText($("#socksAddr").textContent, t("misc.34")));
 
     // инструменты
     $("#btnFjRun").addEventListener("click", () => runTool("fj"));
@@ -264,16 +264,16 @@
       S.settings.wsPath = v; // v2.4.0: пусто = искать штатно; папка — тоже валидный ввод (резолвим внутри)
       persist();
       const ok = await checkWarpscout(true);
-      if (ok) toast(tF("✓ warpscout v{v} — готов к работе", { v: S.wsVersion }), "ok");
-      else if (S.wsFileThere) toast(t("Файл найден, но не отвечает — вероятно, антивирус. Подробности в подсказке под полем"), "err");
-      else toast(t("warpscout.exe не найден — подробности в подсказке под полем пути"), "err");
+      if (ok) toast(tF("settings.20", { v: S.wsVersion }), "ok");
+      else if (S.wsFileThere) toast(t("settings.19"), "err");
+      else toast(t("settings.21"), "err");
     });
     // v2.4.1: «Показать в папке» — пользователь своими глазами видит, есть ли warpscout.exe
     $("#btnOpenWsFolder").addEventListener("click", openWsFolder);
     // v2.4.1: диагностика ТЕКСТОМ — вместо скриншотов, которые не читаются
     $("#btnCopyWsDiag").addEventListener("click", async () => {
       const txt = await wsDiagText();
-      copyText(txt, t("Диагностика скопирована — пришлите её текстом"));
+      copyText(txt, t("settings.15"));
     });
     // v2.5.4: единый хелпер с гарантированным фидбеком (было: молчаливый .catch)
     $("#btnOpenAcc").addEventListener("click", () => openFolderUi(S.paths.dataDir, "файл аккаунта"));
@@ -281,11 +281,11 @@
     $("#btnResetStorage").addEventListener("click", async () => {
       if (await anyProcRunning()) {
         // v2.4.6 (F34/F38): сброс посреди активных операций запрещён
-        toast(t("Сначала остановите скан/регистрацию/прокси — сброс посреди работы невозможен"), "err");
+        toast(t("extra.45"), "err");
         return;
       }
       // v2.4.6 (F38): честный scope сброса — указан в подтверждении
-      if (!confirm(t("Сбросить настройки скана/конфига, историю, журнал проверок и пресеты? Аккаунт и файлы в папке данных останутся."))) return;
+      if (!confirm(t("extra.46"))) return;
       S.scan = Object.assign({}, DEFAULT_SCAN);
       S.cfg = defaultCfg();
       S.results = [];
@@ -312,7 +312,7 @@
       applyCompact();
       renderHistoryBtn();
       renderQcJournal(); // v2.4.6: если панель истории открыта — обновить и журнал
-      toast(t("Настройки сброшены"), "ok");
+      toast(t("reset.02"), "ok");
     });
 
     // v2.4.6 (F50): сегменты — радиогруппы
@@ -430,7 +430,8 @@
   }
 
   async function init() {
-    linuxPlatInit(); // v2.5.0: Linux-нормализация EN-словаря до первого applyLang
+    // v2.6.2 (QUAL-1): linuxPlatInit упразднён — REV строится лениво в applyLang,
+    // платформенные фразы резолвит platPhraseOf (см. 01-platform / 03-i18n)
     setupTouchUi(); // v2.5.0: сенсорный режим (Android) — построить вкладки/главную до bindEvents
     if (IS_ANDROID) { const bu = $("#btnAccUnblock"); if (bu) bu.hidden = true; } // v2.5.0: бинарь уже исполняемый (nativeLibraryDir), chmod-кнопка не нужна
     // v2.5.4 (Android): путь до warpscout (libwarpscout.so в nativeLibraryDir)

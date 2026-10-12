@@ -60,7 +60,7 @@
 
     // v1.6.0: кликабельная сортировка. Каждый столбец: {label, key}
     const cols = [
-      { label: t("Эндпоинт"), key: "endpoint" },
+      { label: t("conf.01"), key: "endpoint" },
       { label: "PING", key: "ping" },
     ];
     // fix: при withP у warpscout ДВЕ пинговые колонки — добавляем заголовок TUN PING.
@@ -68,14 +68,14 @@
     // в LOSS попадал TUN PING (ms), в SEEN AS — LOSS (%), в NODE — страна и т.д.
     if (withP) cols.push({ label: "TUN PING", key: "tunPing" }, { label: "LOSS", key: "loss" });
     if (withSpeed) cols.push({ label: "SPEED", key: "" });
-    cols.push({ label: "SEEN AS", key: "" }, { label: "NODE", key: "node" }, { label: t("Локация узла"), key: "loc" }, { label: "", key: "" });
+    cols.push({ label: "SEEN AS", key: "" }, { label: "NODE", key: "node" }, { label: t("conf.02"), key: "loc" }, { label: "", key: "" });
 
     head.innerHTML =
       "<tr>" +
       (S.qcSelMode
         ? '<th class="th-sel"><input type="checkbox" id="selAllBox" ' +
           (visible.length && visible.every((r) => S.qcSel.indexOf(r.endpoint) !== -1) ? "checked" : "") +
-          ' aria-label="' + esc(t("Отметить все видимые")) + '" title="' + esc(t("Отметить все видимые")) + '"/></th>'
+          ' aria-label="' + esc(t("batch.16")) + '" title="' + esc(t("batch.16")) + '"/></th>'
         : "") +
       cols
         .map((c) => {
@@ -84,7 +84,7 @@
           const pingArrow = c.key === "ping" && sortKey === "report" && S.sortByPing ? ' <span class="th-arrow">▲</span>' : "";
           // v2.4.6 (F48): сортируемые заголовки доступны с клавиатуры и сообщают направление (aria-sort)
           return (
-            '<th' + (c.key ? ' class="th-sort" tabindex="0" data-sort="' + c.key + '" title="' + t("Сортировать") + '"' +
+            '<th' + (c.key ? ' class="th-sort" tabindex="0" data-sort="' + c.key + '" title="' + t("misc.30") + '"' +
               (active ? ' aria-sort="' + (sortDir === 1 ? "ascending" : "descending") + '"' : "") : "") + ">" +
             esc(c.label) + arrow + pingArrow + "</th>"
           );
@@ -123,11 +123,11 @@
       const emptyTitle = $("#resultsEmpty .empty__title");
       const emptyHint = $("#resultsEmpty .empty__hint");
       if (S.filter && totalRows) {
-        emptyTitle.textContent = t("Нет совпадений с фильтром");
-        emptyHint.innerHTML = tF("В запросе: «{q}». Попробуйте узел (HKG), страну или часть IP.", { q: esc(S.filter) });
+        emptyTitle.textContent = t("results.13");
+        emptyHint.innerHTML = tF("results.14", { q: esc(S.filter) });
       } else {
-        emptyTitle.textContent = t("Пока нет результатов");
-        emptyHint.innerHTML = t("Настройте параметры слева и нажмите «Начать скан».") + "<br/>" + t("Лучший эндпоинт окажется вверху таблицы.");
+        emptyTitle.textContent = t("results.10");
+        emptyHint.innerHTML = t("results.11") + "<br/>" + t("results.12");
       }
       if (!totalRows) $("#resCount").hidden = true;
       return;
@@ -146,13 +146,13 @@
         const selCell = S.qcSelMode
           ? '<td class="td-sel"><input type="checkbox" class="row-sel" data-sel="' + esc(ep) + '" ' +
             (S.qcSel.indexOf(ep) !== -1 ? "checked" : "") +
-            ' aria-label="' + esc(t("Выбрать для пакетной проверки")) + '"/></td>'
+            ' aria-label="' + esc(t("batch.15")) + '"/></td>'
           : "";
         const cells = [
           "<td>" +
-            (ep === bestEp ? '<span class="best-star" title="' + t("Лучший пинг") + '">★</span>' : "") +
+            (ep === bestEp ? '<span class="best-star" title="' + t("results.15") + '">★</span>' : "") +
             esc(ep) +
-            (isNew ? '<span class="new-badge" title="' + t("Появился в этом скане") + '">new</span>' : "") +
+            (isNew ? '<span class="new-badge" title="' + t("results.16") + '">new</span>' : "") +
           "</td>",
           "<td>" + pingCell(r.ping) + "</td>",
           withP ? "<td>" + pingCell(r.tunPing) + "</td><td>" + lossCell(r.loss) + "</td>" : "",
@@ -161,16 +161,16 @@
           "<td>" + esc(r.node || "—") + "</td>",
           "<td>" + esc(r.loc || "—") + "</td>",
           '<td class="row-actions">' +
-            '<button type="button" data-act="copy" title="' + t("Скопировать ip:порт") + '">⧉</button>' +
-            '<button type="button" data-act="cfg" title="' + t("Использовать в конфиге") + '">⚙</button>' +
-            '<button type="button" data-act="socks" title="' + t("Подставить в SOCKS-вкладку") + '">🧦</button>' +
-            '<button type="button" data-act="socks-run" title="' + t("Сразу запустить SOCKS5-прокси для этого эндпоинта") + '">⏵</button>' +
-            '<button type="button" data-act="check" title="' + t("Быстрая проверка: handshake на указанный порт и пинг внутри туннеля") + '">⚡</button>' +
+            '<button type="button" data-act="copy" title="' + t("results.17") + '">⧉</button>' +
+            '<button type="button" data-act="cfg" title="' + t("results.18") + '">⚙</button>' +
+            '<button type="button" data-act="socks" title="' + t("results.19") + '">🧦</button>' +
+            '<button type="button" data-act="socks-run" title="' + t("results.20") + '">⏵</button>' +
+            '<button type="button" data-act="check" title="' + t("qc.07") + '">⚡</button>' +
           "</td>",
         ];
         const sel = ep === S.selected ? " is-selected" : "";
         const torn = r.torn ? " is-torn" : "";
-        if (r.torn) cells[0] = cells[0].replace("<td>", '<td data-torn="' + t("разорван") + '">');
+        if (r.torn) cells[0] = cells[0].replace("<td>", '<td data-torn="' + t("results.21") + '">');
         const best = ep === bestEp ? " is-best" : "";
         const nw = isNew ? " is-new" : "";
         return '<tr data-ep="' + esc(ep) + '" class="' + (sel + torn + best + nw).trim() + '">' + selCell + cells.join("") + "</tr>";
@@ -215,11 +215,11 @@
           e.stopPropagation();
           const ep = tr.getAttribute("data-ep");
           const act = b.getAttribute("data-act");
-          if (act === "copy") { copyText(ep, t("Эндпоинт скопирован")); return; }
+          if (act === "copy") { copyText(ep, t("toasts.03")); return; }
           if (act === "cfg") {
             // v2.4.6 (F19): для MASQUE нет WG/AWG .conf — честный отказ вместо профиля не того протокола
             if (S.viewProto === "masque" || S.viewProto === "masque-h2") {
-              toast(t("MASQUE-эндпоинт нельзя упаковать в WG/AWG .conf — используйте SOCKS-прокси или CLI warpscout"), "warn");
+              toast(t("extra.02"), "warn");
               return;
             }
             S.cfg.endpoint = ep;
@@ -236,14 +236,14 @@
             }
             syncCfgInputsFromState();
             switchTab("config");
-            toast(tF("Эндпоинт и junk-параметры скана подставлены в конфиг: {ep}", { ep: ep }), "ok");
+            toast(tF("extra.03", { ep: ep }), "ok");
             return;
           }
           if (act === "socks") {
             $("#socksEndpoint").value = ep;
             $("#socksProto").value = S.viewProto || "awg";
             switchTab("socks");
-            toast(t("Эндпоинт готов к проверке во вкладке SOCKS"), "ok");
+            toast(t("toasts.07"), "ok");
             return;
           }
           if (act === "socks-run") {
@@ -252,9 +252,9 @@
             switchTab("socks");
             if (!S.running.socks) {
               socksToggle();
-              toast(tF("{ep}: запускаю прокси", { ep: ep }), "ok");
+              toast(tF("socks.12", { ep: ep }), "ok");
             } else {
-              toast(t("Прокси уже запущен — сначала остановите текущий"), "warn");
+              toast(t("socks.13"), "warn");
             }
           }
           if (act === "check") { checkOne(ep); return; }
@@ -283,12 +283,12 @@
     const nodeNames = Object.keys(nodes);
 
     const chips = [
-      '<span class="stat-chip">' + t("📡 всего") + " <b>" + S.results.length + "</b></span>",
-      '<span class="stat-chip stat-chip--ok">' + t("✅ рабочих") + " <b>" + working.length + "</b></span>",
+      '<span class="stat-chip">' + t("stats.01") + " <b>" + S.results.length + "</b></span>",
+      '<span class="stat-chip stat-chip--ok">' + t("stats.02") + " <b>" + working.length + "</b></span>",
     ];
-    if (torn) chips.push('<span class="stat-chip stat-chip--err">' + t("✂ разорвано") + " <b>" + torn + "</b></span>");
-    if (best) chips.push('<span class="stat-chip stat-chip--best" title="' + t("Минимальный пинг среди рабочих") + '">' + t("⚡ лучший") + " <b>" + best + " ms</b></span>");
-    if (median) chips.push('<span class="stat-chip" title="' + t("Медианный пинг рабочих") + '">' + t("⚖ медиана") + " <b>" + median + " ms</b></span>");
+    if (torn) chips.push('<span class="stat-chip stat-chip--err">' + t("stats.03") + " <b>" + torn + "</b></span>");
+    if (best) chips.push('<span class="stat-chip stat-chip--best" title="' + t("stats.10") + '">' + t("stats.04") + " <b>" + best + " ms</b></span>");
+    if (median) chips.push('<span class="stat-chip" title="' + t("stats.11") + '">' + t("stats.05") + " <b>" + median + " ms</b></span>");
     // спарклайн распределения пинга (v1.3.0)
     if (sorted.length >= 2) {
       const W = 84, H = 20;
@@ -301,16 +301,16 @@
       });
       const area = "1," + (H - 1) + " " + pts.join(" ") + " " + (W - 1) + "," + (H - 1);
       chips.push(
-        '<span class="stat-chip spark" title="' + tF("Распределение пинга рабочих эндпоинтов: мин {min} / макс {max} ms", { min: min, max: max }) + '">' +
+        '<span class="stat-chip spark" title="' + tF("stats.12", { min: min, max: max }) + '">' +
           '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" aria-hidden="true">' +
             '<polygon class="spark-area" points="' + area + '"></polygon>' +
             '<polyline class="spark-line" points="' + pts.join(" ") + '"></polyline>' +
-          "</svg>" + t("📈 профиль") +
+          "</svg>" + t("stats.06") +
         "</span>"
       );
     }
     if (nodeNames.length) {
-      chips.push('<span class="stat-chip" title="' + tF("Узлы: {nodes}", { nodes: esc(nodeNames.join(", ")) }) + '">' + t("🌍 узлов") + " <b>" + nodeNames.length + "</b></span>");
+      chips.push('<span class="stat-chip" title="' + tF("stats.13", { nodes: esc(nodeNames.join(", ")) }) + '">' + t("stats.07") + " <b>" + nodeNames.length + "</b></span>");
     }
     // v1.9.0: частота портов среди рабочих — кликабельные чипы-фильтры
     const ports = {};
@@ -325,20 +325,20 @@
       topPorts.forEach((p) => {
         chips.push(
           '<button type="button" class="stat-chip stat-chip--port" data-port="' + esc(p) +
-          '" title="' + tF("Показать только порт {port}", { port: p }) + '">' +
+          '" title="' + tF("qc.02", { port: p }) + '">' +
             "🚪 " + esc(p) + " <b>×" + ports[p] + "</b></button>"
         );
       });
     }
     if (S.diff) {
       if (S.diff.newCount) {
-        chips.push('<span class="stat-chip stat-chip--new" title="' + t("Эндпоинтов, которых не было в прошлом скане") + '">' + t("➕ новых") + " <b>" + S.diff.newCount + "</b></span>");
+        chips.push('<span class="stat-chip stat-chip--new" title="' + t("stats.14") + '">' + t("stats.08") + " <b>" + S.diff.newCount + "</b></span>");
       }
       if (S.diff.gone.length) {
         chips.push(
           '<button type="button" class="stat-chip stat-chip--gone" id="chipGone" title="' +
             esc(S.diff.gone.join(", ")) +
-            '">' + t("➖ пропали") + " <b>" + S.diff.gone.length + "</b></button>"
+            '">' + t("stats.09") + " <b>" + S.diff.gone.length + "</b></button>"
         );
       }
     }
@@ -347,7 +347,7 @@
     const goneBtn = $("#chipGone");
     if (goneBtn) {
       goneBtn.addEventListener("click", () => {
-        toast(tF("Пропали с прошлого скана ({n}): {list}", { n: S.diff.gone.length, list: S.diff.gone.join(", ") }), "warn");
+        toast(tF("stats.15", { n: S.diff.gone.length, list: S.diff.gone.join(", ") }), "warn");
       });
     }
     // v1.9.0: клик по чипу порта → фильтр таблицы по «:порт»
@@ -369,7 +369,7 @@
     S.running.scan = run;
     $("#btnRunScan").hidden = run;
     $("#btnStopScan").hidden = !run;
-    $("#btnRunScanLabel").textContent = run ? t("Сканирую…") : t("Начать скан");
+    $("#btnRunScanLabel").textContent = run ? t("scan.run.03") : t("scan.run.02");
     $("#scanProgress").hidden = !run;
     if (!run) { $("#scanBarFill").style.width = "0%"; }
     try { homeScanUi(); } catch (e) {} // v2.5.4: синхронный индикатор на главной
@@ -405,7 +405,7 @@
     ) {
       S.running.scan = false;
       setScanRunning(false);
-      toast(t("Импортированные параметры содержат недопустимые значения (протокол / генератор I1 / inner-proto) — проверьте форму скана"), "err");
+      toast(t("extra.04"), "err");
       switchTab("scan");
       return;
     }
@@ -413,7 +413,7 @@
     if (!S.account && !IS_MOCK) {
       S.running.scan = false;
       setScanRunning(false);
-      toast(t("Сначала создайте аккаунт WARP — вкладка «Аккаунт»"), "err");
+      toast(t("scan.process.17"), "err");
       switchTab("account");
       return;
     }
@@ -436,7 +436,7 @@
     resetFilterSilently();
     $("#scanLog").textContent = "";
     switchSubtab("log");
-    setPhase(t("Запуск warpscout…"), 2);
+    setPhase(t("scan.process.01"), 2);
     startScanLive();
     // запоминаем эндпоинты прошлого скана для сравнения (diff)
     S.prevEndpoints = S.results.length ? new Set(S.results.map((r) => r.endpoint)) : null;
@@ -456,7 +456,7 @@
         S.running.scan = false;
         setScanRunning(false);
         stopScanLive();
-        toast(t("Скан остановлен"), "ok");
+        toast(t("scan.process.07"), "ok");
         return;
       }
       S.procIds.scan = proc.id;
@@ -473,18 +473,18 @@
           const mPhase2 = /Phase 2: verifying tunnels \(proto=(\w+)\): (\d+)\.\.\./.exec(buf);
           const mSpeed = /Speedtest|speed test|Measuring speed/i.test(buf);
           const mStep = /(\d+)\/(\d+)\s*$/.exec(buf.trim());
-          if (mPhase1) setPhase(t("Фаза 1: ищем проходимые порты"), null);
-          if (mPhase2) setPhase(t("Фаза 2: проверяем туннели"), null);
-          if (mSpeed && !mStep) setPhase(t("Замер скорости (медленно, ждите)…"), null);
+          if (mPhase1) setPhase(t("scan.process.02"), null);
+          if (mPhase2) setPhase(t("scan.process.03"), null);
+          if (mSpeed && !mStep) setPhase(t("scan.process.04"), null);
           if (mStep) {
             const frac = (+mStep[1] / Math.max(1, +mStep[2])) * 100;
-            setPhase(mPhase2 ? t("Фаза 2: проверяем туннели") : t("Фаза 1: ищем проходимые порты"), frac);
+            setPhase(mPhase2 ? t("scan.process.03") : t("scan.process.02"), frac);
           }
         } else if (d.type === "exit") {
           unregisterProc(proc.id);
           // v2.4.6 (F31): устаревшая сессия не трогает UI
           if (S.scanSession !== runId) return;
-          setPhase(S.scanStopped ? t("Остановлено") : t("Читаем отчёт…"), 100);
+          setPhase(S.scanStopped ? t("scan.process.05") : t("scan.process.06"), 100);
           if (!S.scanStopped) {
             // v2.4.6 (F31): running.scan держится true, ПОКА не дочитан отчёт —
             // новый скан не сможет вклиниться в финализацию старого
@@ -499,7 +499,7 @@
           } else {
             S.running.scan = false;
             setScanRunning(false);
-            toast(t("Скан остановлен"), "ok");
+            toast(t("scan.process.07"), "ok");
           }
         }
       });
@@ -507,7 +507,7 @@
       S.running.scan = false;
       setScanRunning(false);
       stopScanLive();
-      toast(tF("Не удалось запустить warpscout: {err}", { err: e && e.message ? e.message : e }), "err");
+      toast(tF("extra.05", { err: e && e.message ? e.message : e }), "err");
       switchSubtab("results");
     }
   }
@@ -522,12 +522,12 @@
     }
     if (!text) {
       stopScanLive(); // v2.4.6 (F35): live-панель и таймер гасим во ВСЕХ ветках выхода
-      appendLog($("#scanLog"), "\n[GUI] " + t("Отчёт не найден — смотрим конец лога.") + "\n");
+      appendLog($("#scanLog"), "\n[GUI] " + t("extra.06") + "\n");
       if (exitCode !== 0) {
-        toast(tF("warpscout завершился с ошибкой (код {code}). Смотрите лог — часто не хватает аккаунта или фильтры слишком строгие.", { code: exitCode }), "err");
+        toast(tF("scan.process.09", { code: exitCode }), "err");
         switchSubtab("log");
       } else {
-        toast(t("Скан завершён, но отчёт пуст. Смотрите лог."), "err");
+        toast(t("scan.process.10"), "err");
         switchSubtab("results");
       }
       return;
@@ -553,18 +553,18 @@
     switchSubtab("results");
     // v2.5.2 (Android): копия отчёта в общую папку Download/WARPScoutGUI —
     // иначе отчёт лежит в приватном каталоге, недоступном без root
-    if (IS_ANDROID) mirrorPublic(S.paths.reportPath).then((pub) => { if (pub) toast(tF("Отчёт скопирован в общую папку: {p}", { p: pub }), "info"); });
+    if (IS_ANDROID) mirrorPublic(S.paths.reportPath).then((pub) => { if (pub) toast(tF("conf.56", { p: pub }), "info"); });
     const working = S.results.filter((r) => !r.torn).length;
     const torn = S.results.length - working;
     // v2.4.6 (F35): отчёт есть, но exit ненулевой — честно показываем фактический код
     if (exitCode !== 0) {
-      appendLog($("#scanLog"), "\n[GUI] " + tF("warpscout завершился с кодом {c} — отчёт мог сохраниться не полностью.", { c: exitCode }) + "\n");
-      toast(tF("Скан завершён с кодом {c} — результаты ниже, но отчёт может быть неполным.", { c: exitCode }), "warn");
+      appendLog($("#scanLog"), "\n[GUI] " + tF("extra.07", { c: exitCode }) + "\n");
+      toast(tF("extra.08", { c: exitCode }), "warn");
     }
     if (working > 0) {
-      toast(torn ? tF("Скан завершён: рабочих эндпоинтов — {n}, разорванных — {t}", { n: working, t: torn }) : tF("Скан завершён: рабочих эндпоинтов — {n}", { n: working }), "ok");
+      toast(torn ? tF("scan.process.12", { n: working, t: torn }) : tF("scan.process.11", { n: working }), "ok");
     } else {
-      toast(torn ? tF("Рабочих эндпоинтов не найдено ({t} разорвано). Попробуйте «Жёсткая сеть» или find-junk.", { t: torn }) : t("Рабочих эндпоинтов не найдено"), "err");
+      toast(torn ? tF("scan.process.16", { t: torn }) : t("scan.process.13"), "err");
     }
   }
 
@@ -576,6 +576,6 @@
     S.procIds.scan = null;
     S.running.scan = false;
     setScanRunning(false);
-    toast(t("Скан остановлен"), "ok");
+    toast(t("scan.process.07"), "ok");
   }
 

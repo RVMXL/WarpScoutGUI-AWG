@@ -44,7 +44,7 @@
     const peer = c.peers.length ? c.peers[0] : {};
     const all = Object.assign({}, c.other, c.interface, peer);
     const has = (k) => all[k] != null && String(all[k]).trim() !== "";
-    if (!Object.keys(all).length) { toast(t("Не удалось разобрать файл: нет пар «ключ = значение»"), "err"); return; }
+    if (!Object.keys(all).length) { toast(t("conf.io.12"), "err"); return; }
 
     const applied = [];
     const skipped = [];
@@ -74,7 +74,7 @@
         if (d === dnsLineOf(k, false)) { preset = k; presetV6 = false; break; }
       }
       if (preset) { nc.dns = preset; nc.dnsV6 = presetV6; applied.push("DNS " + preset + (presetV6 ? " v4+v6" : " v4")); }
-      else { nc.dns = "custom"; nc.dnsCustom = d; applied.push(t("DNS свои")); }
+      else { nc.dns = "custom"; nc.dnsCustom = d; applied.push(t("conf.io.16")); }
     }
     if (has("mtu")) { const m = num("mtu"); if (m && m > 0 && m <= 10000) { nc.mtu = m; applied.push("MTU " + m); } }
     if (has("table")) { nc.tableOff = /off/i.test(all.table); if (nc.tableOff) applied.push("Table off"); } // v2.4.6 (F24)
@@ -82,15 +82,15 @@
     // Peer
     if (has("endpoint") && /^[A-Za-z0-9.\[\]:-]+:\d+$/.test(all.endpoint.trim())) {
       nc.endpoint = all.endpoint.trim();
-      applied.push(t("эндпоинт"));
+      applied.push(t("conf.io.17"));
     }
     if (has("persistentkeepalive")) { const k = num("persistentkeepalive"); if (k != null && k >= 0 && k <= 65535) { nc.keepalive = k; applied.push("keepalive " + k); } }
     if (has("allowedips")) {
       const a = all.allowedips.replace(/\s+/g, "");
-      if (a === "0.0.0.0/0,::/0" || a === "::/0,0.0.0.0/0") { nc.allowed = "both"; applied.push(t("AllowedIPs весь")); }
+      if (a === "0.0.0.0/0,::/0" || a === "::/0,0.0.0.0/0") { nc.allowed = "both"; applied.push(t("conf.io.18")); }
       else if (a === "0.0.0.0/0") { nc.allowed = "v4"; applied.push("AllowedIPs v4"); }
       else if (a === "::/0") { nc.allowed = "v6"; applied.push("AllowedIPs v6"); }
-      else { nc.allowed = "custom"; nc.allowedCustom = all.allowedips.trim(); applied.push(t("AllowedIPs свои")); }
+      else { nc.allowed = "custom"; nc.allowedCustom = all.allowedips.trim(); applied.push(t("conf.io.19")); }
     }
 
     // Обфускация AWG
@@ -105,7 +105,7 @@
       const heads = [];
       ["s1", "s2", "s3", "s4"].forEach((k, idx) => { if (has(k)) { const v = num(k); if (v != null) { o["s" + (idx + 1)] = clampInt(v, 0, 65535, 0); heads.push("S" + (idx + 1)); } } });
       ["h1", "h2", "h3", "h4"].forEach((k, idx) => { if (has(k)) { o["h" + (idx + 1)] = strField(all[k], 60).replace(/\s+/g, "") || String(idx + 1); heads.push("H" + (idx + 1)); } });
-      if (heads.length) applied.push(tF("заголовки ({n})", { n: heads.length }));
+      if (heads.length) applied.push(tF("conf.io.20", { n: heads.length }));
       if (has("i1")) { o.i1 = strField(all.i1, 6000).replace(/[\r\n]/g, "").trim(); applied.push("I1"); }
       if (has31) {
         if (has("contentpaddingaddition")) { o.cpa = strField(all.contentpaddingaddition, 60).trim(); applied.push("CPA"); }
@@ -117,7 +117,7 @@
         if (has("randomtrailers")) { o.trailers = /on|true|1/i.test(all.randomtrailers) ? "on" : "off"; }
         if (has("disablecookies")) { o.noCookies = /on|true|1/i.test(all.disablecookies) ? "on" : "off"; }
         if (has("headerprotectionkey")) { o.hpk = strField(all.headerprotectionkey, 200).trim(); }
-        applied.push(t("тайминги 3.1"));
+        applied.push(t("conf.io.21"));
       }
     }
     // v2.4.6 (F26): I2–I5 больше не теряются
@@ -127,10 +127,10 @@
     }
 
     // что не переносится
-    if (has("privatekey") || has("address")) skipped.push(t("PrivateKey/Address берутся из аккаунта"));
-    if (has("publickey")) skipped.push(t("PublicKey берётся из аккаунта"));
-    if (has("presharedkey")) skipped.push(t("PresharedKey не поддерживается"));
-    if (c.peers.length > 1) skipped.push(tF("peers: {n} — перенесён только первый", { n: c.peers.length })); // v2.4.6 (F25)
+    if (has("privatekey") || has("address")) skipped.push(t("conf.io.22"));
+    if (has("publickey")) skipped.push(t("conf.io.23"));
+    if (has("presharedkey")) skipped.push(t("conf.io.24"));
+    if (c.peers.length > 1) skipped.push(tF("extra.31", { n: c.peers.length })); // v2.4.6 (F25)
     // v2.4.6: неизвестные директивы — явным списком, а не молча
     const KNOWN = new Set(["dns", "mtu", "table", "endpoint", "persistentkeepalive", "allowedips",
       "jc", "jmin", "jmax", "s1", "s2", "s3", "s4", "h1", "h2", "h3", "h4",
@@ -139,28 +139,28 @@
       "keepalivetimeout", "maxhandshakeattempts", "randomtrailers", "disablecookies", "headerprotectionkey",
       "privatekey", "address", "publickey", "presharedkey"]);
     Object.keys(all).forEach((k) => { if (!KNOWN.has(k)) skipped.push(k); });
-    if (c.unknown.length) skipped.push(tF("директивы вне секций: {n}", { n: c.unknown.length }));
+    if (c.unknown.length) skipped.push(tF("extra.32", { n: c.unknown.length }));
 
     S.cfg = nc;
     syncCfgInputsFromState();
     renderConf();
     persist();
-    toast(tF("Импортирован конфиг: {what}", { what: applied.join(" · ") }), "ok");
-    if (skipped.length) toast(tF("Не перенесено: {what}", { what: skipped.join("; ") }), "warn");
+    toast(tF("conf.io.13", { what: applied.join(" · ") }), "ok");
+    if (skipped.length) toast(tF("conf.io.14", { what: skipped.join("; ") }), "warn");
   }
 
   async function importConf() {
     if (!IS_MOCK && HAS_NL) {
       let p;
       try {
-        p = await os().showOpenDialog(t("Выберите .conf для импорта"), { multiSelections: false });
+        p = await os().showOpenDialog(t("conf.io.11"), { multiSelections: false });
       } catch (e) { p = null; }
       const picked = Array.isArray(p) ? p[0] : typeof p === "string" ? p : null;
       if (!picked) return;
       try {
         applyImportedConf(await fs().readFile(picked));
       } catch (e) {
-        toast(tF("Не удалось прочитать файл: {err}", { err: e && e.message ? e.message : e }), "err");
+        toast(tF("extra.10", { err: e && e.message ? e.message : e }), "err");
       }
       return;
     }
@@ -175,7 +175,7 @@
       const reader = new FileReader();
       reader.onload = () => {
         try { applyImportedConf(String(reader.result)); }
-        catch (err) { toast(tF("Ошибка разбора: {err}", { err: err && err.message ? err.message : err }), "err"); }
+        catch (err) { toast(tF("extra.33", { err: err && err.message ? err.message : err }), "err"); }
       };
       reader.readAsText(file);
     });
@@ -184,8 +184,8 @@
   /* ───────── копирование эндпоинтов (v1.5.0) ───────── */
   function copyEndpoints() {
     const list = S.results.filter((r) => !r.torn).map((r) => r.endpoint);
-    if (!list.length) { toast(t("Нет рабочих эндпоинтов для копирования"), "err"); return; }
-    copyText(list.join("\n"), tF("Скопировано эндпоинтов: {n}", { n: list.length }));
+    if (!list.length) { toast(t("toasts.05"), "err"); return; }
+    copyText(list.join("\n"), tF("toasts.04", { n: list.length }));
   }
 
   /* ───────── быстрая проверка одного эндпоинта (v1.9.0) ───────── */
@@ -256,7 +256,7 @@
   function qcRenderLast() {
     if (!S.qcLast) return;
     const q = S.qcLast;
-    const nodePart = q.node ? " · " + t("Узел") + " " + q.node : "";
+    const nodePart = q.node ? " · " + t("misc.31") + " " + q.node : "";
     qcVerdict(q.kind, tF(q.key, q.vars) + nodePart);
   }
 
@@ -272,14 +272,14 @@
       }
     };
     if (!batch) {
-      if (S.running.check) { toast(t("Уже идёт проверка — подождите"), "warn"); return; }
-      if (S.running.scan) { toast(t("Проверка недоступна во время скана"), "warn"); return; }
+      if (S.running.check) { toast(t("qc.08"), "warn"); return; }
+      if (S.running.scan) { toast(t("qc.09"), "warn"); return; }
     }
     const parts = splitEpPort(ep);
-    if (!parts) { batchFail("error"); toast(t("Не удалось разобрать адрес"), "err"); return; }
+    if (!parts) { batchFail("error"); toast(t("qc.10"), "err"); return; }
     if (!S.account && !IS_MOCK) {
       batchFail("error");
-      toast(t("Сначала создайте аккаунт WARP — вкладка «Аккаунт»"), "err");
+      toast(t("scan.process.17"), "err");
       switchTab("account");
       return;
     }
@@ -297,7 +297,7 @@
     } else if (m && batch) {
       // пакетный режим: модалка уже открыта очередью — показываем текущую цель и команду
       const b = S.qcBatch;
-      $("#qcEp").textContent = tF("{i}/{n}: {ep}", { i: b ? b.idx + 1 : 1, n: b ? b.total : 1, ep: ep });
+      $("#qcEp").textContent = tF("batch.25", { i: b ? b.idx + 1 : 1, n: b ? b.total : 1, ep: ep });
       $("#qcProto").textContent = String(proto).toUpperCase();
       $("#qcCmd").textContent = built.cmd;
     }
@@ -321,7 +321,7 @@
       });
     } catch (e) {
       S.running.check = false;
-      const msg = tF("Не удалось запустить проверку: {err}", { err: e && e.message ? e.message : e });
+      const msg = tF("qc.11", { err: e && e.message ? e.message : e });
       qcVerdict("err", msg);
       toast(msg, "err");
       pushQcJournal({ ts: Date.now(), ep: ep, proto: proto, kind: "error", ping: "", loss: "", node: "" });
@@ -341,10 +341,10 @@
   }
 
   function qcjVerdictText(e) {
-    if (e.kind === "ok") return tF("✅ Рабочий — TUN PING {ping} ms, потери {loss}", { ping: e.ping || "?", loss: e.loss || "0%" });
-    if (e.kind === "torn") return tF("⛔ Разорван — потери {loss}", { loss: e.loss || "100%" });
-    if (e.kind === "noanswer") return t("Эндпоинт не ответил (нет строки в отчёте)");
-    return tF("warpscout завершился с кодом {c}", { c: e.code != null ? e.code : "!" });
+    if (e.kind === "ok") return tF("qc.13", { ping: e.ping || "?", loss: e.loss || "0%" });
+    if (e.kind === "torn") return tF("qc.14", { loss: e.loss || "100%" });
+    if (e.kind === "noanswer") return t("qc.15");
+    return tF("qc.12", { c: e.code != null ? e.code : "!" });
   }
 
   function renderQcJournal() {
@@ -360,11 +360,11 @@
     const n = S.qcHistory.length;
     box.innerHTML =
       '<div class="qcj__head">' +
-        '<span class="qcj__title">' + t("⚡ Журнал проверок") + '</span>' +
+        '<span class="qcj__title">' + t("batch.02") + '</span>' +
         '<span class="qcj__cnt">' + n + '</span>' +
         '<span class="qcj__tools">' +
-          '<button type="button" id="btnQcjCsv" title="' + t("Сохранить журнал проверок (CSV)") + '">⬇ CSV</button>' +
-          '<button type="button" id="btnQcjClear" class="history__clear" title="' + t("Удалить весь журнал проверок") + '">' + t("🗑 Очистить") + "</button>" +
+          '<button type="button" id="btnQcjCsv" title="' + t("batch.04") + '">⬇ CSV</button>' +
+          '<button type="button" id="btnQcjClear" class="history__clear" title="' + t("batch.05") + '">' + t("history.12") + "</button>" +
         "</span>" +
       "</div>" +
       (n
@@ -384,7 +384,7 @@
             })
             .join("") +
           "</div>"
-        : '<div class="qcj__empty">' + t("Журнал пуст — запустите ⚡-проверку эндпоинта") + "</div>");
+        : '<div class="qcj__empty">' + t("batch.03") + "</div>");
     const bCsv = $("#btnQcjCsv");
     if (bCsv) bCsv.addEventListener("click", exportQcjCsv);
     const bClr = $("#btnQcjClear");
@@ -392,7 +392,7 @@
   }
 
   function exportQcjCsv() {
-    if (!S.qcHistory.length) { toast(t("Журнал пуст — запустите ⚡-проверку эндпоинта"), "err"); return; }
+    if (!S.qcHistory.length) { toast(t("batch.03"), "err"); return; }
     const q = csvSafe; // v2.4.6 (F10)
     const rows = ["datetime,endpoint,proto,verdict,tun_ping_ms,loss,node"];
     for (let i = S.qcHistory.length - 1; i >= 0; i--) {
@@ -409,26 +409,26 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-      toast(tF("Журнал проверок выгружен: {path}", { path: name }), "ok");
+      toast(tF("batch.09", { path: name }), "ok");
       return;
     }
     os()
-      .showSaveDialog(t("Сохранить журнал проверок (CSV)"), { defaultPath: name })
+      .showSaveDialog(t("batch.04"), { defaultPath: name })
       .then(async (path) => {
         if (!path) return;
         await fs().writeFile(path, csv);
-        toast(tF("Журнал проверок сохранён: {path}", { path: path }), "ok");
+        toast(tF("batch.10", { path: path }), "ok");
       })
-      .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
+      .catch((e) => toast(tF("extra.09", { err: e && e.message ? e.message : e }), "err"));
   }
 
   async function clearQcJournal() {
-    if (!S.qcHistory.length) { toast(t("Журнал и так пуст"), "ok"); return; }
-    if (!confirm(tF("Удалить весь журнал проверок ({n})?", { n: S.qcHistory.length }))) return;
+    if (!S.qcHistory.length) { toast(t("batch.08"), "ok"); return; }
+    if (!confirm(tF("batch.06", { n: S.qcHistory.length }))) return;
     S.qcHistory = [];
     renderQcJournal();
     persist();
-    toast(t("Журнал проверок очищен"), "ok");
+    toast(t("batch.07"), "ok");
   }
 
   async function finishCheck(ep, exitCode, reportPath, opts) {
@@ -454,22 +454,22 @@
     if (exitCode !== 0) {
       verdict = { kind: "error", ping: "", loss: "", node: node, code: exitCode };
       if (modalOpen) qcSetVerdict("err", "warpscout завершился с кодом {c}", { c: exitCode }, "");
-      if (!batch) toast(tF("Проверка {ep}: ошибка {err}", { ep: ep, err: exitCode }), "err");
+      if (!batch) toast(tF("qc.19", { ep: ep, err: exitCode }), "err");
     } else if (!row) {
       verdict = { kind: "noanswer", ping: "", loss: "", node: node };
       if (modalOpen) qcSetVerdict("warn", "Эндпоинт не ответил (нет строки в отчёте)", {}, "");
-      if (!batch) toast(tF("Проверка {ep}: не ответил", { ep: ep }), "warn");
+      if (!batch) toast(tF("qc.18", { ep: ep }), "warn");
     } else if (row.torn) {
       const loss = String(row.loss || "100%").replace(/\s*ms/i, "");
       verdict = { kind: "torn", ping: "", loss: loss, node: node };
       if (modalOpen) qcSetVerdict("err", "⛔ Разорван — потери {loss}", { loss: loss }, node);
-      if (!batch) toast(tF("Проверка {ep}: разорван", { ep: ep }), "err");
+      if (!batch) toast(tF("qc.17", { ep: ep }), "err");
     } else {
       const ping = String(row.tunPing || "?").replace(/\s*ms/i, "");
       const loss = String(row.loss || "0%").replace(/\s*ms/i, "");
       verdict = { kind: "ok", ping: ping, loss: loss, node: node };
       if (modalOpen) qcSetVerdict("ok", "✅ Рабочий — TUN PING {ping} ms, потери {loss}", { ping: ping, loss: loss }, node);
-      if (!batch) toast(tF("Проверка {ep}: рабочий, TUN PING {ping} ms", { ep: ep, ping: ping }), "ok");
+      if (!batch) toast(tF("qc.16", { ep: ep, ping: ping }), "ok");
     }
     // журнал ⚡-проверок (v2.0.0)
     pushQcJournal({ ts: Date.now(), ep: ep, proto: proto, kind: verdict.kind, ping: verdict.ping, loss: verdict.loss, node: verdict.node, code: verdict.code });
@@ -506,15 +506,15 @@
 
   async function runBatchCheck() {
     const list = (S.qcSel || []).slice();
-    if (!list.length) { toast(t("Выберите хотя бы один эндпоинт"), "warn"); return; }
-    if (S.running.check) { toast(t("Уже идёт проверка — подождите"), "warn"); return; }
-    if (S.running.scan) { toast(t("Проверка недоступна во время скана"), "warn"); return; }
+    if (!list.length) { toast(t("batch.17"), "warn"); return; }
+    if (S.running.check) { toast(t("qc.08"), "warn"); return; }
+    if (S.running.scan) { toast(t("qc.09"), "warn"); return; }
     S.qcBatch = { list: list, idx: 0, total: list.length, ok: 0, torn: 0, other: 0, done: 0, curResolve: null };
     const m = $("#qcModal");
     if (m) {
-      $("#qcEp").textContent = tF("Пакетная проверка: {n}", { n: list.length });
+      $("#qcEp").textContent = tF("batch.19", { n: list.length });
       $("#qcProto").textContent = String(S.viewProto || S.scan.proto || "awg").toUpperCase();
-      $("#qcCmd").textContent = t("Последовательная очередь ⚡-проверок — по команде на каждый эндпоинт");
+      $("#qcCmd").textContent = t("batch.20");
       $("#qcLog").textContent = "";
       qcVerdict("run", "…");
       m.classList.remove("hidden");
@@ -532,12 +532,12 @@
     updateBatchMeta();
     if (b && b.cancelled) {
       // v2.4.6 (F33): честный вердикт отмены вместо «Готово»
-      qcSetVerdict("warn", t("Пакетная проверка отменена"), {}, "");
-      toast(t("Пакетная проверка отменена"), "warn");
+      qcSetVerdict("warn", t("extra.34"), {}, "");
+      toast(t("extra.34"), "warn");
     } else if (b) {
-      const summary = tF("Готово: {ok} рабочих, {torn} разорванных, {other} без ответа из {n}", { ok: b.ok, torn: b.torn, other: b.other, n: b.total });
+      const summary = tF("batch.22", { ok: b.ok, torn: b.torn, other: b.other, n: b.total });
       qcSetVerdict(b.ok && !b.other ? "ok" : b.ok ? "warn" : "err", summary, {}, "");
-      toast(t("Пакетная проверка завершена") + " — " + summary, b.ok ? "ok" : "warn");
+      toast(t("batch.23") + " — " + summary, b.ok ? "ok" : "warn");
     }
   }
 
@@ -548,10 +548,10 @@
     if (!meta) return;
     if (S.qcBatch) {
       const b = S.qcBatch;
-      meta.textContent = tF("Проверено {done}/{n} · ✅ {ok} · ⛔ {torn}", { done: b.done || 0, n: b.total, ok: b.ok, torn: b.torn });
+      meta.textContent = tF("batch.21", { done: b.done || 0, n: b.total, ok: b.ok, torn: b.torn });
       meta.className = "batch-bar__meta is-run";
     } else {
-      meta.textContent = (S.qcSel || []).length ? tF("Выбрано: {n}", { n: S.qcSel.length }) : "";
+      meta.textContent = (S.qcSel || []).length ? tF("batch.18", { n: S.qcSel.length }) : "";
       meta.className = "batch-bar__meta";
     }
   }
@@ -564,7 +564,7 @@
     const btn = $("#btnSelectMode");
     if (btn) {
       btn.classList.toggle("is-on", S.qcSelMode);
-      btn.textContent = S.qcSelMode ? "✕ " + t("Снять выбор") : "☑ " + t("Выбрать");
+      btn.textContent = S.qcSelMode ? "✕ " + t("batch.13") : "☑ " + t("batch.12");
     }
     updateBatchMeta();
     renderResults();
@@ -623,19 +623,19 @@
     const dots = xy
       .map((q) =>
         '<circle class="trend-dot" cx="' + q.x.toFixed(1) + '" cy="' + q.y.toFixed(1) + '" r="3.5" data-trend="' + q.p.i +
-        '" role="button" tabindex="0" aria-label="' + tF("Скан {ts}, {ping} ms", { ts: fmtTime(q.p.ts), ping: q.p.ping }) + '">' +
-        "<title>" + tF("{ts} — лучший пинг {ping} ms — клик загрузит скан", { ts: fmtTime(q.p.ts), ping: q.p.ping }) + "</title></circle>"
+        '" role="button" tabindex="0" aria-label="' + tF("history.04", { ts: fmtTime(q.p.ts), ping: q.p.ping }) + '">' +
+        "<title>" + tF("history.05", { ts: fmtTime(q.p.ts), ping: q.p.ping }) + "</title></circle>"
       )
       .join("");
     return (
-      '<div class="trend" role="img" aria-label="' + t("Динамика лучшего пинга по сканам") + '">' +
+      '<div class="trend" role="img" aria-label="' + t("history.03") + '">' +
         '<div class="trend__head">' +
-          '<span class="trend__title">' + t("↘ динамика лучшего пинга") + "</span>" +
+          '<span class="trend__title">' + t("history.01") + "</span>" +
           '<span class="trend__tools">' +
             '<span class="trend__range">min <b>' + min + "</b> · max <b>" + max + "</b> ms</span>" +
-            '<button type="button" class="trend__csv" id="btnTrendCsv" title="' + t("Сохранить динамику пинга в CSV") + '">⬇ CSV</button>' +
-            '<button type="button" class="trend__csv trend__png" id="btnTrendPng" title="' + t("Сохранить график тренда в PNG") + '">⬇ PNG</button>' +
-            '<button type="button" class="trend__csv trend__svg" id="btnTrendSvg" title="' + t("Сохранить график тренда в SVG") + '">⬇ SVG</button>' +
+            '<button type="button" class="trend__csv" id="btnTrendCsv" title="' + t("cmp.17") + '">⬇ CSV</button>' +
+            '<button type="button" class="trend__csv trend__png" id="btnTrendPng" title="' + t("batch.41") + '">⬇ PNG</button>' +
+            '<button type="button" class="trend__csv trend__svg" id="btnTrendSvg" title="' + t("batch.26") + '">⬇ SVG</button>' +
           "</span>" +
         "</div>" +
         '<svg class="trend__svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none">' +
@@ -643,7 +643,7 @@
           '<polyline class="trend__line" points="' + line + '"></polyline>' +
           dots +
         "</svg>" +
-        '<div class="trend__hint">' + t("слева направо: старые сканы → новые · клик по точке загружает скан") + "</div>" +
+        '<div class="trend__hint">' + t("history.02") + "</div>" +
       "</div>"
     );
   }
@@ -677,7 +677,7 @@
         const chip = $('#customPresetChips .chip--custom[data-pi="' + idx + '"]');
         if (chip) {
           chip.classList.add("is-active");
-          $("#presetHint").innerHTML = tF("Пресет «<b>{name}</b>» применён. Команду можно посмотреть над кнопкой скана.", { name: esc(cname) });
+          $("#presetHint").innerHTML = tF("presets.17", { name: esc(cname) });
         }
       }
       return;
@@ -715,10 +715,10 @@
   }
 
   function accountImportErrorText(kind) {
-    if (kind === "parse") return t("Это не JSON-файл. Нужен аккаунт warpscout: JSON с ключами private_key и peer_public_key.");
-    if (kind === "not-account") return t("В файле нет корректных ключей аккаунта (private_key/peer_public_key в формате base64, 32 байта) — это не warpscout-account.json. Возможно, вы выбрали .conf-конфиг или файл другой программы.");
-    if (kind === "ambiguous") return t("В файле есть и public_key, и peer_public_key с разными значениями — неоднозначно. Переименуйте нужный ключ в peer_public_key и попробуйте снова.");
-    return t("Не удалось распознать файл аккаунта.");
+    if (kind === "parse") return t("acc.29");
+    if (kind === "not-account") return t("extra.35");
+    if (kind === "ambiguous") return t("extra.36");
+    return t("acc.31");
   }
 
   function accountFromText(text) {
@@ -755,22 +755,22 @@
     };
     let fileState;
     let fileCls;
-    if (has) { fileState = t("найден"); fileCls = "is-ok"; }
-    else if (S.accountError === "parse") { fileState = t("файл есть, но это не JSON"); fileCls = "is-err"; }
-    else if (S.accountError === "not-account") { fileState = t("в файле нет ключей private_key/peer_public_key"); fileCls = "is-err"; }
-    else { fileState = t("не найден — нужен для скана"); fileCls = "is-err"; }
+    if (has) { fileState = t("acc.13"); fileCls = "is-ok"; }
+    else if (S.accountError === "parse") { fileState = t("acc.32"); fileCls = "is-err"; }
+    else if (S.accountError === "not-account") { fileState = t("acc.33"); fileCls = "is-err"; }
+    else { fileState = t("acc.14"); fileCls = "is-err"; }
     set("#accFileState", fileState, fileCls);
     $("#accFilePath").textContent = S.paths.accPath || "—";
     set("#accMainState", has ? "✓ " + (S.account.ipv4 || "ok") : "—", has ? "is-ok" : "is-warn");
-    set("#accMasqueState", has && S.account.masque ? t("✓ есть") : t("нет (нужен только для masque)"), has && S.account.masque ? "is-ok" : "is-warn");
-    set("#accOuterState", has && S.account.outer ? t("✓ есть") : t("нет (нужен только для -through)"), has && S.account.outer ? "is-ok" : "is-warn");
+    set("#accMasqueState", has && S.account.masque ? t("acc.15") : t("acc.16"), has && S.account.masque ? "is-ok" : "is-warn");
+    set("#accOuterState", has && S.account.outer ? t("acc.15") : t("acc.17"), has && S.account.outer ? "is-ok" : "is-warn");
     renderAccountStatusline();
   }
 
   function renderAccountStatusline() {
     const el = $("#stAcc");
-    if (S.account) { el.textContent = t("● аккаунт: есть"); el.className = "statusline__row is-ok"; }
-    else { el.textContent = t("● аккаунт: нет — вкладка «Аккаунт»"); el.className = "statusline__row is-err"; }
+    if (S.account) { el.textContent = t("acc.18"); el.className = "statusline__row is-ok"; }
+    else { el.textContent = t("acc.19"); el.className = "statusline__row is-err"; }
   }
 
   // v2.1.0: человекочитаемая подсказка по коду выхода и хвосту лога warpscout
@@ -779,18 +779,18 @@
   function registerHintFor(code, logTail, synthetic) {
     const tl = String(logTail || "").toLowerCase();
     if (tl.includes("could not save account"))
-      return t("Не удалось сохранить файл аккаунта — папка данных пересоздана. Нажмите «Зарегистрировать» ещё раз.");
+      return t("acc.35");
     if (tl.includes("fix or move"))
-      return t("Файл аккаунта повреждён или не читается. Удалите его (кнопка «Открыть папку») и зарегистрируйте заново — или используйте «Новый аккаунт».");
+      return t("acc.36");
     if (tl.includes("registration failed") || tl.includes("no reachable endpoint"))
-      return t("Cloudflare API недоступна напрямую и через туннель WARP. Проверьте интернет, попробуйте VPN/прокси или повторите позже — иногда помогает несколько попыток.");
+      return t("acc.37");
     if (code === -1) {
       if (synthetic)
-        return t("Процесс завершился без финального отчёта — сигнал о завершении потерян (так бывает при потере событий или закрытии процесса системой). Нажмите «Проверить снова»: аккаунт мог успеть создаться. Если его нет — добавьте папку в исключения антивируса и повторите регистрацию.");
-      const v = S.wsVersion ? " " + tF("Проверка перед запуском показала версию {v} — сам exe запускается, путь верный. Похоже, процесс закрывается уже во время регистрации: добавьте папку в исключения антивируса (и нажмите «Разблокировать exe»), затем повторите.", { v: S.wsVersion }) : "";
-      return t("Код -1: warpscout.exe не смог запуститься или был закрыт. Причины: антивирус заблокировал файл; ZIP распакован не целиком (нет папки bin с warpscout.exe); неверный путь в Настройках. Проверьте папку кнопкой «Открыть папку» и добавьте её в исключения антивируса.") + v;
+        return t("acc.recheck.18");
+      const v = S.wsVersion ? " " + tF("acc.recheck.19", { v: S.wsVersion }) : "";
+      return t("acc.38") + v;
     }
-    return t("Смотрите лог выше — там точная причина от warpscout.");
+    return t("acc.39");
   }
 
   async function runRegister(fresh) {
@@ -801,12 +801,12 @@
     log.textContent = "";
     appendLog(log, "$ warpscout register" + (fresh ? " -fresh" : "") + "\n");
     if (!HAS_NL || IS_MOCK) {
-      appendLog(log, t("[демо] Используется демо-аккаунт. В приложении здесь выполняется настоящая регистрация.") + "\n");
+      appendLog(log, t("misc.27") + "\n");
       S.account = await loadAccount();
       renderAccount();
       S.running.register = false;
       registerUi();
-      toast(t("Демо: аккаунт уже есть"), "ok");
+      toast(t("acc.22"), "ok");
       return;
     }
     // v2.1.0: папка данных должна существовать ДО запуска — warpscout не создаёт
@@ -817,8 +817,8 @@
     if (!(await checkWarpscout(true))) {
       S.running.register = false;
       registerUi();
-      appendLog(log, "\n[GUI] " + t("warpscout.exe не найден. Распакуйте ZIP целиком (рядом с WARPScoutGUI.exe должна лежать папка bin с warpscout.exe) или укажите путь в Настройках. Если файл на месте — добавьте папку в исключения антивируса.") + "\n");
-      toast(t("Ошибка запуска warpscout"), "err");
+      appendLog(log, "\n[GUI] " + t("acc.34") + "\n");
+      toast(t("misc.40"), "err");
       return;
     }
     const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
@@ -839,7 +839,7 @@
         try { await os().killProcess(proc.id); } catch (e) {}
         S.running.register = false;
         registerUi();
-        appendLog(log, "\n[GUI] " + t("Остановлено пользователем.") + "\n");
+        appendLog(log, "\n[GUI] " + t("extra.37") + "\n");
         return;
       }
       S.procIds.register = proc.id;
@@ -858,8 +858,8 @@
     } catch (e) {
       S.running.register = false;
       registerUi();
-      appendLog(log, "\n[GUI] " + tF("Не удалось запустить warpscout: {err}", { err: e && e.message ? e.message : e }) + "\n");
-      toast(t("Ошибка запуска warpscout"), "err");
+      appendLog(log, "\n[GUI] " + tF("extra.05", { err: e && e.message ? e.message : e }) + "\n");
+      toast(t("misc.40"), "err");
     }
 
     // v2.1.1: код выхода warpscout — не истина в последней инстанции: события
@@ -874,21 +874,21 @@
       const newKey = S.account && typeof S.account.private_key === "string" ? S.account.private_key.slice(-12) : "";
       const accountAppeared = !!S.account && (!preId || newId !== preId || (!!preKey && !!newKey && preKey !== newKey));
       // v2.5.2 (Android): копия файла аккаунта в общую папку Download/WARPScoutGUI
-      if (S.account && IS_ANDROID) mirrorPublic(S.paths.accPath).then((pub) => { if (pub) toast(tF("Копия в общей папке: {p}", { p: pub }), "info"); });
+      if (S.account && IS_ANDROID) mirrorPublic(S.paths.accPath).then((pub) => { if (pub) toast(tF("conf.57", { p: pub }), "info"); });
       if (code === 0) {
-        appendLog(log, "\n[GUI] " + t("Готово.") + "\n");
-        toast(t("Аккаунт готов"), "ok");
+        appendLog(log, "\n[GUI] " + t("misc.29") + "\n");
+        toast(t("acc.20"), "ok");
         return;
       }
       if (accountAppeared) {
-        appendLog(log, "\n" + tF("Процесс завершился с кодом {code}, но файл аккаунта создан и читается — регистрация прошла. Можно сканировать.", { code }) + "\n");
-        toast(t("Аккаунт готов"), "ok");
+        appendLog(log, "\n" + tF("acc.recheck.17", { code }) + "\n");
+        toast(t("acc.20"), "ok");
         return;
       }
       // v2.1.1: раньше здесь был двойной префикс «[GUI] [GUI]» — убран
-      appendLog(log, "\n" + tF("[GUI] Регистрация завершилась с ошибкой (код {code}).", { code }) + "\n");
+      appendLog(log, "\n" + tF("misc.38", { code }) + "\n");
       appendLog(log, "[GUI] " + registerHintFor(code, logTail, synthetic) + "\n");
-      toast(t("Регистрация не удалась — смотрите лог"), "err");
+      toast(t("acc.21"), "err");
     }
   }
 
@@ -918,14 +918,14 @@
           if (old) {
             const bak = S.paths.accPath + ".bak-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
             await fs().writeFile(bak, old);
-            toast(tF("Прежний аккаунт сохранён как {f}", { f: bak.split(/[\\/]/).pop() }), "info");
+            toast(tF("extra.38", { f: bak.split(/[\\/]/).pop() }), "info");
           }
         } catch (e) { /* прежнего аккаунта нет */ }
         await fs().writeFile(S.paths.accPath, String(text));
         // v2.5.2 (Android): копия аккаунта в общую папку — доступна без root
-        mirrorPublic(S.paths.accPath).then((pub) => { if (pub) toast(tF("Копия в общей папке: {p}", { p: pub }), "info"); });
+        mirrorPublic(S.paths.accPath).then((pub) => { if (pub) toast(tF("conf.57", { p: pub }), "info"); });
       } catch (e) {
-        toast(tF("Не удалось сохранить файл аккаунта: {err}", { err: e && e.message ? e.message : e }), "err");
+        toast(tF("acc.26", { err: e && e.message ? e.message : e }), "err");
         return false;
       }
     }
@@ -937,19 +937,19 @@
   async function importAccount() {
     if (HAS_NL && !IS_MOCK) {
       let p;
-      try { p = await os().showOpenDialog(t("Выберите файл аккаунта (warpscout-account.json)"), { multiSelections: false }); }
+      try { p = await os().showOpenDialog(t("acc.25"), { multiSelections: false }); }
       catch (e) { p = null; }
       const picked = Array.isArray(p) ? p[0] : typeof p === "string" ? p : null;
       if (!picked) return;
       let text = "";
       try { text = await fs().readFile(picked); }
       catch (e) {
-        toast(tF("Не удалось прочитать файл: {err}", { err: e && e.message ? e.message : e }), "err");
+        toast(tF("extra.10", { err: e && e.message ? e.message : e }), "err");
         return;
       }
       const r = accountFromText(text);
       if (r.error) { toast(t(accountImportErrorText(r.error)), "err"); return; }
-      if (await adoptImportedAccount(picked, text)) toast(t("Готовый аккаунт подключён — можно сканировать"), "ok");
+      if (await adoptImportedAccount(picked, text)) toast(t("acc.27"), "ok");
       return;
     }
     // демо: <input type=file>
@@ -966,7 +966,7 @@
         const r = accountFromText(String(reader.result));
         if (r.error) { toast(t(accountImportErrorText(r.error)), "err"); return; }
         if (window.NeutralinoMock) window.NeutralinoMock.account = r.account;
-        if (await adoptImportedAccount(null, String(reader.result))) toast(t("Готовый аккаунт подключён — можно сканировать"), "ok");
+        if (await adoptImportedAccount(null, String(reader.result))) toast(t("acc.27"), "ok");
       };
       reader.readAsText(file);
     });
@@ -994,7 +994,7 @@
       const r = accountFromText(text);
       if (r.error) continue;
       if (await adoptImportedAccount(src, text)) {
-        toast(tF("Подключён готовый аккаунт, найденный рядом: {src}", { src }), "ok");
+        toast(tF("acc.28", { src }), "ok");
         return true;
       }
     }
@@ -1015,7 +1015,7 @@
   // v2.1.1: помощь при «коде -1» — антивирус / метка Zone.Identifier из ZIP
   function bindExeHelpers() {
     $("#btnAccUnblock").addEventListener("click", async () => {
-      if (IS_MOCK || !HAS_NL) { toast(t("Доступно только в приложении Windows"), "err"); return; }
+      if (IS_MOCK || !HAS_NL) { toast(t("acc.recheck.13"), "err"); return; }
       const raw = String(S.paths.wsPath || "").replace(/["%!<>|&^`]/g, "");
       if (!raw.trim()) return;
       if (!IS_WIN) {
@@ -1025,10 +1025,10 @@
         appendLog($("#accLog"), "\n$ chmod +x <warpscout>\n");
         try {
           await fs().setPermissions(raw, { all: false, ownerAll: false, ownerRead: true, ownerWrite: true, ownerExec: true, groupAll: false, groupRead: true, groupWrite: false, groupExec: true, othersAll: false, othersRead: true, othersWrite: false, othersExec: true }, "ADD");
-          appendLog($("#accLog"), "[GUI] " + t("chmod +x выполнен: право на запуск выдано. Попробуйте регистрацию ещё раз.") + "\n");
-          toast(t("Готово — попробуйте регистрацию ещё раз"), "ok");
+          appendLog($("#accLog"), "[GUI] " + t("acc.recheck.14") + "\n");
+          toast(t("acc.recheck.15"), "ok");
         } catch (e) {
-          toast(tF("Не удалось выполнить chmod +x: {err}", { err: e && e.message ? e.message : e }), "err");
+          toast(tF("acc.recheck.16", { err: e && e.message ? e.message : e }), "err");
         }
         return;
       }
@@ -1040,29 +1040,29 @@
       appendLog($("#accLog"), "\n$ powershell Unblock-File <warpscout.exe>\n");
       try {
         await os().execCommand("powershell -NoProfile -ExecutionPolicy Bypass -Command \"Unblock-File -LiteralPath " + psQuote(p) + "\"");
-        appendLog($("#accLog"), "[GUI] " + t("Unblock-File выполнен: с exe снята метка «скачано из интернета». Попробуйте регистрацию ещё раз.") + "\n");
-        toast(t("Готово — попробуйте регистрацию ещё раз"), "ok");
+        appendLog($("#accLog"), "[GUI] " + t("acc.recheck.14") + "\n");
+        toast(t("acc.recheck.15"), "ok");
       } catch (e) {
-        toast(tF("Не удалось выполнить Unblock-File: {err}", { err: e && e.message ? e.message : e }), "err");
+        toast(tF("acc.recheck.16", { err: e && e.message ? e.message : e }), "err");
       }
     });
     $("#btnAccOpenExeDir").addEventListener("click", () => {
-      if (IS_MOCK) { toast(t("Доступно только в приложении Windows"), "err"); return; }
+      if (IS_MOCK) { toast(t("acc.recheck.13"), "err"); return; }
       const dir = String(S.paths.wsPath || "").replace(/[\\/]warpscout(\.exe|\.so)?$/i, "").replace(/[\\/]+$/, "");
-      if (!dir) { toast(t("Не удалось открыть папку"), "err"); return; }
+      if (!dir) { toast(t("misc.25"), "err"); return; }
       // v2.5.4: единый хелпер с фидбеком; на Android кнопка скрыта (nativeLibraryDir)
       openFolderUi(dir, "warpscout");
     });
     $("#btnAccCheckWs").addEventListener("click", async () => {
-      toast(t("Проверяю warpscout…"), "ok");
+      toast(t("acc.recheck.09"), "ok");
       try {
         const ok = await Promise.race([
           checkWarpscout(true),
           new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 15000)),
         ]);
-        toast(ok ? tF("warpscout готов: {v}", { v: S.wsVersion || "?" }) : t("warpscout не отвечает — проверьте путь и антивирус"), ok ? "ok" : "err");
+        toast(ok ? tF("acc.recheck.10", { v: S.wsVersion || "?" }) : t("acc.recheck.11"), ok ? "ok" : "err");
       } catch (e) {
-        toast(t("warpscout не отвечает (таймаут)"), "err");
+        toast(t("acc.recheck.12"), "err");
       }
     });
   }

@@ -45,6 +45,9 @@ jobs:
       - name: юнит-тесты чистых функций (ARCH-4 — парсеры, санитайзеры, билдеры)
         run: node --test desktop-app/tests/*.test.js
 
+      - name: i18n по идентификаторам (QUAL-1 — словарь, вызовы, статика HTML)
+        run: python3 desktop-app/tools/check-i18n.py
+
       - name: структура Java-моста (баланс скобок; полный javac — в сборке APK)
         run: |
           python3 - <<'PY'

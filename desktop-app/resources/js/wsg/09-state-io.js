@@ -33,17 +33,17 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-      toast(tF("Резервная копия скачана: {path}", { path: name }), "ok");
+      toast(tF("extra.15", { path: name }), "ok");
       return;
     }
     os()
-      .showSaveDialog(t("Резервная копия WARPSCOUT GUI"), { defaultPath: name })
+      .showSaveDialog(t("backup.01"), { defaultPath: name })
       .then(async (path) => {
         if (!path) return;
         await fs().writeFile(path, json);
-        toast(tF("Копия сохранена: {path}", { path: path }), "ok");
+        toast(tF("extra.16", { path: path }), "ok");
       })
-      .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
+      .catch((e) => toast(tF("extra.09", { err: e && e.message ? e.message : e }), "err"));
   }
 
   /* ── v2.4.6 (аудит F03/F05/F08/F10): схема и санитизация импортируемых данных ──
@@ -179,7 +179,7 @@
 
   function applyImportedState(st) {
     if (!st || typeof st !== "object" || (!st.scan && !st.cfg)) {
-      toast(t("Файл не похож на резервную копию WARPSCOUT GUI"), "err");
+      toast(t("backup.05"), "err");
       return;
     }
     // v2.4.6 (F08): собираем и валидируем ВСЁ в отдельный объект — состояние
@@ -201,7 +201,7 @@
         next.settings = { wsPath: "", dataRoot: strField(st.settings.dataRoot, 500) };
       }
     } catch (e) {
-      toast(tF("Импорт отклонён: некорректные данные ({err})", { err: e && e.message ? e.message : e }), "err");
+      toast(tF("extra.17", { err: e && e.message ? e.message : e }), "err");
       return;
     }
     if (next.scan) S.scan = next.scan;
@@ -221,23 +221,23 @@
     renderCustomPresets();
     renderHistoryBtn();
     persist();
-    toast(t("Настройки восстановлены из копии"), "ok");
+    toast(t("backup.06"), "ok");
   }
 
   function importState() {
     if (!IS_MOCK && HAS_NL) {
       os()
-        .showOpenDialog(t("Выберите файл резервной копии"), { multiSelections: false })
+        .showOpenDialog(t("backup.07"), { multiSelections: false })
         .then(async (p) => {
           let picked = Array.isArray(p) ? p[0] : p;
           if (!picked) return;
           try {
             const text = await fs().readFile(picked);
             // v2.4.6 (F08): лимит размера ДО парсинга — гигантский файл не блокирует UI
-            if (String(text).length > 2000000) { toast(t("Файл слишком большой для резервной копии (>2 МБ)"), "err"); return; }
+            if (String(text).length > 2000000) { toast(t("extra.18"), "err"); return; }
             applyImportedState(JSON.parse(text));
           } catch (e) {
-            toast(tF("Не удалось прочитать файл: {err}", { err: e && e.message ? e.message : e }), "err");
+            toast(tF("extra.10", { err: e && e.message ? e.message : e }), "err");
           }
         })
         .catch(() => {});
@@ -255,10 +255,10 @@
       reader.onload = () => {
         try {
           const text = String(reader.result);
-          if (text.length > 2000000) { toast(t("Файл слишком большой для резервной копии (>2 МБ)"), "err"); return; } // v2.4.6 (F08)
+          if (text.length > 2000000) { toast(t("extra.18"), "err"); return; } // v2.4.6 (F08)
           applyImportedState(JSON.parse(text));
         } catch (err) {
-          toast(tF("Некорректный JSON: {err}", { err: err && err.message ? err.message : err }), "err");
+          toast(tF("extra.11", { err: err && err.message ? err.message : err }), "err");
         }
       };
       reader.readAsText(file);

@@ -17,17 +17,17 @@
     const el = $("#udfState");
     if (!el) return "default";
     const custom = !!String(S.settings.dataRoot || "").trim();
-    el.textContent = custom ? t("⚠ своя папка данных") : t("✓ аккаунт, отчёты и кэш — в одной папке");
+    el.textContent = custom ? t("data.08") : t("data.07");
     el.className = custom ? "is-warn" : "is-ok";
     const hint = $("#dataRootHint");
     if (hint) {
       hint.textContent = custom
-        ? tF("Данные (аккаунт, отчёты): {d}. Веб-кэш движка рантайм всегда держит в {u} — техническая папка останется рядом.", { d: S.paths.dataDir, u: S.paths.udfPath })
-        : tF("Всё вместе — в одной папке: {u}. Она создаётся программой сама, поэтому всегда на месте.", { u: S.paths.udfPath });
+        ? tF("data.10", { d: S.paths.dataDir, u: S.paths.udfPath })
+        : tF("data.09", { u: S.paths.udfPath });
       // v2.6.0 (SEC-6): на Android данные приватны (app-specific), а наружу
       // (файловым менеджерам) копируются в единую папку Download/WARPScoutGUI
       if (IS_ANDROID) {
-        hint.textContent += " " + t("Отчёты и конфиги дублируются в общую папку устройства: Download/WARPScoutGUI");
+        hint.textContent += " " + t("touch.15");
       }
     }
     return custom ? "custom" : "default";
@@ -62,7 +62,7 @@
     const moved = [];
     const conflicts = [];
     if (!oldRoot || !newRoot || isSameWinPath(oldRoot, newRoot)) return { moved, conflicts };
-    if (isWinPathInside(newRoot, oldRoot)) throw new Error(t("новая папка находится внутри старой — выберите папку вне её"));
+    if (isWinPathInside(newRoot, oldRoot)) throw new Error(t("extra.41"));
     await ensureDir(newRoot);
     // аккаунт
     let accText = "";
@@ -137,7 +137,7 @@
         renderAccount();
         renderAccountStatusline();
       }
-      toast(tF("Данные из прежней папки приложения перенесены: {n} ({list})", { n: copiedAll.length, list: copiedAll.slice(0, 3).join(", ") + (copiedAll.length > 3 ? "…" : "") }), "ok");
+      toast(tF("data.14", { n: copiedAll.length, list: copiedAll.slice(0, 3).join(", ") + (copiedAll.length > 3 ? "…" : "") }), "ok");
     }
     return copiedAll;
   }
@@ -149,15 +149,15 @@
   async function applyDataRoot(newRoot) {
     if (!newRoot) return;
     if (await anyProcRunning()) {
-      toast(t("Сначала остановите скан/регистрацию/прокси — перенос данных посреди работы невозможен"), "err");
+      toast(t("data.13"), "err");
       return;
     }
-    if (newRoot === S.paths.dataDir) { toast(t("Данные уже хранятся в этой папке"), "ok"); return; }
+    if (newRoot === S.paths.dataDir) { toast(t("data.16"), "ok"); return; }
     try {
       await ensureDir(newRoot);
       await fs().readDirectory(newRoot); // проверка, что папка доступна
     } catch (e) {
-      toast(t("Папка недоступна для записи — выберите другую"), "err");
+      toast(t("data.17"), "err");
       return;
     }
     let moved = [];
@@ -169,7 +169,7 @@
     } catch (e) {
       // v2.4.6 (F14/F15): при ошибке переноса активный корень НЕ меняем —
       // «половина данных там, половина здесь» хуже явного отказа
-      toast(tF("Перенос данных не выполнен: {err}. Активной осталась прежняя папка.", { err: e && e.message ? e.message : e }), "err");
+      toast(tF("extra.42", { err: e && e.message ? e.message : e }), "err");
       return;
     }
     S.settings.dataRoot = newRoot;
@@ -180,12 +180,12 @@
     renderDataFolder().catch(() => {});
     toast(
       moved.length
-        ? tF("Папка данных изменена, перенесено файлов: {n} ({list})", { n: moved.length, list: moved.slice(0, 3).join(", ") + (moved.length > 3 ? "…" : "") })
-        : t("Папка данных изменена"),
+        ? tF("data.18", { n: moved.length, list: moved.slice(0, 3).join(", ") + (moved.length > 3 ? "…" : "") })
+        : t("data.19"),
       "ok"
     );
     if (conflicts.length) {
-      toast(tF("Не перенесены — уже есть в новой папке: {n}", { n: conflicts.length }) + ": " + conflicts.slice(0, 3).join("; ") + (conflicts.length > 3 ? "…" : ""), "warn");
+      toast(tF("extra.43", { n: conflicts.length }) + ": " + conflicts.slice(0, 3).join("; ") + (conflicts.length > 3 ? "…" : ""), "warn");
     }
   }
 
@@ -194,11 +194,11 @@
       // v2.6.0 (аудит QUAL-2): window.prompt в демо убран — блокирующий диалог
       // не имеет отношения к реальному SAF/нативному диалогу и дезинформирует.
       // Демо честно говорит, что выбор папки — только в приложении.
-      toast(t("Выбор папки данных работает только в приложении"), "info");
+      toast(t("touch.16"), "info");
       return;
     }
     let p = null;
-    try { p = await os().showFolderDialog(t("Выберите папку для данных WARPSCOUT GUI")); } catch (e) { p = null; }
+    try { p = await os().showFolderDialog(t("data.21")); } catch (e) { p = null; }
     if (!p) return;
     await applyDataRoot(String(p).replace(/[\\/]+$/, ""));
   }
@@ -304,7 +304,7 @@
     let okDir = true;
     try { await ensureDir(udf); } catch (e) { okDir = false; }
     if (!okDir) {
-      toast(t("Не удалось снять ссылку «<имя exe>» — данные доступны, папка осталась ссылкой. Закройте приложение и удалите ссылку вручную (Проводник удаляет только ссылку), затем запустите снова."), "err");
+      toast(t("junction.01"), "err");
       return;
     }
     if (accText) { try { await fs().writeFile(udf + "\\warpscout-account.json", accText); } catch (e) {} }
@@ -313,7 +313,7 @@
       for (const r of savedReports) { try { await fs().writeFile(udf + "\\reports\\" + r.name, r.text); } catch (e) {} }
     } catch (e) {}
     cleanupOldFolder(det);
-    toast(t("Ссылка «<имя exe>» разобрана: аккаунт и отчёты снова в обычной папке, рядом с кэшем движка"), "ok");
+    toast(t("junction.02"), "ok");
   }
 
   // v2.3.0: автоперенос аккаунта/отчётов из старой папки v2.1–2.2 (%APPDATA%\WARPScoutGUI)
@@ -355,7 +355,7 @@
       }
     } catch (e) { /* папки отчётов нет */ }
     if (copied.length) {
-      toast(tF("Данные перенесены рядом с кэшем движка ({n}): {list}", { n: copied.length, list: copied.slice(0, 3).join(", ") + (copied.length > 3 ? "…" : "") }), "ok");
+      toast(tF("junction.03", { n: copied.length, list: copied.slice(0, 3).join(", ") + (copied.length > 3 ? "…" : "") }), "ok");
       cleanupOldFolder(src); // старая папка опустеет и уберётся фоном
     }
     return copied;

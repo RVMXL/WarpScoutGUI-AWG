@@ -251,12 +251,12 @@
   async function browseWsPath() {
     let p;
     try {
-      p = await os().showOpenDialog(t("Выберите warpscout.exe"), { multiSelections: false, filters: [{ name: "warpscout.exe", extensions: ["exe"] }] });
+      p = await os().showOpenDialog(t("misc.23"), { multiSelections: false, filters: [{ name: "warpscout.exe", extensions: ["exe"] }] });
     } catch (e) { p = null; }
     let picked = null;
     if (Array.isArray(p) && p[0]) picked = p[0];
     else if (typeof p === "string" && p) picked = p;
-    if (IS_MOCK && !picked) { toast(t("Выбор файла работает только в приложении"), "err"); return; }
+    if (IS_MOCK && !picked) { toast(t("misc.22"), "err"); return; }
     if (!picked) return;
     S.settings.wsPath = picked;
     S.paths.wsPath = picked;
@@ -425,7 +425,7 @@
       if (!ok) {
         S.settings.dataRoot = "";
         root = "";
-        toast(t("Пользовательская папка данных недоступна — вернулись к папке по умолчанию"), "err");
+        toast(t("data.12"), "err");
       }
     }
     S.paths.dataDir = root || S.paths.dataDirDefault;

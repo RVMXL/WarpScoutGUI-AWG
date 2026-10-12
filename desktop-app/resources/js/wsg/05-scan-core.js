@@ -240,7 +240,7 @@
     if (!meta || !clear) return;
     clear.classList.toggle("hidden", !S.filter);
     meta.innerHTML = S.filter
-      ? tF("показано <b>{n}</b> из {m}", { n: shown, m: total })
+      ? tF("stats.16", { n: shown, m: total })
       : "";
   }
 

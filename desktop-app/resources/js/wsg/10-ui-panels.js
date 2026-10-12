@@ -62,7 +62,12 @@
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "dark");
     const b = $("#btnTheme");
-    if (b) b.textContent = t(theme === "light" ? "🌙 Тёмная тема" : "☀ Светлая тема");
+    if (b) {
+      b.textContent = t(theme === "light" ? "status.04" : "status.03");
+      // v2.6.2 (QUAL-1): a11y-атрибуты кнопки темы — через словарь (раньше оставались RU)
+      b.setAttribute("aria-label", t("status.08"));
+      b.setAttribute("title", t("status.07"));
+    }
   }
 
   function toggleTheme() {
@@ -71,7 +76,7 @@
     S.settings.theme = next;
     applyTheme(next);
     persist();
-    toast(t(next === "light" ? "Светлая тема включена" : "Тёмная тема включена"), "ok");
+    toast(t(next === "light" ? "toasts.12" : "toasts.13"), "ok");
   }
 
   function toggleHistory(force) {
@@ -83,12 +88,12 @@
     // голову и его ВСЕГДА, placeholder относится только к истории сканов
     panel.innerHTML =
       '<div class="history__head">' +
-        '<span class="history__head-title">' + t("Последние сканы (хранятся локально, до 10)") + "</span>" +
+        '<span class="history__head-title">' + t("history.06") + "</span>" +
         '<span class="history__tools">' +
-          '<button type="button" id="btnHistCmp" title="' + t("Сравнить два скана из истории (модалка)") + '">' + t("⇅ сравнить") + "</button>" +
-          '<button type="button" id="btnHistCsv" title="' + t("Сохранить итоги истории (CSV)") + '">' + t("⬇ CSV (итоги)") + "</button>" +
-          '<button type="button" id="btnHistExport" title="' + t("Выгрузить всю историю в JSON-файл") + '">⬇ JSON</button>' +
-          '<button type="button" id="btnHistClear" class="history__clear" title="' + t("Удалить всю историю") + '">' + t("🗑 Очистить") + "</button>" +
+          '<button type="button" id="btnHistCmp" title="' + t("cmp.02") + '">' + t("cmp.01") + "</button>" +
+          '<button type="button" id="btnHistCsv" title="' + t("history.30") + '">' + t("history.29") + "</button>" +
+          '<button type="button" id="btnHistExport" title="' + t("history.13") + '">⬇ JSON</button>' +
+          '<button type="button" id="btnHistClear" class="history__clear" title="' + t("history.11") + '">' + t("history.12") + "</button>" +
         "</span>" +
       "</div>" +
       (S.history.length
@@ -101,14 +106,14 @@
                   '<span class="history__proto">' + esc(String(h.proto).toUpperCase()) + "</span>" +
                   '<span class="history__label">' + esc(h.label) + "</span>" +
                   '<span class="history__cnt ' + (h.working ? "is-ok" : "is-err") + '">' +
-                    esc(h.working) + " " + t("рабочих") + (h.torn ? " / " + esc(h.torn) + " " + t("разорвано") : "") + // v2.4.6 (F03): счётчики — только как текст
+                    esc(h.working) + " " + t("history.08") + (h.torn ? " / " + esc(h.torn) + " " + t("history.09") : "") + // v2.4.6 (F03): счётчики — только как текст
                   "</span>" +
                   '<span class="history__cmp-btn" role="button" tabindex="0" data-cmp="' + i +
-                  '" title="' + t("Δ сравнить с текущей таблицей (без загрузки)") + '">Δ</span>' +
+                  '" title="' + t("history.10") + '">Δ</span>' +
                 "</button>"
             )
             .join("")
-        : '<div class="history__empty">' + t("История сканов пуста — выполните первый скан.") + "</div>");
+        : '<div class="history__empty">' + t("extra.19") + "</div>");
     const bExp = $("#btnHistExport");
     if (bExp) bExp.addEventListener("click", exportHistory);
     const bCsv = $("#btnHistCsv");
@@ -156,7 +161,7 @@
   }
 
   function exportHistory() {
-    if (!S.history.length) { toast(t("История пуста — нечего выгружать"), "err"); return; }
+    if (!S.history.length) { toast(t("history.23"), "err"); return; }
     const payload = { app: "WARPSCOUT GUI", format: 1, exportedAt: new Date().toISOString(), scans: S.history };
     const json = JSON.stringify(payload, null, 2);
     const name = "warpscout-history-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + ".json";
@@ -168,22 +173,22 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-      toast(tF("История выгружена: {path}", { path: name }), "ok");
+      toast(tF("extra.20", { path: name }), "ok");
       return;
     }
     os()
-      .showSaveDialog(t("Выгрузить историю сканов (JSON)"), { defaultPath: name })
+      .showSaveDialog(t("history.26"), { defaultPath: name })
       .then(async (path) => {
         if (!path) return;
         await fs().writeFile(path, json);
-        toast(tF("История сохранена: {path}", { path: path }), "ok");
+        toast(tF("extra.21", { path: path }), "ok");
       })
-      .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
+      .catch((e) => toast(tF("extra.09", { err: e && e.message ? e.message : e }), "err"));
   }
 
   /* ───────── итоги истории в CSV (v1.6.0) ───────── */
   function exportHistoryCsv() {
-    if (!S.history.length) { toast(t("История пуста — нечего выгружать"), "err"); return; }
+    if (!S.history.length) { toast(t("history.23"), "err"); return; }
     const q = csvSafe; // v2.4.6 (F10): формулы Excel не проходят
     const rows = ["datetime,proto,params,working,torn,best_ping_ms"];
     for (let i = S.history.length - 1; i >= 0; i--) {
@@ -204,27 +209,27 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-      toast(tF("История CSV выгружена: {path}", { path: name }), "ok");
+      toast(tF("extra.22", { path: name }), "ok");
       return;
     }
     os()
-      .showSaveDialog(t("Сохранить итоги истории (CSV)"), { defaultPath: name })
+      .showSaveDialog(t("history.30"), { defaultPath: name })
       .then(async (path) => {
         if (!path) return;
         await fs().writeFile(path, csv);
-        toast(tF("История CSV сохранена: {path}", { path: path }), "ok");
+        toast(tF("extra.23", { path: path }), "ok");
       })
-      .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
+      .catch((e) => toast(tF("extra.09", { err: e && e.message ? e.message : e }), "err"));
   }
 
   async function clearHistory() {
-    if (!S.history.length) { toast(t("История и так пуста"), "ok"); return; }
-    if (!confirm(tF("Удалить всю историю сканов ({n})? Текущая таблица результатов останется.", { n: S.history.length }))) return;
+    if (!S.history.length) { toast(t("history.22"), "ok"); return; }
+    if (!confirm(tF("history.20", { n: S.history.length }))) return;
     S.history = [];
     renderHistoryBtn();
     toggleHistory(true); // перерисовать открытую панель
     persist();
-    toast(t("История очищена"), "ok");
+    toast(t("history.21"), "ok");
   }
 
   /* ───────── CSV динамики пинга (v1.7.0) ───────── */
@@ -234,7 +239,7 @@
       const b = histBestPing(S.history[i]);
       if (b !== Infinity) pts.push({ ts: S.history[i].ts, ping: b });
     }
-    if (pts.length < 1) { toast(t("Нет сканов с пингами — тренд пуст"), "err"); return; }
+    if (pts.length < 1) { toast(t("cmp.19"), "err"); return; }
     const q = csvSafe; // v2.4.6 (F10)
     const rows = ["datetime,best_ping_ms"];
     pts.forEach((p) => rows.push([new Date(p.ts).toISOString(), p.ping].map(q).join(",")));
@@ -248,17 +253,17 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-      toast(tF("Тренд CSV выгружен: {path}", { path: name }), "ok");
+      toast(tF("cmp.20", { path: name }), "ok");
       return;
     }
     os()
-      .showSaveDialog(t("Сохранить динамику пинга (CSV)"), { defaultPath: name })
+      .showSaveDialog(t("cmp.18"), { defaultPath: name })
       .then(async (path) => {
         if (!path) return;
         await fs().writeFile(path, csv);
-        toast(tF("Тренд CSV сохранён: {path}", { path: path }), "ok");
+        toast(tF("cmp.21", { path: path }), "ok");
       })
-      .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
+      .catch((e) => toast(tF("extra.09", { err: e && e.message ? e.message : e }), "err"));
   }
 
   /* ───────── PNG графика тренда (v1.9.0) ───────── */
@@ -307,7 +312,7 @@
     ctx.fillStyle = ink;
     ctx.font = "600 21px 'Segoe UI', system-ui, sans-serif";
     ctx.textAlign = "left";
-    ctx.fillText("WARPSCOUT GUI — " + t("↘ динамика лучшего пинга"), 44, 58);
+    ctx.fillText("WARPSCOUT GUI — " + t("history.01"), 44, 58);
     ctx.textAlign = "right";
     ctx.fillStyle = accent;
     ctx.font = "600 14px 'Segoe UI', system-ui, sans-serif";
@@ -315,7 +320,7 @@
     ctx.textAlign = "left";
     ctx.fillStyle = sub;
     ctx.font = "13px 'Segoe UI', system-ui, sans-serif";
-    ctx.fillText(pts.length + " " + t("сканов с пингами"), 44, 82);
+    ctx.fillText(pts.length + " " + t("batch.46"), 44, 82);
     // данные
     const pings = pts.map((p) => p.ping);
     const min = Math.min.apply(null, pings);
@@ -388,7 +393,7 @@
 
   async function exportTrendPng() {
     const pts = trendPoints();
-    if (pts.length < 2) { toast(t("Нужно минимум 2 скана с пингами"), "warn"); return; }
+    if (pts.length < 2) { toast(t("batch.40"), "warn"); return; }
     try {
       const canvas = drawTrendChart(pts);
       const dataUrl = canvas.toDataURL("image/png");
@@ -400,10 +405,10 @@
         document.body.appendChild(a);
         a.click();
         a.remove();
-        toast(tF("Тренд PNG скачан: {path}", { path: name }), "ok");
+        toast(tF("batch.44", { path: name }), "ok");
         return;
       }
-      const path = await os().showSaveDialog(t("Сохранить динамику пинга (PNG)"), { defaultPath: name });
+      const path = await os().showSaveDialog(t("batch.42"), { defaultPath: name });
       if (!path) return;
       const base64 = dataUrl.split(",")[1];
       const bin = atob(base64);
@@ -411,9 +416,9 @@
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       if (fs().writeBinaryFile) await fs().writeBinaryFile(path, bytes.buffer);
       else await fs().writeFile(path, dataUrl);
-      toast(tF("Тренд PNG сохранён: {path}", { path: path }), "ok");
+      toast(tF("batch.43", { path: path }), "ok");
     } catch (e) {
-      toast(tF("Ошибка экспорта PNG: {err}", { err: e && e.message ? e.message : e }), "err");
+      toast(tF("batch.45", { err: e && e.message ? e.message : e }), "err");
     }
   }
 
@@ -472,9 +477,9 @@
         "</linearGradient></defs>" +
         '<rect width="' + W + '" height="' + H + '" fill="' + bg + '"/>' +
         '<rect x="22" y="22" width="' + (W - 44) + '" height="' + (H - 44) + '" rx="14" fill="' + card + '"/>' +
-        '<text x="44" y="58" font-size="21" font-weight="600" fill="' + ink + '" font-family="\'Segoe UI\', system-ui, sans-serif">' + escX("WARPSCOUT GUI — " + t("↘ динамика лучшего пинга")) + "</text>" +
+        '<text x="44" y="58" font-size="21" font-weight="600" fill="' + ink + '" font-family="\'Segoe UI\', system-ui, sans-serif">' + escX("WARPSCOUT GUI — " + t("history.01")) + "</text>" +
         '<text x="' + (W - 44) + '" y="58" text-anchor="end" font-size="14" font-weight="600" fill="' + accent + '" font-family="\'Segoe UI\', system-ui, sans-serif">min ' + min0 + " · max " + max0 + " ms</text>" +
-        '<text x="44" y="82" font-size="13" fill="' + sub + '" font-family="\'Segoe UI\', system-ui, sans-serif">' + escX(pts.length + " " + t("сканов с пингами")) + "</text>" +
+        '<text x="44" y="82" font-size="13" fill="' + sub + '" font-family="\'Segoe UI\', system-ui, sans-serif">' + escX(pts.length + " " + t("batch.46")) + "</text>" +
         gridEls +
         '<polygon points="' + areaPts + '" fill="url(#tsg)"/>' +
         '<polyline points="' + linePts + '" fill="none" stroke="' + accent + '" stroke-width="3" stroke-linejoin="round"/>' +
@@ -488,7 +493,7 @@
 
   async function exportTrendSvg() {
     const pts = trendPoints();
-    if (pts.length < 2) { toast(t("Нужно минимум 2 скана с пингами"), "warn"); return; }
+    if (pts.length < 2) { toast(t("batch.40"), "warn"); return; }
     try {
       const svg = buildTrendSvg(pts);
       const name = "warpscout-ping-trend-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + ".svg";
@@ -500,21 +505,21 @@
         document.body.appendChild(a);
         a.click();
         setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-        toast(tF("Тренд SVG скачан: {path}", { path: name }), "ok");
+        toast(tF("batch.28", { path: name }), "ok");
         return;
       }
-      const path = await os().showSaveDialog(t("Сохранить динамику пинга (SVG)"), { defaultPath: name });
+      const path = await os().showSaveDialog(t("batch.27"), { defaultPath: name });
       if (!path) return;
       await fs().writeFile(path, svg);
-      toast(tF("Тренд SVG сохранён: {path}", { path: path }), "ok");
+      toast(tF("batch.29", { path: path }), "ok");
     } catch (e) {
-      toast(tF("Ошибка экспорта SVG: {err}", { err: e && e.message ? e.message : e }), "err");
+      toast(tF("batch.30", { err: e && e.message ? e.message : e }), "err");
     }
   }
 
   /* ───────── «Поделиться сканом»: автономный HTML-отчёт (v2.0.0) ───────── */
   function exportScanHtml() {
-    if (!S.results.length) { toast(t("Нет результатов — нечего сохранять в HTML"), "err"); return; }
+    if (!S.results.length) { toast(t("batch.32"), "err"); return; }
     const rows = S.results.slice();
     const working = rows.filter((r) => !r.torn);
     const torn = rows.length - working.length;
@@ -572,19 +577,19 @@
       ".foot{margin-top:18px;color:#6e675c;font-size:12px}\n" +
       "@media (max-width:640px){body{padding:12px 6px}.card{padding:16px}table{font-size:12px}td,th{padding:5px 6px}}\n" +
       "</style>\n</head>\n<body>\n<div class=\"card\">\n" +
-      "<h1><span class=\"brand\">WARPSCOUT GUI</span> — " + esc(t("отчёт скана")) + "</h1>\n" +
+      "<h1><span class=\"brand\">WARPSCOUT GUI</span> — " + esc(t("batch.31")) + "</h1>\n" +
       '<div class="meta">' + esc(when.toISOString().slice(0, 19).replace("T", " ") + " UTC · протокол " + proto) + "</div>\n" +
       '<div class="chips">' +
-        '<span class="chip">' + esc(t("📡 всего")) + " <b>" + rows.length + "</b></span>" +
-        '<span class="chip ok">' + esc(t("✅ рабочих")) + " <b>" + working.length + "</b></span>" +
-        (torn ? '<span class="chip err">' + esc(t("✂ разорвано")) + " <b>" + torn + "</b></span>" : "") +
-        (best ? '<span class="chip acc">' + esc(t("⚡ лучший")) + " <b>" + best + " ms</b></span>" : "") +
-        (median ? '<span class="chip">' + esc(t("⚖ медиана")) + " <b>" + median + " ms</b></span>" : "") +
+        '<span class="chip">' + esc(t("stats.01")) + " <b>" + rows.length + "</b></span>" +
+        '<span class="chip ok">' + esc(t("stats.02")) + " <b>" + working.length + "</b></span>" +
+        (torn ? '<span class="chip err">' + esc(t("stats.03")) + " <b>" + torn + "</b></span>" : "") +
+        (best ? '<span class="chip acc">' + esc(t("stats.04")) + " <b>" + best + " ms</b></span>" : "") +
+        (median ? '<span class="chip">' + esc(t("stats.05")) + " <b>" + median + " ms</b></span>" : "") +
       "</div>\n" +
-      "<table>\n<thead><tr><th>ENDPOINT</th><th>PING</th>" + (withP ? "<th>TUN PING</th><th>LOSS</th>" : "") + (withSpeed ? "<th>SPEED</th>" : "") + "<th>SEEN AS</th><th>NODE</th><th>" + esc(t("Локация узла")) + "</th></tr></thead>\n<tbody>\n" +
+      "<table>\n<thead><tr><th>ENDPOINT</th><th>PING</th>" + (withP ? "<th>TUN PING</th><th>LOSS</th>" : "") + (withSpeed ? "<th>SPEED</th>" : "") + "<th>SEEN AS</th><th>NODE</th><th>" + esc(t("conf.02")) + "</th></tr></thead>\n<tbody>\n" +
       bodyRows +
       "\n</tbody></table>\n" +
-      '<div class="foot">' + esc(tF("Сгенерировано WARPSCOUT GUI v{v} · {d} · снимок текущей таблицы результатов", { v: "2.0.0", d: when.toISOString().slice(0, 10) })) + "</div>\n" +
+      '<div class="foot">' + esc(tF("batch.38", { v: "2.0.0", d: when.toISOString().slice(0, 10) })) + "</div>\n" +
       "</div>\n</body>\n</html>";
     const name = "warpscout-report-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + ".html";
     if (IS_MOCK) {
@@ -595,17 +600,17 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-      toast(tF("HTML-отчёт выгружен: {path}", { path: name }), "ok");
+      toast(tF("batch.36", { path: name }), "ok");
       return;
     }
     os()
-      .showSaveDialog(t("Сохранить HTML-отчёт"), { defaultPath: name })
+      .showSaveDialog(t("batch.33"), { defaultPath: name })
       .then(async (path) => {
         if (!path) return;
         await fs().writeFile(path, html);
-        toast(tF("HTML-отчёт сохранён: {path}", { path: path }), "ok");
+        toast(tF("batch.37", { path: path }), "ok");
       })
-      .catch((e) => toast(tF("Ошибка экспорта: {err}", { err: e && e.message ? e.message : e }), "err"));
+      .catch((e) => toast(tF("extra.09", { err: e && e.message ? e.message : e }), "err"));
   }
 
   /* ───────── модалка ⇅-сравнения двух сканов (v1.7.0) ───────── */
@@ -614,7 +619,7 @@
   }
 
   function histOptionLabel(h) {
-    return fmtTime(h.ts) + " · " + h.proto.toUpperCase() + " · " + h.working + " " + t("рабочих") + (h.torn ? " / " + h.torn + " " + t("разорвано") : "");
+    return fmtTime(h.ts) + " · " + h.proto.toUpperCase() + " · " + h.working + " " + t("history.08") + (h.torn ? " / " + h.torn + " " + t("history.09") : "");
   }
 
   function fillCmpSelectors(aIdx, bIdx) {
@@ -639,7 +644,7 @@
     if (!box || !selA || !selB) return;
     const hA = S.history[+selA.value];
     const hB = S.history[+selB.value];
-    if (!hA || !hB) { box.innerHTML = '<div class="cmp-empty">' + t("Нужно как минимум два скана в истории.") + "</div>"; return; }
+    if (!hA || !hB) { box.innerHTML = '<div class="cmp-empty">' + t("cmp.04") + "</div>"; return; }
 
     const mapA = {};
     hA.results.forEach((r) => { mapA[r.endpoint] = r; });
@@ -661,7 +666,7 @@
       .map((ep) => {
         const a = mapA[ep];
         const b = mapB[ep];
-        if (a.torn || b.torn) return { ep, cls: "is-torn", text: a.torn && b.torn ? t("разорван → разорван") : t("статус изменился") };
+        if (a.torn || b.torn) return { ep, cls: "is-torn", text: a.torn && b.torn ? t("cmp.14") : t("cmp.15") };
         const pa = pingMs(a.tunPing || a.ping);
         const pb = pingMs(b.tunPing || b.ping);
         if (pa === Infinity || pb === Infinity) return null;
@@ -675,20 +680,20 @@
     const bestBlock =
       '<div class="cmp-best">' +
         '<div class="cmp-best__card">' +
-          '<span class="cmp-best__label">' + t("лучший пинг A") + "</span>" +
+          '<span class="cmp-best__label">' + t("cmp.05") + "</span>" +
           '<span class="cmp-best__val">' + (bestA === Infinity ? "—" : bestA + " ms") + "</span>" +
         "</div>" +
         '<div class="cmp-best__delta ' + (deltaBest == null ? "" : deltaBest > 0 ? "is-better" : deltaBest < 0 ? "is-worse" : "is-same") + '">' +
-          (deltaBest == null ? t("нет данных") : deltaBest === 0 ? t("без изменений") : deltaBest > 0 ? "▼ " + tF("−{n} ms быстрее", { n: dAbs }) : "▲ +" + dAbs + " ms") +
+          (deltaBest == null ? t("cmp.07") : deltaBest === 0 ? t("cmp.08") : deltaBest > 0 ? "▼ " + tF("cmp.09", { n: dAbs }) : "▲ +" + dAbs + " ms") +
         "</div>" +
         '<div class="cmp-best__card">' +
-          '<span class="cmp-best__label">' + t("лучший пинг B") + "</span>" +
+          '<span class="cmp-best__label">' + t("cmp.06") + "</span>" +
           '<span class="cmp-best__val">' + (bestB === Infinity ? "—" : bestB + " ms") + "</span>" +
         "</div>" +
       "</div>";
 
     const deltaTable = deltaRows.length
-      ? '<table class="cmp-table"><thead><tr><th>' + t("Эндпоинт") + "</th><th>A</th><th>B</th><th>Δ</th></tr></thead><tbody>" +
+      ? '<table class="cmp-table"><thead><tr><th>' + t("conf.01") + "</th><th>A</th><th>B</th><th>Δ</th></tr></thead><tbody>" +
         deltaRows
           .map((r) => {
             if (r.d == null) {
@@ -704,15 +709,15 @@
           })
           .join("") +
         "</tbody></table>"
-      : '<div class="cmp-empty">' + t("Нет общих живых эндпоинтов с пингом.") + "</div>";
+      : '<div class="cmp-empty">' + t("cmp.13") + "</div>";
 
     const setBlock =
       '<div class="cmp-sets">' +
-        '<div class="cmp-set cmp-set--b"><span>➕ ' + t("только в B:") + " <b>" + onlyB.length + "</b></span>" +
+        '<div class="cmp-set cmp-set--b"><span>➕ ' + t("cmp.10") + " <b>" + onlyB.length + "</b></span>" +
           (onlyB.length ? '<span class="cmp-set__list">' + esc(onlyB.slice(0, 5).join(", ")) + (onlyB.length > 5 ? " … +" + (onlyB.length - 5) : "") + "</span>" : "") + "</div>" +
-        '<div class="cmp-set cmp-set--a"><span>➖ ' + t("только в A:") + " <b>" + onlyA.length + "</b></span>" +
+        '<div class="cmp-set cmp-set--a"><span>➖ ' + t("cmp.11") + " <b>" + onlyA.length + "</b></span>" +
           (onlyA.length ? '<span class="cmp-set__list">' + esc(onlyA.slice(0, 5).join(", ")) + (onlyA.length > 5 ? " … +" + (onlyA.length - 5) : "") + "</span>" : "") + "</div>" +
-        '<div class="cmp-set"><span>⇄ ' + t("общих эндпоинтов:") + " <b>" + common.length + "</b></span></div>" +
+        '<div class="cmp-set"><span>⇄ ' + t("cmp.12") + " <b>" + common.length + "</b></span></div>" +
       "</div>";
 
     box.innerHTML = bestBlock + setBlock + '<div class="cmp-table-wrap">' + deltaTable + "</div>";
@@ -720,7 +725,7 @@
 
   function openCompare() {
     if (S.history.length < 2) {
-      toast(t("Для сравнения нужно минимум два скана — выполните ещё один."), "warn");
+      toast(t("cmp.03"), "warn");
       return;
     }
     fillCmpSelectors(S.history.length - 1, S.history.length - 2);
@@ -748,11 +753,11 @@
     fillEndpointSelect();
     switchSubtab("results");
     toggleHistory(false);
-    toast(tF("Загружен скан от {ts} — {n} рабочих", { ts: fmtTime(h.ts), n: h.working }), "ok");
+    toast(tF("history.19", { ts: fmtTime(h.ts), n: h.working }), "ok");
   }
 
   function exportCsv() {
-    if (!S.results.length) { toast(t("Нет результатов для экспорта"), "err"); return; }
+    if (!S.results.length) { toast(t("extra.24"), "err"); return; }
     const { withP, withSpeed } = S.viewMeta;
     const head = ["endpoint", "endpoint_ping", ...(withP ? ["tun_ping", "loss"] : []), ...(withSpeed ? ["speed"] : []), "seen_as", "node", "node_location", "torn"];
     const escCell = csvSafe; // v2.4.6 (F10)
@@ -776,17 +781,17 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-      toast(t("CSV скачан: ") + name, "ok");
+      toast(t("extra.25") + name, "ok");
       return;
     }
     os()
-      .showSaveDialog(t("Сохранить результаты CSV"), { defaultPath: name })
+      .showSaveDialog(t("extra.27"), { defaultPath: name })
       .then(async (path) => {
         if (!path) return;
         await fs().writeFile(path, csv);
-        toast(t("CSV сохранён: ") + path, "ok");
+        toast(t("extra.26") + path, "ok");
       })
-      .catch((e) => toast(t("Ошибка экспорта: ") + (e && e.message ? e.message : e), "err"));
+      .catch((e) => toast(t("backup.04") + (e && e.message ? e.message : e), "err"));
   }
 
   function selectedRowInfo() {
@@ -797,7 +802,7 @@
   // Раньше сохранялся шаблон-заглушка с «xxxx» вместо адресов.
   function confExportReady() {
     if (!S.account) {
-      toast(t("Сначала создайте аккаунт — в превью сейчас шаблон без ключей, такой профиль работать не будет"), "err");
+      toast(t("extra.28"), "err");
       return false;
     }
     return true;
@@ -808,27 +813,27 @@
     const name = $("#cfgFileName").textContent;
     let path;
     try {
-      path = await os().showSaveDialog(t("Сохранить конфиг"), { defaultPath: name });
+      path = await os().showSaveDialog(t("conf.io.01"), { defaultPath: name });
     } catch (e) { path = null; }
-    if (!path) { if (IS_MOCK) toast(t("Сохранение работает только в приложении Windows"), "err"); return; }
+    if (!path) { if (IS_MOCK) toast(t("conf.io.02"), "err"); return; }
     try {
       await fs().writeFile(path, buildConf());
-      toast(tF("Конфиг сохранён: {path}", { path: path }), "ok");
+      toast(tF("extra.29", { path: path }), "ok");
     } catch (e) {
-      toast(tF("Ошибка записи: {err}", { err: e && e.message ? e.message : e }), "err");
+      toast(tF("extra.30", { err: e && e.message ? e.message : e }), "err");
     }
   }
 
   async function importI1() {
     let path;
     try {
-      path = await os().showOpenDialog(t("Выберите .conf с I1"), { multiSelections: false });
+      path = await os().showOpenDialog(t("conf.io.05"), { multiSelections: false });
     } catch (e) { path = null; }
     let picked = null;
     if (Array.isArray(path) && path[0]) picked = path[0];
     else if (typeof path === "string" && path) picked = path;
     if (!picked) {
-      if (IS_MOCK) toast(t("Импорт работает только в приложении"), "err");
+      if (IS_MOCK) toast(t("conf.io.06"), "err");
       return;
     }
     try {
@@ -837,12 +842,12 @@
       if (m) {
         $("#cfgI1").value = m[1].trim();
         syncCfgFromInputs();
-        toast(t("I1 импортирован"), "ok");
+        toast(t("conf.io.07"), "ok");
       } else {
-        toast(t("В файле нет строки I1 — это не AWG-конфиг?"), "err");
+        toast(t("conf.io.08"), "err");
       }
     } catch (e) {
-      toast(t("Не удалось прочитать файл"), "err");
+      toast(t("conf.io.09"), "err");
     }
   }
 
