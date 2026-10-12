@@ -31,6 +31,19 @@ ARTIFACTS=(
 TOKEN="$(tr -d '[:space:]' < "$TOKEN_FILE")"
 auth=(-H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
 
+# GIT_ASKPASS so git push authenticates from $TOKEN_FILE (token never in argv/URL)
+ASKPASS="$(mktemp /tmp/askpass-258.XXXXXX)"
+cat > "$ASKPASS" <<'EOS'
+#!/usr/bin/env bash
+case "$1" in
+  Username*) echo "x-access-token" ;;
+  *) cat /tmp/ghtoken ;;
+esac
+EOS
+chmod 700 "$ASKPASS"
+trap 'rm -f "$ASKPASS"' EXIT
+export GIT_ASKPASS="$ASKPASS"
+
 echo "== 1/6 auth check =="
 LOGIN="$(curl -sfS "${auth[@]}" "$API/user" | python3 -c 'import json,sys;print(json.load(sys.stdin)["login"])')"
 [ "$LOGIN" = "RVMXL" ] || { echo "FATAL: unexpected login '$LOGIN'"; exit 1; }
