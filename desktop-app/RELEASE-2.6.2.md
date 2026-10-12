@@ -108,7 +108,7 @@ consistency, account permissions, i18n rework; Android additionally gates
 | WARPScoutGUI-2.6.2-linux-arm64.zip | `81f0855ddd49f63236e79b2ebfd2ddbcb83ef2a62436ba8df8a168128f2dfd95` |
 | WARPScoutGUI-2.6.2-mac-arm64.zip | `38a14673f98c7c4960b875e68606b508828ef3991c4c924721cb048992698dd2` |
 | WARPScoutGUI-2.6.2-mac-x64.zip | `d104c3287b1ef7194fca196c5a6b23252a1ec338f6c29b39ce931589199dfbc8` |
-| WARPScoutGUI-2.6.2-android-arm64.apk | `APK-SHA256-PLACEHOLDER` |
+| WARPScoutGUI-2.6.2-android-arm64.apk | `f93f198207fa65bcba17ee69b99135c2d192999bcd7b76cb8320e60e8960578c` |
 
 Все zip содержат: README.txt, бинарь GUI, resources.neu, bin/warpscout,
 licenses/ (4 лицензии). APK подписан тем же сертификатом, что и 2.5.0–2.6.1 —
@@ -129,8 +129,11 @@ binary and licenses/. The APK is signed with the same certificate as
   `py_compile`/`bash -n` OK; CI на main — зелёный.
 - Браузерный прогон демо (мок-рантайм): RU/EN переключение, импорт пресетов
   (санитизация), computePaths-конфликт — 0 ошибок консоли.
-- Android: сборка/подпись — на машине сборщика (keystore не покидает её,
-  SECURITY.md); smoke на реальном устройстве — за пользователем (пререлиз).
+- Android: сборка/подпись тем же конвейером (aapt2+d8+apksigner, build-tools
+  34); apksigner verify OK, сертификат — мастер-ключ 2.5.0–2.6.1
+  (SHA-256 67969ff2…ac9841 — обновление поверх работает); ядро warpscout
+  сверено с пином deps.json (AND-2); smoke на реальном устройстве — за
+  пользователем (пререлиз).
 - Живого прогона Windows/macOS в среде сборки нет — см. СТАТУС ВЕРИФИКАЦИИ
   внутри пакетов.
 
