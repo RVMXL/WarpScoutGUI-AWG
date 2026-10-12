@@ -15,7 +15,9 @@ BT="$SDK_DIR/android-14"              # build-tools 34 (aapt2/d8/apksigner/zipal
 PLATFORM="$SDK_DIR/android-34/android.jar"
 JDK_BIN="$SDK_DIR/jdk/bin"
 VER="$(python3 -c "import json;print(json.load(open('$A/../neutralino.config.json'))['version'])")"
-VERCODE="$(python3 -c "import json,sys;v=json.load(open('$A/../neutralino.config.json'))['version'].split('.');print(int(v[0])*10000+int(v[1])*100+int(v[2]))")"
+# v2.6.2 (аудит INFRA-F): формула versionCode ЕДИНСТВЕННАЯ — в gen-version.py
+# (major*10000 + minor*100 + patch, с таблицей-тестом). Здесь только потребитель.
+VERCODE="$(python3 "$A/../tools/gen-version.py" --vcode)"
 OUT="$ROOT/download/WARPScoutGUI-$VER-android-arm64.apk"
 
 KS="$A/keystore/warpscout.keystore"

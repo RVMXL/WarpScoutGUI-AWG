@@ -14,6 +14,8 @@
 # Использование:
 #   python3 tools/gen-version.py           — применить (идемпотентно)
 #   python3 tools/gen-version.py --check   — только проверить (для CI), exit 1 при расхождении
+#   python3 tools/gen-version.py --vcode   — напечатать versionCode для версии config
+#                                            (единственный потребитель формулы — build-apk.sh)
 import json, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -21,6 +23,27 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def version():
     with open(os.path.join(ROOT, "neutralino.config.json"), encoding="utf-8") as f:
         return json.load(f)["version"]
+
+def version_code(ver):
+    """v2.6.2 (аудит INFRA-F): ЕДИНСТВЕННАЯ формула versionCode —
+    major*10000 + minor*100 + patch. Раньше здесь жила вторая формула
+    (2%02d%02d — без учёта мажора, коллизия 2.0.0 ↔ 3.0.0), а build-apk.sh —
+    третья-inline. Обновление поверх (Store/adb) требует монотонности: одна
+    формула, один потребитель-кодеген, таблица-тест ниже (запускается в --check)."""
+    parts = [int(p) for p in str(ver).split(".")]
+    while len(parts) < 3:
+        parts.append(0)
+    if len(parts) != 3 or any(p < 0 or p > 99 for p in parts):
+        raise ValueError(f"gen-version: версия {ver} вне формата X.Y.Z (компоненты 0..99)")
+    return parts[0] * 10000 + parts[1] * 100 + parts[2]
+
+VCODE_TABLE = {
+    # таблица-тест соответствия версия→code на ближайшие версии (аудит INFRA-F):
+    # монотонный рост, нет коллизий 2.x ↔ 3.x (старая формула давала 2.0.0 == 3.0.0)
+    "2.0.0": 20000, "2.6.1": 20601, "2.6.2": 20602, "2.10.0": 21000,
+    "2.99.99": 29999, "3.0.0": 30000, "3.0.1": 30001, "3.1.0": 30100,
+    "4.0.0": 40000, "10.0.0": 100000,
+}
 
 def read(rel):
     with open(os.path.join(ROOT, rel), encoding="utf-8") as f:
@@ -38,7 +61,7 @@ def sub(rel, pattern, repl, text, required=True):
 
 def targets(ver):
     """[(rel_path, patch_fn(text)->text)] — все точки, зависящие от версии."""
-    vcode = "2%02d%02d" % (int(ver.split(".")[1]), int(ver.split(".")[2]))
+    vcode = str(version_code(ver))
     buster = "v" + ver
     return [
         ("resources/js/mock.js", lambda t: sub("mock.js",
@@ -83,7 +106,18 @@ def pkg_readme_targets(ver):
 
 def main():
     check = "--check" in sys.argv[1:]
+    if "--vcode" in sys.argv[1:]:
+        print(version_code(version()))
+        return
     ver = version()
+    # таблица-тест формулы versionCode (аудит INF-F): гоняется в каждом --check
+    # (в т.ч. в CI) — расхождение формула↔эталон валит сборку, а не Store-обновление
+    for tv, tc in VCODE_TABLE.items():
+        got = version_code(tv)
+        if got != tc:
+            sys.exit(f"gen-version: таблица-тест versionCode провалена: {tv} → {got}, ожидалось {tc}")
+    if len(set(VCODE_TABLE.values())) != len(VCODE_TABLE):
+        sys.exit("gen-version: коллизия versionCode в таблице-тесте")
     dirty = []
     all_targets = targets(ver) + pkg_readme_targets(ver)
     for rel, patch in all_targets:

@@ -480,9 +480,32 @@ public class MainActivity extends Activity {
             String g = guardPath(path);
             if (g == null) throw new Exception("путь вне папок приложения");
             File f = new File(g);
+            // v2.6.2 (AND-4): запись в ПУБЛИЧНЫЕ корни (Download/WARPScoutGUI,
+            // /storage/WARPScoutGUI) — имя файла санитизируется, как в saveToDownloads:
+            // в общий каталог не должны попадать файлы с нестандартными именами
+            // (коллизии, подмена загружаемых пользователем файлов, мусор).
+            // Пути-обходы уже сняты getCanonicalPath в guardPath — чистим только имя.
+            if (inPublicRoot(f)) {
+                String clean = f.getName().replaceAll("[\\\\/:*?\"<>|]", "_").trim();
+                if (clean.isEmpty() || clean.equals(".") || clean.equals("..")) clean = "warp.conf";
+                if (!clean.equals(f.getName())) f = new File(f.getParentFile(), clean);
+            }
             File parent = f.getParentFile();
             if (parent != null && !parent.exists()) parent.mkdirs();
             return new FileOutputStream(f);
+        }
+
+        /* v2.6.2 (AND-4): цель лежит в публичном корне (общий Download или
+           /storage/emulated/0/WARPScoutGUI)? Приватные app-каталоги — не публичные. */
+        private boolean inPublicRoot(File f) {
+            try {
+                String c = f.getCanonicalPath();
+                String dl = new File(DOWNLOAD_DIR).getCanonicalPath();
+                String pub = new File(EXT_ROOT, "WARPScoutGUI").getCanonicalPath();
+                return c.equals(dl) || c.startsWith(dl + File.separator)
+                        || c.equals(pub) || c.startsWith(pub + File.separator);
+            } catch (Throwable ignored) {}
+            return false;
         }
 
         @JavascriptInterface
@@ -947,6 +970,11 @@ public class MainActivity extends Activity {
         public void openPath(String path) {
             final String p = String.valueOf(path == null ? "" : path);
             if (p.startsWith("content://")) {
+                // v2.6.2 (AND-1): content:// проходит тот же uriAllowed-гейт, что и
+                // файловые операции моста (fsRead/fsStats/fsRemove) — контракт
+                // трёхслойной защиты content:// без исключений: URI, не выданный
+                // нашими диалогами и без сохранённого права, во VIEW не уходит
+                if (!uriAllowed(p)) { toast("content URI не выдан приложением"); return; }
                 runOnUiThread(() -> {
                     try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(p))); toast("Открываю…"); }
                     catch (Throwable e) { toast("Не удалось открыть: нет подходящего приложения"); }

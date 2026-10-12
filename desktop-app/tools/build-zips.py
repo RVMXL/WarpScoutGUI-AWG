@@ -19,6 +19,13 @@ with open(os.path.join(ROOT, "neutralino.config.json"), encoding="utf-8") as _f:
 if VER != _CFG_VER:
     sys.exit(f"build-zips: VER {VER} ≠ neutralino.config.json ({_CFG_VER}) — запустите python3 tools/gen-version.py")
 
+# v2.6.2 (аудит INFRA-E): версия warpscout — единственный источник tools/deps.json
+# (тот же пин, что сверяют verify-deps.py/build-apk.sh/fetch-binaries.py).
+# Литералы в коде сборки больше не допускаются: тихое рассогласование
+# («скачайте 0.16.0» при фактической потребности в другой версии) исключено.
+with open(os.path.join(ROOT, "tools", "deps.json"), encoding="utf-8") as _f:
+    WS_VER = json.load(_f)["warpscout"]["version"]
+
 DT = (1980, 1, 1, 0, 0, 0)
 # порядок записей как в релизе 2.4.6
 LIC_ORDER = ["qrcode", "AWG", "warpscout", "neutralino"]
@@ -40,14 +47,7 @@ def stamp_footer(text):
     new, n = re.subn(r" WARPSCOUT GUI v\d+\.\d+\.\d+ · warpscout v",
                      f" WARPSCOUT GUI v{VER} · warpscout v", text)
     if n == 0:
-        ws = "0.16.0"
-        try:
-            deps = os.path.join(ROOT, "tools", "deps.json")
-            with open(deps, encoding="utf-8") as f:
-                ws = json.load(f)["warpscout"]["version"]
-        except Exception:
-            pass
-        new = text.rstrip("\n") + f"\n\n WARPSCOUT GUI v{VER} · warpscout v{ws}\n"
+        new = text.rstrip("\n") + f"\n\n WARPSCOUT GUI v{VER} · warpscout v{WS_VER}\n"
     return new
 
 def build(name):
