@@ -2,10 +2,18 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
+  <!-- v2.5.9 (аудит SEC-3): CSP — второй барьер после экранирования.
+       Все скрипты/стили/картинки — только локальные файлы приложения;
+       'unsafe-inline' в style-src нужен статическим style="" и innerHTML;
+       file: — явный источник для Android-ассетов (file:-origin, где 'self'
+       ненадёжен); connect-src — только локальный WS/HTTP Neutralino
+       (приложение не ходит во внешние хосты: регистрацию и скан делает
+       ядро warpscout); object/base-uri/form-action закрыты. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data:; font-src 'self' file: data:; connect-src 'self' ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*; object-src 'none'; base-uri 'none'; form-action 'none'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=25v10" />
-  <link rel="stylesheet" href="css/touch.css?v=25v10" />
+  <link rel="stylesheet" href="css/app.css?v=25v11" />
+  <link rel="stylesheet" href="css/touch.css?v=25v11" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -55,7 +63,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светлую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v2.5.3 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v2.5.9 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -828,8 +836,8 @@
   </datalist>
 
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js?v=25v10"></script>
-  <script src="js/qrcode.js?v=25v10"></script>
-  <script src="js/app.js?v=25v10"></script>
+  <script src="js/mock.js?v=25v11"></script>
+  <script src="js/qrcode.js?v=25v11"></script>
+  <script src="js/app.js?v=25v11"></script>
 </body>
 </html>

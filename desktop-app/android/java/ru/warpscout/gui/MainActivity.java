@@ -239,7 +239,13 @@ public class MainActivity extends Activity {
            (без "sh -c") — метасимволы шелла (; & | ` $() …) не интерпретируются
            никогда, инъекция команд исключена по построению. Исполняемый файл —
            строго своё ядро warpscout (libwarpscout.so) либо chmod (право на
-           запуск). Всё прочее — честная ошибка. */
+           запуск). Всё прочее — честная ошибка.
+           v2.5.9 (аудит SEC-1): у chmod контролируются ВСЕ аргументы, а не
+           только argv[0] — допустима ровно одна форма «chmod +x <файл>»
+           (или «a+x»), где файл — ядро warpscout либо путь внутри разрешённых
+           guardPath-корней. Числовые режимы (777), снятие прав (-x) и цели
+           вне корней запрещены — компрометированный JS больше не может
+           использовать chmod для выхода за пределы «своих папок». */
 
         private Process startProc(String cmd) throws Exception {
             String line = String.valueOf(cmd == null ? "" : cmd).trim();
@@ -251,8 +257,23 @@ public class MainActivity extends Activity {
             String exe = argv.get(0);
             String ws = new File(getApplicationInfo().nativeLibraryDir,
                     "libwarpscout.so").getAbsolutePath();
-            if (!exe.equals(ws) && !exe.equals("chmod"))
+            if (exe.equals("chmod")) {
+                // v2.5.9 (SEC-1): только «chmod +x <файл>» / «chmod a+x <файл>»
+                if (argv.size() != 3)
+                    throw new Exception("chmod: ожидается «chmod +x <файл>»");
+                String mode = argv.get(1);
+                if (!mode.equals("+x") && !mode.equals("a+x"))
+                    throw new Exception("chmod: разрешён только режим +x");
+                String target = argv.get(2);
+                String canon = guardPath(target, false); // write-корни
+                boolean isWsTarget;
+                try { isWsTarget = new File(target).getCanonicalPath().equals(ws); }
+                catch (Exception e) { isWsTarget = false; }
+                if (canon == null && !isWsTarget)
+                    throw new Exception("chmod: цель вне разрешённых папок");
+            } else if (!exe.equals(ws)) {
                 throw new Exception("выполнять разрешено только warpscout");
+            }
             ProcessBuilder pb = new ProcessBuilder(argv);
             // v2.5.3: warpscout работает в СВОЕЙ видимой папке — любые его
             // относительные записи тоже попадают в /storage/emulated/0

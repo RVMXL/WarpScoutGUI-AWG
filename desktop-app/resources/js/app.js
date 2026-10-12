@@ -6937,6 +6937,16 @@
   }
 
   // отладочный хук (безвредно): помогает диагностике через консоль
+  /* v2.5.9 (аудит ARCH-2): версия в сайдбаре — из единого источника
+     NL_APPVERSION, а не статичный текст разметки (там осталась 2.5.3). */
+  const syncSidebarVer = () => {
+    const el = document.querySelector(".sidebar__ver");
+    if (el && window.NL_APPVERSION)
+      el.textContent = el.textContent.replace(/v2\.\d+\.\d+/, "v" + window.NL_APPVERSION);
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", syncSidebarVer);
+  else syncSidebarVer();
+
   // v2.4.6: + валидаторы/санитайзеры (аудит-тесты и диагностика)
   window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildScanArgs, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, applyImportedState, applyImportedPresets, applyFoundCmd, parseEndpoint, splitEpPort, safeVal, enumOf, clampInt, sanitizeScan, sanitizeCfg, sanitizeHistoryItem, sanitizeQcItem, sanitizePresets, csvSafe, isWgKey, validateAccountJson, normWinPath, isSameWinPath, isWinPathInside, migrateData, migrateAndroidLegacyData, confExportReady, defaultCfg, flushSave, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage };
 
