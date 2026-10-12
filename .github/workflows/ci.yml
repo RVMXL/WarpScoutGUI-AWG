@@ -62,7 +62,7 @@ jobs:
               print(f"{f}: structure OK")
           PY
 
-      - name: восстановление бинарников последнего релиза (аудит INFRA-A: CI проверяет РЕАЛЬНЫЕ артефакты, а не вакуум)
+      - name: "INFRA-A — восстановление бинарников последнего релиза (CI проверяет реальные артефакты)"
         run: python3 desktop-app/tools/fetch-binaries.py --latest-published
         env:
           WS_GH_TOKEN: ${{ github.token }}
