@@ -39,10 +39,10 @@ jobs:
       - name: python -m py_compile (инструменты сборки)
         run: python3 -m py_compile desktop-app/tools/pack-neu.py desktop-app/tools/build-zips.py desktop-app/tools/unpack-neu.py desktop-app/tools/gen-version.py desktop-app/tools/verify-deps.py desktop-app/tools/fetch-binaries.py
 
-      - name: версия согласована везде (ARCH-2: единый источник neutralino.config.json)
+      - name: версия согласована везде (ARCH-2 — единый источник neutralino.config.json)
         run: python3 desktop-app/tools/gen-version.py --check
 
-      - name: юнит-тесты чистых функций (ARCH-4: парсеры/санитайзеры/билдеры)
+      - name: юнит-тесты чистых функций (ARCH-4 — парсеры, санитайзеры, билдеры)
         run: node --test desktop-app/tests/*.test.js
 
       - name: структура Java-моста (баланс скобок; полный javac — в сборке APK)
