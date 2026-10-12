@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.7)
+   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.8)
    Подключается в APK вместо js/neutralino.js (до app.js/mock.js).
    Реализует через AndroidNative-мост ровно тот сурфейс, что
    использует app.js (см. также mock.js — тот же контракт):
@@ -54,13 +54,16 @@
   window.NL_PATH = INFO.nlPath || "/data/user/0/ru.warpscout.gui/files";
   window.NL_CWD = INFO.nlCwd || window.NL_PATH;
   window.NL_OS = "Android";
-  window.NL_APPVERSION = INFO.appVersion || "2.5.7";
+  window.NL_APPVERSION = INFO.appVersion || "2.5.8";
   window.NL_VERSION = "6.1.0"; // совместимость шима с рантаймом 6.x
   window.NL_WS_PATH = INFO.wsPath || ""; // libwarpscout.so в nativeLibraryDir
   /* v2.5.3: видимая «своя папка» пользователя на /storage/emulated/0 */
   window.NL_DATA_BASE = INFO.dataBase || "";
   window.NL_DATA_DIR = INFO.dataDir || "";
   window.NL_STORAGE_MODE = INFO.storageMode || "app"; // "app" | "public"
+  /* v2.5.8: прежние папки данных (app-specific external + приватный filesDir) —
+     app.js на запуске переносит из них аккаунт/отчёты в активную папку */
+  window.NL_LEGACY_DIRS = Array.isArray(INFO.legacyDataDirs) ? INFO.legacyDataDirs : [];
 
   /* ── шина событий (ready / spawnedProcess) ── */
   function dispatchNL(name, detail) {

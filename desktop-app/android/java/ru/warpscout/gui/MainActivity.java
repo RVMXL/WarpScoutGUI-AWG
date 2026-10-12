@@ -209,6 +209,17 @@ public class MainActivity extends Activity {
                 o.put("dataBase", dataBase().getAbsolutePath());
                 o.put("dataDir", userDir().getAbsolutePath());
                 o.put("storageMode", storageMode());
+                // v2.5.8: прежние папки данных приложения — GUI на запуске переносит
+                // из них аккаунт/отчёты в активную папку (migrateAndroidLegacyData);
+                // закрывает последствия бага 2.5.3–2.5.7: «В общую папку» меняла
+                // dataRoot, а файлы оставались в app-specific каталоге
+                org.json.JSONArray lg = new org.json.JSONArray();
+                try {
+                    File ext = getExternalFilesDir(null);
+                    if (ext != null) lg.put(new File(ext, "WARPScoutGUI").getAbsolutePath());
+                } catch (Throwable ignored) {}
+                lg.put(new File(getFilesDir(), "WARPScoutGUI").getAbsolutePath());
+                o.put("legacyDataDirs", lg);
                 String libDir = getApplicationInfo().nativeLibraryDir;
                 o.put("wsPath", new File(libDir, "libwarpscout.so").getAbsolutePath());
                 o.put("appVersion", getPackageManager()
@@ -382,7 +393,7 @@ public class MainActivity extends Activity {
                         return getContentResolver().openInputStream(uri);
                 throw new Exception("content URI не выдан приложением");
             }
-            String g = guardPath(path);
+            String g = guardPath(path, true); // v2.5.8: чтение — +nativeLibraryDir (stats libwarpscout.so)
             if (g == null) throw new Exception("путь вне папок приложения");
             return new FileInputStream(g);
         }
@@ -503,7 +514,7 @@ public class MainActivity extends Activity {
                     o.put("type", "FILE");
                     return o.toString();
                 }
-                String g = guardPath(path); // v2.5.5: только свои папки
+                String g = guardPath(path, true); // v2.5.8: чтение — +nativeLibraryDir (stats libwarpscout.so)
                 if (g == null) return "{\"error\":\"path not allowed\"}";
                 File f = new File(g);
                 if (!f.exists()) return "{\"error\":\"not found\"}";
@@ -1017,14 +1028,26 @@ public class MainActivity extends Activity {
     }
 
     /* канонический путь внутри разрешённых корней — или null (отказ).
-       getCanonicalPath убирает «..», симлинки и лишние разделители. */
-    private String guardPath(String path) {
+       getCanonicalPath убирает «..», симлинки и лишние разделители.
+       v2.5.8 (fix): режим read — дополнительно разрешает nativeLibraryDir
+       ТОЛЬКО для чтения/stats: fsStats(libwarpscout.so) нужен предпроверке
+       warpscout (wsFileExists → fs.getStats), а v2.5.5-guard его отклонял →
+       resolveWarpscoutPath считал бинарь «не найденным» и регистрация/скан
+       падали с «Ошибка запуска warpscout» ещё до spawn. Запись/удаление
+       в nativeLibraryDir по-прежнему запрещены (write-вызовы идут с read=false). */
+    private String guardPath(String path) { return guardPath(path, false); }
+    private String guardPath(String path, boolean read) {
         if (path == null) return null;
         String p = path.trim();
         if (p.isEmpty() || p.startsWith("content://")) return null;
         try {
             String canon = new File(p).getCanonicalPath();
-            for (File root : guardRoots()) {
+            List<File> roots = guardRoots();
+            if (read) {
+                try { roots.add(new File(getApplicationInfo().nativeLibraryDir).getCanonicalFile()); }
+                catch (Exception ignored) {}
+            }
+            for (File root : roots) {
                 String rp = root.getPath();
                 if (canon.equals(rp)
                         || canon.startsWith(rp.endsWith(File.separator) ? rp : rp + File.separator))
