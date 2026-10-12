@@ -27,7 +27,7 @@ jobs:
       - name: node --check (все JS приложения)
         run: |
           fail=0
-          for f in desktop-app/resources/js/app.js \
+          for f in desktop-app/resources/js/wsg/*.js \
                    desktop-app/resources/js/mock.js \
                    desktop-app/resources/js/neutralino.js \
                    desktop-app/android/www/js/neutralino-android.js; do

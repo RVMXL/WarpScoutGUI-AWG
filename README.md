@@ -166,7 +166,7 @@ Get-FileHash WARPScoutGUI-2.6.0-win64.zip -Algorithm SHA256
 
 | Путь | Назначение |
 |---|---|
-| `desktop-app/resources/` | Исходники GUI (`index.html`, `js/app.js`, `css/app.css`, `css/touch.css`, иконки) |
+| `desktop-app/resources/` | Исходники GUI (`index.html`, `js/wsg/*.js` — 15 модулей логики (нарезка ARCH-1), `css/app.css`, `css/touch.css`, иконки) |
 | `desktop-app/neutralino.config.json` | Конфигурация Neutralino (v6.10.0, окно, CLI-аргументы) |
 | `desktop-app/tools/` | Инструменты сборки: `pack-neu.py` (сборка `resources.neu`), `build-zips.py` (детерминированные release-zip), `unpack-neu.py`, `sync-demo.sh` |
 | `desktop-app/android/` | Android-проект без Gradle: `AndroidManifest.xml`, `java/`, `res/`, `build-apk.sh` (aapt2 + d8 + apksigner) |

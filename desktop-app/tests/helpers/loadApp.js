@@ -1,10 +1,14 @@
 /* ═══════════════════════════════════════════════════════════════
-   ARCH-4 (аудит): тест-харнесс — загрузка app.js в Node без браузера.
-   app.js — IIFE, рассчитанная на браузер; для юнит-тестов чистых функций
-   (парсеры, санитайзеры, билдеры команд) достаточно минимальных заглушек
-   document/window. Инициализация UI не запускается: событие "load" не
-   эмитится, DOMContentLoaded не диспатчится — app.js только определяет
-   функции и выставляет window.__WSGUI (отладочный хук валидаторов).
+   ARCH-4 (аудит): тест-харнесс — загрузка GUI-логики в Node без браузера.
+   С ARCH-1 (v2.6.0) монолит app.js нарезан на модули js/wsg/*.js,
+   рассчитанные на браузер (классические script-теги с общей глобальной
+   областью видимости). Для юнит-тестов чистых функций (парсеры,
+   санитайзеры, билдеры команд) достаточно минимальных заглушек
+   document/window. Харнесс конкатенирует модули в порядке номеров —
+   эквивалент прежнего монолита-IIFE. Инициализация UI не запускается:
+   событие "load" не эмитится, DOMContentLoaded не диспатчится — модули
+   только определяют функции и выставляют window.__WSGUI (отладочный
+   хук валидаторов) в последнем модуле.
    Ноль внешних зависимостей: node:test + node:vm + node:assert.
    Запуск: node --test desktop-app/tests/
    ═══════════════════════════════════════════════════════════════ */
@@ -14,7 +18,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const APP_JS = path.join(__dirname, "..", "..", "resources", "js", "app.js");
+const WSG_DIR = path.join(__dirname, "..", "..", "resources", "js", "wsg");
 
 function classListStub() {
   const set = new Set();
@@ -151,9 +155,14 @@ function loadApp(opts) {
   sandbox.globalThis = sandbox;
   if (o.mock) win.Neutralino = { mock: true };
   vm.createContext(sandbox);
-  vm.runInContext(fs.readFileSync(APP_JS, "utf8"), sandbox, { filename: "app.js" });
+  // ARCH-1: конкатенация модулей js/wsg/*.js в порядке номеров —
+  // тот же единственный источник, каким был монолит app.js.
+  const files = fs.readdirSync(WSG_DIR).filter((f) => f.endsWith(".js")).sort();
+  if (!files.length) throw new Error("js/wsg пуст — нарезка ARCH-1 отсутствует?");
+  const src = files.map((f) => fs.readFileSync(path.join(WSG_DIR, f), "utf8")).join("\n");
+  vm.runInContext(src, sandbox, { filename: "wsg-bundle.js" });
   const wsgui = win.__WSGUI;
-  if (!wsgui) throw new Error("app.js не выставил window.__WSGUI — харнесс сломан или app.js упал при загрузке");
+  if (!wsgui) throw new Error("wsg-модули не выставили window.__WSGUI — харнесс сломан или модули упали при загрузке");
   return { window: win, sandbox, document: doc, wsgui, winListeners, docListeners };
 }
 
