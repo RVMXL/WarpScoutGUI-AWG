@@ -14,6 +14,12 @@
    ═══════════════════════════════════════════════════════════════ */
 "use strict";
 
+// QUAL-A (аудит v2.6.1): это ХЕЛПЕР харнесса, а не тестовый файл. Прямой
+// запуск (в т.ч. «node --test tests/» на Node ≥ 22, когда раннер подбирает
+// служебные файлы как тесты) завершаем тихо с кодом 0. Каноническая команда
+// запуска — из README/CI: node --test desktop-app/tests/*.test.js
+if (require.main === module) process.exit(0);
+
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
@@ -153,7 +159,11 @@ function loadApp(opts) {
     performance,
   };
   sandbox.globalThis = sandbox;
-  if (o.mock) win.Neutralino = { mock: true };
+  // v2.6.2 (QUAL-B): опциональный фейковый Neutralino (fs/storage) — для
+  // тестов персистенса и миграций (restoreState/migrateData). Задаётся ДО
+  // вычисления констант модулей (HAS_NL/IS_MOCK читаются при загрузке).
+  if (o.mock) win.Neutralino = Object.assign({ mock: true }, o.neutralino || {});
+  else if (o.neutralino) win.Neutralino = o.neutralino;
   vm.createContext(sandbox);
   // ARCH-1: конкатенация модулей js/wsg/*.js в порядке номеров —
   // тот же единственный источник, каким был монолит app.js.

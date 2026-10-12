@@ -96,6 +96,14 @@
           try { await fs().readFile(pxJoin(newRoot, "reports", name)); destExists = true; } catch (e) {}
           if (destExists) { conflicts.push("reports/" + name); continue; } // F15: имя занято — файл остаётся в старой папке
           try { await fs().writeFile(pxJoin(newRoot, "reports", name), txt2); } catch (e) { continue; } // не скопировался — НЕ удаляем источник
+          // v2.6.2 (аудит FE-22): перенос = копия + проверка записи + удаление
+          // источника (как для аккаунта выше). Раньше источник оставался —
+          // отчёты дублировались в двух папках и при повторной миграции
+          // копировались снова. Не подтвердилась запись — источник сохранён.
+          let verified2 = false;
+          try { verified2 = (await fs().readFile(pxJoin(newRoot, "reports", name))) === txt2; } catch (e) { verified2 = false; }
+          if (!verified2) continue;
+          try { await fs().remove(it.path); } catch (e) { /* удалим при следующем переносе */ }
           moved.push("reports/" + name);
         }
         // v2.4.6 (F14): старый reports удаляем ТОЛЬКО если он опустел
@@ -372,10 +380,17 @@
       if (st.scan) S.scan = sanitizeScan(st.scan);
       if (st.cfg) S.cfg = sanitizeCfg(st.cfg);
       if (st.settings && typeof st.settings === "object") {
-        S.settings = Object.assign({}, S.settings, {
+        // v2.6.2 (аудит FE-20): тема и язык переживают рестарт — persist их
+        // сохраняет, restore обязан читать. Валидация по enum; невалидное
+        // значение НЕ затирает текущее (patch собираем только из валидных
+        // полей: Object.assign с undefined стёр бы настройку до дефолта).
+        const patch = {
           wsPath: strField(st.settings.wsPath, 500),
           dataRoot: strField(st.settings.dataRoot, 500),
-        });
+        };
+        if (st.settings.theme === "dark" || st.settings.theme === "light") patch.theme = st.settings.theme;
+        if (st.settings.lang === "ru" || st.settings.lang === "en") patch.lang = st.settings.lang;
+        S.settings = Object.assign({}, S.settings, patch);
       }
       if (Array.isArray(st.customPresets)) S.customPresets = sanitizePresets(st.customPresets);
       S.compact = !!st.compact;

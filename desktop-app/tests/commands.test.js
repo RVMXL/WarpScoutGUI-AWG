@@ -120,3 +120,94 @@ test("buildScanCmd: полный скан с флагами не содержи�
   assert.ok(cmd.includes("-f") && !cmd.includes("-n "));
   assert.ok(cmd.includes("-6") && cmd.includes("-speed") && cmd.includes("-best-by speed"));
 });
+
+/* ── v2.6.2 (аудит FE-1/FE-23): argPath — путь как ОДИН argv-токен ── */
+
+// POSIX-токенизатор (эквивалент MainActivity.tokenizeCmd на Android и sh -c на
+// Linux/macOS): одинарные/двойные кавычки, backslash-экранирование.
+function posixTokens(cmd) {
+  const out = [];
+  let cur = "", has = false, inS = false, inD = false;
+  for (let i = 0; i < cmd.length; i++) {
+    const c = cmd[i];
+    if (inS) { if (c === "'") inS = false; else cur += c; }
+    else if (inD) {
+      if (c === '"') inD = false;
+      else if (c === "\\" && i + 1 < cmd.length) { cur += cmd[++i]; }
+      else cur += c;
+    }
+    else if (c === "'") { inS = true; has = true; }
+    else if (c === '"') { inD = true; has = true; }
+    else if (c === "\\" && i + 1 < cmd.length) { cur += cmd[++i]; has = true; }
+    else if (c === " " || c === "\t" || c === "\n" || c === "\r") { if (has) { out.push(cur); cur = ""; has = false; } }
+    else { cur += c; has = true; }
+  }
+  if (has) out.push(cur);
+  return out;
+}
+
+// «злой» путь: двойная кавычка, $, &, backtick, ;, скобки, пробелы, одинарная кавычка
+const EVIL = 'C:\\my data" & calc & echo `x` $(rm) ;(x) \'q\'';
+
+test("FE-1: buildScanCmd — путь с метасимволами не меняет структуру команды (3 платформы)", () => {
+  for (const nlOs of ["Windows", "Linux", "Android"]) {
+    const { wsgui } = loadApp({ nlOs });
+    wsgui.S.paths.accPath = EVIL + "\\warpscout-account.json";
+    wsgui.S.paths.reportPath = EVIL + "\\report.txt";
+    const cmd = wsgui.buildScanCmd({ proto: "wg" });
+    if (nlOs === "Windows") {
+      // cmdWinPath вырезает cmd-метасимволы → внутри двойных кавычек нет
+      // символов, способных завершить токен или запустить команду
+      const m = cmd.match(/-o "([^"]*)"/);
+      const a = cmd.match(/-a "([^"]*)"/);
+      assert.ok(m && a, nlOs + ": " + cmd);
+      for (const t of [m[1], a[1]]) assert.ok(!/[&|<>^%!`"]/.test(t), nlOs + ": " + cmd); // ' внутри "…" инертен для cmd
+      assert.ok(m[1].endsWith("report.txt") && a[1].endsWith("warpscout-account.json"), nlOs + ": " + cmd);
+      assert.strictEqual(cmd.split('"').length % 2, 1, nlOs + ": непарные кавычки: " + cmd);
+    } else {
+      // POSIX/Android: psQuote → round-trip через токенизатор возвращает
+      // путь байт-в-байт — инъекция невозможна по построению
+      const toks = posixTokens(cmd);
+      const at = (flag) => { const i = toks.indexOf(flag); return i === -1 ? null : toks[i + 1]; };
+      assert.strictEqual(at("-o"), EVIL + "\\report.txt", nlOs + ": " + cmd);
+      assert.strictEqual(at("-a"), EVIL + "\\warpscout-account.json", nlOs + ": " + cmd);
+      // «инъекционные» фрагменты не стали отдельными argv-токенами
+      for (const frag of ["calc", "echo", "rm", "pwn"]) assert.ok(!toks.includes(frag), nlOs + ": " + cmd);
+    }
+  }
+});
+
+test("FE-23: buildCheckCmd — acc/report одним токеном (POSIX round-trip)", () => {
+  const evil = "/tmp/ws 'x' & echo pwn ;(x)/data";
+  const { wsgui } = loadApp({ nlOs: "Linux" });
+  wsgui.S.paths.accPath = evil + "/warpscout-account.json";
+  wsgui.S.paths.reportsDir = evil + "/reports";
+  const r = wsgui.buildCheckCmd("1.1.1.1", 443, "wg");
+  const toks = posixTokens(r.cmd);
+  const at = (flag) => { const i = toks.indexOf(flag); return i === -1 ? null : toks[i + 1]; };
+  assert.strictEqual(at("-a"), evil + "/warpscout-account.json", r.cmd);
+  assert.ok(String(at("-o")).startsWith(evil + "/reports/warpscout-check-"), r.cmd);
+  for (const frag of ["pwn", "echo"]) assert.ok(!toks.includes(frag), r.cmd);
+});
+
+test("FE-23: argPath — Windows: метасимволы вырезаны; POSIX/Android: psQuote с удвоением '", () => {
+  const w = loadApp({ nlOs: "Windows" }).wsgui;
+  const winToken = w.argPath('C:\\a"b&c|d^e%f!g<h>i`j');
+  assert.strictEqual(winToken, '"C:\\abcdefghij"'); // cmd-метасимволы вырезаны, кавычки на месте
+  const l = loadApp({ nlOs: "Linux" }).wsgui;
+  assert.strictEqual(l.argPath("/a 'b' c"), "'/a '\\''b'\\'' c'"); // POSIX: приём '\''
+  const a = loadApp({ nlOs: "Android" }).wsgui;
+  assert.strictEqual(a.argPath("/a 'b' c"), "'/a '\\''b'\\'' c'"); // токенизатор моста POSIX-совместим
+});
+
+test("FE-23: трипвайр — в wsg/ не осталось голой конкатенации путей -a/-o", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const dir = path.join(__dirname, "..", "resources", "js", "wsg");
+  const bad = [];
+  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".js")).sort()) {
+    const src = fs.readFileSync(path.join(dir, f), "utf8");
+    if (/\s-[oa]\s?"'\s*\+/.test(src)) bad.push(f); // паттерн « -a "' + …» (фикс FE-1/FE-23)
+  }
+  assert.deepStrictEqual(bad, [], "голая конкатенация путей вернулась в: " + bad.join(", "));
+});

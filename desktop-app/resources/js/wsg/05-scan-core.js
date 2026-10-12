@@ -64,9 +64,11 @@
   function buildScanCmd(s) {
     const exe = quoteExe();
     const args = buildScanArgs(s);
+    // v2.6.2 (аудит FE-1): пути отчёта/аккаунта — через argPath (раньше —
+    // голые двойные кавычки в обход psQuote/cmdWinPath)
     const report = S.paths.reportPath || "warpscout-report.txt";
-    const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
-    return exe + " scan " + joinArgs(args) + ' -o "' + report + '"' + acc;
+    const acc = S.paths.accPath ? " -a " + argPath(S.paths.accPath) : "";
+    return exe + " scan " + joinArgs(args) + " -o " + argPath(report) + acc;
   }
 
   // ── R1/R3: безопасные значения флагов для Windows cmd ──
@@ -112,10 +114,34 @@
     // PowerShell: одинарные кавычки не интерпретируют содержимое, ' внутри удваивается
     return "'" + String(s == null ? "" : s).replace(/'/g, "''") + "'";
   }
+  // v2.6.2 (аудит FE-1/FE-23): кавычки для POSIX-sh (Linux/macOS) и Android-моста
+  // (tokenizeCmd в MainActivity POSIX-совместим). НЕ то же, что psQuote:
+  // в sh «''» внутри одинарных кавычек НЕ даёт литеральную кавычку —
+  // каноническая секвенция «закрыть-кавычку, экранировать, открыть»
+  // ('\''-приём). Раунд-трип
+  // проверен тестом FE-1 (токенизатор возвращает путь байт-в-байт).
+  function shQuote(s) {
+    return "'" + String(s == null ? "" : s).replace(/'/g, "'\\''") + "'";
+  }
   function cmdWinPath(s) {
     // путь для cmd.exe: cmd-метасимволы и спецсимволы PowerShell вырезаются,
     // хвостовые разделители срезаются (хвост «\» перед кавычкой ломал экранирование)
     return String(s == null ? "" : s).replace(/["%!<>|&^`]/g, "").replace(/[\\/]+$/, "");
+  }
+
+  /* ── v2.6.2 (аудит FE-1/FE-23): единый хелпер аргумента-ПУТИ ──
+     Пути (-o отчёт, -a аккаунт) приходят из пользовательских настроек
+     (dataRoot) и импортированных бэкапов: двойная кавычка в пути раньше
+     времени закрывала литерал и подсовывала оболочке новые argv-токены.
+     Правило SEC-5 распространено на пути: Windows — cmdWinPath (метасимволы
+     вырезаны) + двойные кавычки; POSIX и Android-мост — shQuote
+     (POSIX-совместимые одинарные кавычки с '\'' для литеральной ').
+     Новые места сборки команд с путями ОБЯЗАНЫ идти через argPath —
+     конкатенация «в лоб» с кавычками — источник инъекций (см. тесты
+     FE-1/FE-23). */
+  function argPath(p) {
+    if (IS_WIN) return '"' + cmdWinPath(p) + '"';
+    return shQuote(p);
   }
 
   // Единый разбор «endpoint» (host:port). Возвращает { host, port } или null.

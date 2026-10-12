@@ -29,7 +29,8 @@
     }
     const socksPort = clampInt($("#socksPort").value || "1080", 1, 65535, 1080);
     const proto = enumOf($("#socksProto").value, SCAN_ENUMS.proto, "awg");
-    const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
+    // v2.6.2 (аудит FE-23): путь аккаунта — через argPath (дубль FE-1)
+    const acc = S.paths.accPath ? " -a " + argPath(S.paths.accPath) : "";
     // v2.4.6 (F18): генератор I1 из параметров скана — SOCKS воспроизводит проверенный туннель
     let awgArgs = "";
     const lp = S.lastRunParams;
@@ -92,12 +93,12 @@
         " -threshold " + (+$("#fjThreshold").value || 95) +
         " -n " + (+$("#fjSample").value || 5) +
         " -jt " + (+$("#fjJt").value || 10) +
-        (S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "");
+        (S.paths.accPath ? " -a " + argPath(S.paths.accPath) : ""); // v2.6.2 (FE-23)
     } else {
       cmd =
         quoteExe() + " find-sni -p " + $("#fsProto").value +
         " -threshold " + (+$("#fsThreshold").value || 70) +
-        (S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "");
+        (S.paths.accPath ? " -a " + argPath(S.paths.accPath) : ""); // v2.6.2 (FE-23)
     }
     appendLog(log, "$ " + (IS_MOCK ? cmd.replace(/^"[^"]*"/, "warpscout") : cmd) + "\n\n");
     try {

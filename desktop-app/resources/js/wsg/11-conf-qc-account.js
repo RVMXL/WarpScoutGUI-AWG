@@ -203,7 +203,8 @@
     const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 21) + "-" + Math.floor(Math.random() * 1000);
     const report = (S.paths.reportsDir || ".") + "/warpscout-check-" + ts + ".txt";
     const pr = enumOf(proto, SCAN_ENUMS.proto, "awg");
-    const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
+    // v2.6.2 (аудит FE-23): путь аккаунта — через argPath (дубль FE-1)
+    const acc = S.paths.accPath ? " -a " + argPath(S.paths.accPath) : "";
     // v2.4.6 (F18): воспроизводим параметры туннеля из последнего запуска (AWG)
     let awgArgs = "";
     const lp = S.lastRunParams;
@@ -224,7 +225,7 @@
       " -target " + ip +
       " -port " + port +
       " -P -plain" +
-      ' -o "' + report + '"' + acc;
+      " -o " + argPath(report) + acc; // v2.6.2 (аудит FE-23): argPath вместо голых кавычек
     return { cmd: cmd, report: report };
   }
 
@@ -821,7 +822,8 @@
       toast(t("misc.40"), "err");
       return;
     }
-    const acc = S.paths.accPath ? ' -a "' + S.paths.accPath + '"' : "";
+    // v2.6.2 (аудит FE-23): путь аккаунта — через argPath (дубль FE-1)
+    const acc = S.paths.accPath ? " -a " + argPath(S.paths.accPath) : "";
     const cmd = quoteExe() + " register" + (fresh ? " -fresh" : "") + acc;
     appendLog(log, "$ " + cmd + "\n"); // v2.1.1: полная команда с путями — для диагностики
     let logTail = "";
