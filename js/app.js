@@ -1004,6 +1004,7 @@
     "Файл кладётся сюда (путь выше). Если warpscout-account.json лежит рядом с warpscout.exe в bin — кнопка «Проверить снова» подхватит его без перезапуска. Саму папку данных можно сменить в Настройках → «Папка данных».": "The file goes here (path above). If warpscout-account.json sits next to warpscout.exe in bin — the «Check again» button picks it up without a restart. The data folder itself can be changed in Settings → «Data folder».",
     "Пользовательская папка данных недоступна — вернулись к папке по умолчанию": "Custom data folder is unavailable — switched back to the default folder",
     "Сначала остановите скан/регистрацию/прокси — перенос данных посреди работы невозможен": "Stop the scan/registration/proxy first — data cannot be moved while running",
+    "Данные из прежней папки приложения перенесены: {n} ({list})": "Data from the app's previous folder has been moved: {n} ({list})",
     "Сначала остановите скан/регистрацию/прокси": "Stop the scan/registration/proxy first",
     "Данные уже хранятся в этой папке": "Data is already stored in this folder",
     "Папка недоступна для записи — выберите другую": "Folder is not writable — pick another one",
@@ -6100,6 +6101,11 @@
   // v2.4.6 (F12–F15): копируем ВСЁ → проверяем запись → удаляем только успешно
   // скопированные файлы; конфликты НЕ перезаписывают destination; старый каталог
   // удаляется только если опустел; при вложенности/ошибке — явный отказ.
+  // v2.5.8 (fix): пути собираются pxJoin (платформенный разделитель), а НЕ конкатенацией
+  // с "\\" — та жёсткая склейка на Android давала «…/WARPScoutGUI\warpscout-account.json»
+  // (\ — часть ИМЕНИ файла): чтение старого аккаунта падало молча, переносилcя ноль файлов,
+  // а папка данных переключалась — «аккаунт не перенесся». На Windows pxJoin даёт ровно
+  // прежние пути (PSEP = "\"), поведение Windows не меняется.
   async function migrateData(oldRoot, newRoot) {
     const moved = [];
     const conflicts = [];
@@ -6108,26 +6114,26 @@
     await ensureDir(newRoot);
     // аккаунт
     let accText = "";
-    try { accText = await fs().readFile(oldRoot + "\\warpscout-account.json"); } catch (e) { accText = ""; }
+    try { accText = await fs().readFile(pxJoin(oldRoot, "warpscout-account.json")); } catch (e) { accText = ""; }
     if (accText) {
       let destExists = false;
-      try { await fs().readFile(newRoot + "\\warpscout-account.json"); destExists = true; } catch (e) {}
+      try { await fs().readFile(pxJoin(newRoot, "warpscout-account.json")); destExists = true; } catch (e) {}
       if (destExists) {
         conflicts.push("warpscout-account.json (в новой папке уже есть аккаунт — сохранён он)"); // F15
       } else {
-        await fs().writeFile(newRoot + "\\warpscout-account.json", accText);
+        await fs().writeFile(pxJoin(newRoot, "warpscout-account.json"), accText);
         let verified = false;
-        try { verified = (await fs().readFile(newRoot + "\\warpscout-account.json")) === accText; } catch (e) { verified = false; }
+        try { verified = (await fs().readFile(pxJoin(newRoot, "warpscout-account.json"))) === accText; } catch (e) { verified = false; }
         if (!verified) throw new Error("аккаунт не прошёл проверку записи — перенос отменён, старая папка не тронута");
-        try { await fs().remove(oldRoot + "\\warpscout-account.json"); } catch (e) { /* удалим при следующем переносе */ }
+        try { await fs().remove(pxJoin(oldRoot, "warpscout-account.json")); } catch (e) { /* удалим при следующем переносе */ }
         moved.push("warpscout-account.json");
       }
     }
     // отчёты
     try {
-      const items = await fs().readDirectory(oldRoot + "\\reports");
+      const items = await fs().readDirectory(pxJoin(oldRoot, "reports"));
       if (Array.isArray(items) && items.length) {
-        await ensureDir(newRoot + "\\reports");
+        await ensureDir(pxJoin(newRoot, "reports"));
         for (const it of items) {
           if (String(it.type || "").toUpperCase() === "DIRECTORY") continue; // подкаталоги не трогаем (F14)
           const name = String(it.path || "").split(/[\\/]/).pop();
@@ -6135,19 +6141,53 @@
           let txt2 = "";
           try { txt2 = await fs().readFile(it.path); } catch (e) { continue; } // не читается — остаётся на месте
           let destExists = false;
-          try { await fs().readFile(newRoot + "\\reports\\" + name); destExists = true; } catch (e) {}
+          try { await fs().readFile(pxJoin(newRoot, "reports", name)); destExists = true; } catch (e) {}
           if (destExists) { conflicts.push("reports/" + name); continue; } // F15: имя занято — файл остаётся в старой папке
-          try { await fs().writeFile(newRoot + "\\reports\\" + name, txt2); } catch (e) { continue; } // не скопировался — НЕ удаляем источник
+          try { await fs().writeFile(pxJoin(newRoot, "reports", name), txt2); } catch (e) { continue; } // не скопировался — НЕ удаляем источник
           moved.push("reports/" + name);
         }
         // v2.4.6 (F14): старый reports удаляем ТОЛЬКО если он опустел
         try {
-          const rest = await fs().readDirectory(oldRoot + "\\reports");
-          if (Array.isArray(rest) && !rest.length) { try { await fs().remove(oldRoot + "\\reports"); } catch (e) {} }
+          const rest = await fs().readDirectory(pxJoin(oldRoot, "reports"));
+          if (Array.isArray(rest) && !rest.length) { try { await fs().remove(pxJoin(oldRoot, "reports")); } catch (e) {} }
         } catch (e) {}
       }
     } catch (e) { /* папки отчётов нет */ }
     return { moved, conflicts };
+  }
+
+  /* ─── v2.5.8 (Android): автодогон данных в активную папку при запуске ───
+     Сценарий из поля: перенос «В общую папку…» на 2.5.3–2.5.7 переключал
+     папку данных, но сами файлы (см. migrateData выше) оставались в прежней
+     app-specific папке → после запуска «аккаунт: нет». При каждом запуске
+     переносим аккаунт/отчёты из прежних папок приложения (app-specific
+     external files и приватный filesDir — список приносит deviceInfo →
+     window.NL_LEGACY_DIRS) в активную папку. Идемпотентно: migrateData
+     не перезаписывает существующие файлы, а «перенести нечего» — тихий no-op
+     (без тоста), так что повторные запуски ничего не меняют. */
+  async function migrateAndroidLegacyData() {
+    if (!IS_ANDROID || IS_MOCK || !HAS_NL) return;
+    const dst = S.paths.dataDir;
+    if (!dst) return;
+    const dirs = Array.isArray(window.NL_LEGACY_DIRS) ? window.NL_LEGACY_DIRS : [];
+    const copiedAll = [];
+    for (const raw of dirs) {
+      const src = String(raw || "").trim().replace(/[\\/]+$/, "");
+      if (!src || isSameWinPath(src, dst)) continue;
+      try {
+        const r = await migrateData(src, dst);
+        copiedAll.push(...r.moved);
+      } catch (e) { /* одна из прежних папок недоступна — пробуем следующую */ }
+    }
+    if (copiedAll.length) {
+      if (copiedAll.indexOf("warpscout-account.json") !== -1) {
+        try { await loadAccount(); } catch (e) {}
+        renderAccount();
+        renderAccountStatusline();
+      }
+      toast(tF("Данные из прежней папки приложения перенесены: {n} ({list})", { n: copiedAll.length, list: copiedAll.slice(0, 3).join(", ") + (copiedAll.length > 3 ? "…" : "") }), "ok");
+    }
+    return copiedAll;
   }
 
   async function anyProcRunning() {
@@ -6859,6 +6899,9 @@
     await computePaths();
     // v2.3.0: разбираем junction v2.2.0 (если «Объединить» нажимали) ДО чтения аккаунта
     await repairUdfJunction().catch(() => {});
+    // v2.5.8 (Android): автодогон аккаунта/отчётов из прежних папок в активную —
+    // ДО loadAccount, чтобы «аккаунт: есть» появился уже на первом запуске после обновления
+    await migrateAndroidLegacyData().catch(() => {});
     syncInputsFromState();
     syncCfgInputsFromState();
     $("#presetHint").innerHTML = t(PRESETS.default.hint);
@@ -6895,7 +6938,7 @@
 
   // отладочный хук (безвредно): помогает диагностике через консоль
   // v2.4.6: + валидаторы/санитайзеры (аудит-тесты и диагностика)
-  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildScanArgs, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, applyImportedState, applyImportedPresets, applyFoundCmd, parseEndpoint, splitEpPort, safeVal, enumOf, clampInt, sanitizeScan, sanitizeCfg, sanitizeHistoryItem, sanitizeQcItem, sanitizePresets, csvSafe, isWgKey, validateAccountJson, normWinPath, isSameWinPath, isWinPathInside, migrateData, confExportReady, defaultCfg, flushSave, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage };
+  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildScanArgs, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, applyImportedState, applyImportedPresets, applyFoundCmd, parseEndpoint, splitEpPort, safeVal, enumOf, clampInt, sanitizeScan, sanitizeCfg, sanitizeHistoryItem, sanitizeQcItem, sanitizePresets, csvSafe, isWgKey, validateAccountJson, normWinPath, isSameWinPath, isWinPathInside, migrateData, migrateAndroidLegacyData, confExportReady, defaultCfg, flushSave, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {
