@@ -17,6 +17,8 @@ desktop-app/pkg/*/WARPScoutGUI
 desktop-app/pkg/*/WARPScoutGUI.exe
 desktop-app/pkg/*/resources.neu
 desktop-app/pkg/*/bin/
+# v2.6.2 (аудит AND-2/INFRA-C): android-ядро восстанавливается fetch-binaries.py
+desktop-app/pkg/*/libwarpscout.so
 
 # release artifacts & signing material (never commit)
 download/

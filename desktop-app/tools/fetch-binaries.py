@@ -8,10 +8,18 @@
 # дерево. resources.neu не скачивается из zip, а собирается локально
 # (pack-neu.py) — детерминизм сборки проверяется сам.
 #
+# v2.6.2 (аудит INFRA-B): оба curl с -f — HTTP 404/403 больше НЕ «успех»,
+# тело-HTML не сохраняется как «бинарь» (проверки магии + минимального
+# размера; падение — с именем ассета).
+# v2.6.2 (аудит AND-2/INFRA-C): ядро Android-сборки (libwarpscout.so из
+# релиза vernette/warpscout) — тоже часть цепочки поставки: скачивается,
+# раскладывается в pkg/WARPScoutGUI-android/ и сверяется с deps.json.
+#
 # Использование:
-#   python3 tools/fetch-binaries.py --release v2.6.0 [--repo RVMXL/WarpScoutGUI-AWG]
+#   python3 tools/fetch-binaries.py --release v2.6.1 [--repo RVMXL/WarpScoutGUI-AWG]
+#   python3 tools/fetch-binaries.py --latest-published   — последний опубликованный релиз (CI)
 #   python3 tools/fetch-binaries.py --check   — только сверить локальные бинари с deps.json
-import hashlib, json, os, shutil, subprocess, sys, tempfile, zipfile
+import hashlib, json, os, shutil, subprocess, sys, tarfile, tempfile, zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEPS = os.path.join(ROOT, "tools", "deps.json")
@@ -38,11 +46,40 @@ def sha256(path):
     return h.hexdigest()
 
 def gh(url, token=None):
-    cmd = ["curl", "-sSL", "-H", "Accept: application/vnd.github+json"]
+    # v2.6.2 (аудит INFRA-B): -f — HTTP 404/403 = ошибка, а не тихий HTML
+    cmd = ["curl", "-fsSL", "-H", "Accept: application/vnd.github+json"]
     if token:
         cmd += ["-H", f"Authorization: Bearer {token}"]
     cmd.append(url)
-    return subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"GitHub API: запрос не удался (curl exit {e.returncode}) — {url}")
+
+def download(url, token, label, magic=b"PK"):
+    # v2.6.2 (аудит INFRA-B): -f + проверка минимального размера и магии
+    # файла — HTML-страница ошибки больше не сохраняется как «бинарь».
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".bin")
+    cmd = ["curl", "-fsSL", "--retry", "2", "-o", tmp.name,
+           "-H", "Accept: application/octet-stream"] # иначе API ассета вернёт JSON-метаданные
+    if token:
+        cmd += ["-H", f"Authorization: Bearer {token}"]
+    cmd.append(url)
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        os.unlink(tmp.name)
+        sys.exit(f"{label}: загрузка не удалась (curl exit {e.returncode} — HTTP-ошибка?) — {url}")
+    size = os.path.getsize(tmp.name)
+    if size < 1024:
+        os.unlink(tmp.name)
+        sys.exit(f"{label}: файл подозрительно мал ({size} Б) — не артефакт: {url}")
+    with open(tmp.name, "rb") as f:
+        head = f.read(2)
+    if head != magic:
+        os.unlink(tmp.name)
+        sys.exit(f"{label}: магия файла {head!r} ≠ ожидаемой {magic!r} — похоже на HTML-ошибку: {url}")
+    return tmp
 
 def main():
     args = sys.argv[1:]
@@ -65,13 +102,24 @@ def main():
         print("OK все бинарники соответствуют deps.json")
         return
 
-    i = args.index("--release") if "--release" in args else -1
-    if i < 0 or i + 1 >= len(args):
-        sys.exit("использование: fetch-binaries.py --release vX.Y.Z [--repo OWNER/REPO]")
-    release = args[i + 1]
     repo = args[args.index("--repo") + 1] if "--repo" in args else "RVMXL/WarpScoutGUI-AWG"
     token = os.environ.get("WS_GH_TOKEN") or (
         open("/tmp/ghtoken").read().strip() if os.path.isfile("/tmp/ghtoken") else None)
+
+    if "--latest-published" in args:
+        # v2.6.2 (CI/INFRA-A): последний опубликованный релиз (список
+        # /releases отдаётся по created_at DESC; включает prerelease —
+        # политика проекта: Latest помечен старый v2.4.6).
+        info = json.loads(gh(f"https://api.github.com/repos/{repo}/releases?per_page=1", token))
+        if not info:
+            sys.exit(f"в {repo} нет опубликованных релизов")
+        release = info[0]["tag_name"]
+        print(f"последний опубликованный релиз: {release}")
+    else:
+        i = args.index("--release") if "--release" in args else -1
+        if i < 0 or i + 1 >= len(args):
+            sys.exit("использование: fetch-binaries.py --release vX.Y.Z | --latest-published [--repo OWNER/REPO]")
+        release = args[i + 1]
 
     # platform → asset name (по релизной политике: единая версия во всех именах)
     ver = release.lstrip("v")
@@ -86,24 +134,46 @@ def main():
             print(f"  пропускаю {name}: ассета нет в релизе")
             continue
         url = by_name[name]["url"]
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
-        cmd = ["curl", "-sSL", "-o", tmp.name, url]
-        if token:
-            cmd += ["-H", f"Authorization: Bearer {token}"]
-        subprocess.run(cmd, check=True)
+        tmp = download(url, token, name, magic=b"PK")
         digest = sha256(tmp.name)
-        with zipfile.ZipFile(tmp.name) as zf:
-            names = zf.namelist()
-            for inner, dest in EXTRACT[pl]:
-                if inner not in names:
-                    sys.exit(f"{name}: внутри нет {inner}")
-                tgt = os.path.join(ROOT, dest)
-                os.makedirs(os.path.dirname(tgt), exist_ok=True)
-                with zf.open(inner) as src, open(tgt, "wb") as out:
-                    shutil.copyfileobj(src, out)
-                got[dest] = digest
-        os.unlink(tmp.name)
+        try:
+            with zipfile.ZipFile(tmp.name) as zf:
+                names = zf.namelist()
+                for inner, dest in EXTRACT[pl]:
+                    if inner not in names:
+                        sys.exit(f"{name}: внутри нет {inner}")
+                    tgt = os.path.join(ROOT, dest)
+                    os.makedirs(os.path.dirname(tgt), exist_ok=True)
+                    with zf.open(inner) as src, open(tgt, "wb") as out:
+                        shutil.copyfileobj(src, out)
+                    got[dest] = digest
+        finally:
+            os.unlink(tmp.name)
         print(f"OK  {name} → распаковано, sha256 {digest[:16]}…")
+
+    # v2.6.2 (аудит AND-2/INFRA-C): android-ядро — из релиза warpscout
+    # (отдельный репозиторий), хэш пинится в deps.json и проверяется
+    # общим блоком сверки ниже (и build-apk.sh — той же записью).
+    ws_ver = (deps.get("warpscout") or {}).get("version")
+    and_dest = "pkg/WARPScoutGUI-android/libwarpscout.so"
+    if ws_ver and and_dest in deps["files"]:
+        url = (f"https://github.com/vernette/warpscout/releases/download/v{ws_ver}/"
+               f"warpscout_{ws_ver}_android_arm64.tar.gz")
+        tmp = download(url, token, f"warpscout_{ws_ver}_android_arm64.tar.gz", magic=b"\x1f\x8b")
+        try:
+            with tarfile.open(tmp.name, "r:gz") as tf:
+                member = next((m for m in tf.getmembers()
+                               if m.isfile() and m.name.split("/")[-1] == "warpscout"), None)
+                if member is None:
+                    sys.exit(f"warpscout_{ws_ver}_android_arm64.tar.gz: внутри нет файла warpscout")
+                tgt = os.path.join(ROOT, and_dest)
+                os.makedirs(os.path.dirname(tgt), exist_ok=True)
+                with tf.extractfile(member) as src, open(tgt, "wb") as out:
+                    shutil.copyfileobj(src, out)
+        finally:
+            os.unlink(tmp.name)
+        got[and_dest] = "android"
+        print(f"OK  warpscout_{ws_ver}_android_arm64.tar.gz → {and_dest}")
 
     # сверка с deps.json: хэш БИНАРНИКА из deps.json должен совпасть с тем,
     # что лежит внутри релизного архива (цепочка «репо → релиз → рабочее дерево»)

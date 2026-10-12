@@ -155,4 +155,4 @@
  - О найденных проблемах сообщайте в Issues:
    github.com/RVMXL/WarpScoutGUI-AWG/issues
 
- WARPSCOUT GUI v2.5.6 · warpscout v0.16.0
+ WARPSCOUT GUI v2.6.1 · warpscout v0.16.0

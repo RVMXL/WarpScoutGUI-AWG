@@ -74,6 +74,9 @@ def pkg_readme_targets(ver):
                 t = sub(rel, r'WARPSCOUT GUI v\d+\.\d+\.\d+ — ', f'WARPSCOUT GUI v{ver} — ', t)
                 t = sub(rel, r'Статус выпуска: ПРЕРЕЛИЗ \d+\.\d+\.\d+', f'Статус выпуска: ПРЕРЕЛИЗ {ver}', t, required=False)
                 t = sub(rel, r'СТАТУС ВЕРИФИКАЦИИ \(ПРЕРЕЛИЗ \d+\.\d+\.\d+\)', f'СТАТУС ВЕРИФИКАЦИИ (ПРЕРЕЛИЗ {ver})', t, required=False)
+                # v2.6.2 (аудит INFRA-D): футер (последняя строка) больше не слепая зона
+                t = sub(rel, r' WARPSCOUT GUI v\d+\.\d+\.\d+ · warpscout v',
+                        f' WARPSCOUT GUI v{ver} · warpscout v', t, required=False)
                 return t
             out.append((rel, patch))
     return out

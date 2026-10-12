@@ -20,6 +20,7 @@ OUT="$ROOT/download/WARPScoutGUI-$VER-android-arm64.apk"
 
 KS="$A/keystore/warpscout.keystore"
 KSPASS="${KSPASS:?set KSPASS env var (keystore password)}"
+export KSPASS # v2.6.2 (аудит AND-3): пароль идёт в apksigner через env, не через argv
 
 BUILD="$A/build"
 WWW="$BUILD/www"
@@ -51,13 +52,25 @@ EOF
 # ── 2. jniLibs: warpscout android_arm64 как libwarpscout.so ──
 # Путь в APK обязан быть lib/arm64-v8a/ — иначе PackageManager НЕ извлечёт
 # библиотеку (nativeLibraryDir будет пуст, warpscout не запустится).
+# v2.6.2 (аудит AND-2): ядро сверяется с SHA-256-пином deps.json ДО копии —
+# подмена/чужая версия бинаря в /tmp/ws-android валит сборку явно.
+WARPS_VER="$(python3 -c "import json;print(json.load(open('$A/../tools/deps.json'))['warpscout']['version'])")"
+EXPECTED_SO="$(python3 -c "import json;print(json.load(open('$A/../tools/deps.json'))['files']['pkg/WARPScoutGUI-android/libwarpscout.so']['sha256'])")"
 mkdir -p "$BUILD/lib/arm64-v8a"
-if [ -f "/tmp/ws-android/warpscout" ]; then
-  cp /tmp/ws-android/warpscout "$BUILD/lib/arm64-v8a/libwarpscout.so"
-else
-  echo "✗ /tmp/ws-android/warpscout не найден — скачайте warpscout_0.16.0_android_arm64.tar.gz" >&2
+WS_SRC="/tmp/ws-android/warpscout"
+if [ ! -f "$WS_SRC" ]; then
+  echo "✗ $WS_SRC не найден — python3 tools/fetch-binaries.py --latest-published (или warpscout_${WARPS_VER}_android_arm64.tar.gz)" >&2
   exit 1
 fi
+ACTUAL_SO="$(sha256sum "$WS_SRC" | cut -d' ' -f1)"
+if [ "$ACTUAL_SO" != "$EXPECTED_SO" ]; then
+  echo "✗ SHA-256 ядра warpscout (android) не совпадает с пином tools/deps.json (аудит AND-2):" >&2
+  echo "   ждали $EXPECTED_SO" >&2
+  echo "   факт  $ACTUAL_SO" >&2
+  echo "   Положите в /tmp/ws-android/warpscout бинарь версии ${WARPS_VER} (релиз v${WARPS_VER} vernette/warpscout)." >&2
+  exit 1
+fi
+cp "$WS_SRC" "$BUILD/lib/arm64-v8a/libwarpscout.so"
 chmod 755 "$BUILD/lib/arm64-v8a/libwarpscout.so"
 
 # ── 3. ресурсы: aapt2 compile+link ──
@@ -82,12 +95,18 @@ sed -i -E \
 (cd "$BUILD" && zip -q -r "$BUILD/base.apk" lib)
 
 # ── 4. java → dex ──
+# v2.6.2 (аудит INFRA-J): stderr javac не глотается — ошибка компиляции
+# валит сборку с полным выводом; предупреждения печатаются отдельно.
 mkdir -p "$BUILD/classes" "$BUILD/dex"
-"$JDK_BIN/javac" -source 8 -target 8 \
+if ! "$JDK_BIN/javac" -source 8 -target 8 \
   -bootclasspath "$PLATFORM:$BT/core-lambda-stubs.jar" -classpath "$PLATFORM" \
   -d "$BUILD/classes" \
   "$A/java/ru/warpscout/gui/MainActivity.java" \
-  "$A/java/ru/warpscout/gui/WsFileProvider.java" 2>&1 | grep -v "^warning:" || true
+  "$A/java/ru/warpscout/gui/WsFileProvider.java" 2> "$BUILD/javac.err"; then
+  cat "$BUILD/javac.err" >&2
+  exit 1
+fi
+grep -v "^warning:" "$BUILD/javac.err" >&2 || true
 find "$BUILD/classes" -name "*.class" > "$BUILD/classlist.txt"
 "$BT/d8" --release --lib "$PLATFORM" --min-api 24 \
   --output "$BUILD/dex" $(cat "$BUILD/classlist.txt")
@@ -104,7 +123,7 @@ if [ ! -f "$KS" ]; then
     -dname "CN=WARPScoutGUI,O=AWG,C=RU"
 fi
 "$BT/apksigner" sign --ks "$KS" --ks-key-alias warpscout \
-  --ks-pass "pass:$KSPASS" --key-pass "pass:$KSPASS" \
+  --ks-pass "env:KSPASS" --key-pass "env:KSPASS" \
   --out "$OUT" "$BUILD/aligned.apk"
 "$BT/apksigner" verify "$OUT" && echo "   apksigner verify: OK"
 

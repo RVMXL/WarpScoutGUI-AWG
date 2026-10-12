@@ -53,6 +53,12 @@ def main():
             print(f"  {rel}\n    ждали {exp}\n    факт  {act}")
         sys.exit(1)
     checked = len(deps["files"]) - len(missing)
+    if checked == 0:
+        # v2.6.2 (аудит INFRA-A): «0 проверено» — НЕ успех, а вакуум: свежий
+        # клон не содержит бинарей (ARCH-3), и старая логика молча проходила.
+        print("ОШИБКА: 0 файлов проверено — проверка вакуумна (аудит INFRA-A).")
+        print("Восстановите бинарники: python3 tools/fetch-binaries.py --latest-published")
+        sys.exit(1)
     print(f"OK  цепочка поставки согласована: {checked} проверено, {len(missing)} отсутствует (fetch-binaries.py)")
 
 if __name__ == "__main__":

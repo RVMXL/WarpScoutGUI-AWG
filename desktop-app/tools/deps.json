@@ -65,6 +65,18 @@
     "pkg/WARPScoutGUI-mac-x64/bin/warpscout": {
       "role": "warpscout-mac-x64",
       "sha256": "b3524632bcf5aff6a1f1c17de4558cddc5157d88ba564098c8bfaec6f2660dec"
+    },
+    "resources/js/neutralino.js": {
+      "role": "neutralino-client-js (commit 425c526c; аудит INFRA-C)",
+      "sha256": "3b435cf313fbb92a7faaf18fb2dec94571903885b506c5ec378612843ddf7351"
+    },
+    "resources/js/qrcode.js": {
+      "role": "qrcode-generator js1.5.2 (commit 73b65678; аудит INFRA-C)",
+      "sha256": "7e719a3a59e11cc94aa41713635447851ab28ef477cbb1b269c9a5f3aff9d8b1"
+    },
+    "pkg/WARPScoutGUI-android/libwarpscout.so": {
+      "role": "warpscout-android-arm64 (ядро APK; source: vernette/warpscout; аудит AND-2/INFRA-C; проверяется build-apk.sh и fetch-binaries)",
+      "sha256": "33105c5e20cc4cc49fc0ad94f515b2ee1f23a88d06b3b770e90594cd91302da8"
     }
   }
 }

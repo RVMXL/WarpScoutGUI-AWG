@@ -62,7 +62,12 @@ jobs:
               print(f"{f}: structure OK")
           PY
 
-      - name: хэши сторонних бинарников согласованы с deps.json (INFRA-2)
+      - name: восстановление бинарников последнего релиза (аудит INFRA-A: CI проверяет РЕАЛЬНЫЕ артефакты, а не вакуум)
+        run: python3 desktop-app/tools/fetch-binaries.py --latest-published
+        env:
+          WS_GH_TOKEN: ${{ github.token }}
+
+      - name: хэши сторонних бинарников и JS-клиентов согласованы с deps.json (INFRA-2/INFRA-C/AND-2)
         run: python3 desktop-app/tools/verify-deps.py
 
       - name: детерминизм resources.neu (двойная сборка → одинаковые байты)

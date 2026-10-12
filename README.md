@@ -185,7 +185,7 @@ Get-FileHash WARPScoutGUI-2.6.1-win64.zip -Algorithm SHA256
 |---|---|
 | `desktop-app/resources/` | Исходники GUI (`index.html`, `js/wsg/*.js` — 15 модулей логики (нарезка ARCH-1), `css/app.css`, `css/touch.css`, иконки) |
 | `desktop-app/neutralino.config.json` | Конфигурация Neutralino (v6.10.0, окно, CLI-аргументы) |
-| `desktop-app/tools/` | Инструменты сборки: `pack-neu.py` (сборка `resources.neu`), `build-zips.py` (детерминированные release-zip), `unpack-neu.py`, `sync-demo.sh` |
+| `desktop-app/tools/` | Инструменты сборки и верификации цепочки поставки: `pack-neu.py` (сборка `resources.neu`), `build-zips.py` (детерминированные release-zip; футер README печатается из единого источника версии — аудит INFRA-D), `gen-version.py` (кодогенерация версии, `--check` — гейт CI), `verify-deps.py` + `fetch-binaries.py` + `deps.json` (SBOM-lite: SHA-256 всех 13 поставляемых артефактов), `check-i18n.py` (аудит i18n), `unpack-neu.py`, `sync-demo.sh` |
 | `desktop-app/android/` | Android-проект без Gradle: `AndroidManifest.xml`, `java/`, `res/`, `build-apk.sh` (aapt2 + d8 + apksigner) |
 | `desktop-app/pkg/WARPScoutGUI-<платформа>/` | Собранные пакеты (бинарь + `resources.neu` + `bin/warpscout` + `licenses/` + `README.txt`) |
 | `desktop-app/AUDIT-v2.5.0.md`, `desktop-app/RELEASE-2.5.0.md` … `desktop-app/RELEASE-2.6.1.md` | Отчёт первого аудита и построчные примечания к каждому релизу (RU/EN, платформенная таблица, SHA-256) |
@@ -198,19 +198,35 @@ Get-FileHash WARPScoutGUI-2.6.1-win64.zip -Algorithm SHA256
 ```bash
 cd desktop-app
 
-# 1. Рантаймы Neutralino всех платформ (кросс-скачивание) + resources.neu
+# 1. Восстановление пиннутых бинарей из релиза (warpscout всех платформ +
+#    android-ядро libwarpscout.so; рантаймы Neutralino скачает neu build)
+python3 tools/fetch-binaries.py --latest-published
+
+# 2. Рантаймы Neutralino всех платформ (кросс-скачивание) + resources.neu
 npx --yes @neutralinojs/neu@11 build --release
 python3 tools/pack-neu.py           # детерминированный resources.neu
 
-# 2. Сборка пакетов и детерминированных zip (download/*.zip)
+# 3. Сборка пакетов и детерминированных zip (download/*.zip)
 python3 tools/build-zips.py
 
-# 3. Android APK (нужны SDK-компоненты: platform android-34, build-tools 34, JDK;
+# 4. Android APK (нужны SDK-компоненты: platform android-34, build-tools 34, JDK;
 #    путь к ним — в SDK_DIR, пароль keystore — только через переменную окружения)
 KSPASS='<пароль keystore>' bash android/build-apk.sh
 ```
 
 Выход: `pkg/WARPScoutGUI-<платформа>/` и `download/WARPScoutGUI-<версия>-<платформа>.zip|apk`. Сборка zip детерминирована (фиксированные таймстампы и порядок записей) — пересборка из того же дерева даёт побайтово тот же архив.
+
+## Тесты
+
+Юнит-тесты чистых функций (парсеры отчётов, санитайзеры, билдеры команд, персистенс и миграции данных) — на встроенном `node:test`, без внешних зависимостей. Требуется Node ≥ 18 (проверено на 20/22/24):
+
+```bash
+node --test desktop-app/tests/*.test.js
+```
+
+Ровно эта форма используется в CI (`.github/workflows/ci.yml`). Каталог-форма `node --test tests/` на Node ≥ 22 не работает — раннер подбирает служебные файлы харнесса как «тесты» (аудит QUAL-A; хелпер `tests/helpers/loadApp.js` на прямой запуск отвечает тихим кодом 0, но канонической считается форма с glob).
+
+Имена и комментарии тестов ссылаются на ID находок аудитов (F01–F56, FE/AND/INFRA/SEC-A/QUAL) — «тесты-как-журнал-аудита»: каждая находка закрыта регресс-тестом.
 
 ## Авторство и лицензии
 
