@@ -124,6 +124,11 @@ fi
 # ждём зелёный прогон «ci» на SHA тега; красный/невыполненный = публикация не уезжает.
 # Период ожидания: CI обычно ~2 мин, таймаут 10 мин. Пропуск — только явным
 # WS_SKIP_CI_GATE=1 (например, републикация давно проверенного тега).
+#
+# v2.6.2 (пост-аудит, найдено при подготовке релиза): в Checks API check-run
+# называется по ИМЕНИ JOB'а, а не workflow — ci.yml даёт check-run «static-checks»
+# (проверено на v2.6.1 и main). Фильтр «== ci» не находил ни одного прогона и
+# всегда упирался в 10-минутный таймаут. Матчим имя job'а (+ «ci» на будущее).
 if [ "${WS_SKIP_CI_GATE:-}" != "1" ]; then
   echo "== 3.5/6 CI gate on $TAG ($(git rev-parse --short HEAD)) =="
   SHA="$(git rev-parse HEAD)"
@@ -133,7 +138,7 @@ if [ "${WS_SKIP_CI_GATE:-}" != "1" ]; then
       | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
-runs = [r for r in d.get("check_runs", []) if r.get("name") == "ci"]
+runs = [r for r in d.get("check_runs", []) if r.get("name") in ("static-checks", "ci")]
 if not runs:
     print("none")
 elif any(r["status"] != "completed" for r in runs):
