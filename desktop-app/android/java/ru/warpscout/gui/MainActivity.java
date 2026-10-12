@@ -693,6 +693,163 @@ public class MainActivity extends Activity {
             return dialogResult.get();
         }
 
+        /* ═══ v2.5.6 FIX: методы ниже были объявлены в MainActivity, а не во
+           внутреннем Bridge — WebView экспортирует ТОЛЬКО Bridge, поэтому из
+           JS они не вызывались: openPath падал «B.openPath is not a function»
+           (v2.5.3 глотал ошибку молча, v2.5.4+ показывал тост), а
+           requestPublicAccess/pubDir/pubMirror/saveToDownloads/clipboardWrite
+           молча отсутствовали. Перенесены внутрь Bridge без изменения логики:
+           inner-класс имеет доступ к приватным методам Activity. ═══ */
+
+        /* JS-мост: запросить доступ к общей папке (мост НЕ блокируется):
+           API 30+ — экран «Все файлы» (результат придёт в onResume),
+           API 24–29 — системный диалог WRITE (результат в onRequestPermissionsResult) */
+        @JavascriptInterface
+        public String requestPublicAccess() {
+            JSONObject o = new JSONObject();
+            try {
+                boolean allowed = publicRootAllowed();
+                o.put("ok", true);
+                o.put("mode", allowed ? "public" : "app");
+                if (!allowed) {
+                    if (Build.VERSION.SDK_INT >= 30) {
+                        try {
+                            startActivity(new Intent(
+                                    android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                    Uri.parse("package:" + getPackageName())));
+                            o.put("asked", "manage");
+                        } catch (Exception e) {
+                            try {
+                                startActivity(new Intent(
+                                        android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+                                o.put("asked", "manage");
+                            } catch (Exception e2) { o.put("asked", "unavailable"); }
+                        }
+                    } else {
+                        try {
+                            requestPermissions(new String[]{"android.permission.WRITE_EXTERNAL_STORAGE"}, REQ_WRITE);
+                            o.put("asked", "write");
+                        } catch (Exception e) { o.put("asked", "unavailable"); }
+                    }
+                }
+            } catch (Exception e) {
+                try { o.put("error", String.valueOf(e)); } catch (Throwable ignored) {}
+            }
+            return o.toString();
+        }
+
+        /* JS-мост (совместимость v2.5.2): зеркалирование больше не нужно —
+           данные уже лежат в видимой папке. Без "path" в ответе JS покажет
+           исходный путь и не будет говорить про «копию в общей папке». */
+        @JavascriptInterface
+        public String pubMirror(String srcPath) { return "{\"ok\":true}"; }
+
+        /* JS-мост: видимая папка пользователя (подсказки в UI) */
+        @JavascriptInterface
+        public String pubDir() {
+            JSONObject o = new JSONObject();
+            try {
+                o.put("ok", true);
+                o.put("path", userDir().getAbsolutePath());
+                return o.toString();
+            } catch (Exception e) {
+                return "{\"error\":" + JSONObject.quote(String.valueOf(e)) + "}";
+            }
+        }
+
+        /* ── v2.5.4: сохранение готовых конфигов в Download/WARPScoutGUI ──
+           API 29+ (Android 10+): MediaStore.Downloads — БЕЗ каких-либо разрешений;
+           API 24–28 (Android 7–9): прямая запись при выданном WRITE_EXTERNAL_STORAGE
+           (legacy-режим в манифесте); иначе {fallback:true} — JS сохранит в
+           папку приложения и честно скажет об этом.
+           Ответ: {ok:true, path, uri?} | {fallback:true} | {error} */
+        @JavascriptInterface
+        public String saveToDownloads(String name, String mime, String b64) {
+            JSONObject o = new JSONObject();
+            try {
+                byte[] bytes = Base64.decode(b64 == null ? "" : b64, Base64.NO_WRAP);
+                String safeName = String.valueOf(name == null || name.trim().isEmpty() ? "warp.conf" : name.trim());
+                safeName = safeName.replaceAll("[\\\\/:*?\"<>|]", "_");
+                String m = (mime == null || mime.trim().isEmpty()) ? "text/plain" : mime;
+                if (Build.VERSION.SDK_INT >= 29) {
+                    ContentResolver cr = getContentResolver();
+                    ContentValues cv = new ContentValues();
+                    cv.put(MediaStore.MediaColumns.DISPLAY_NAME, safeName);
+                    cv.put(MediaStore.MediaColumns.MIME_TYPE, m);
+                    cv.put(MediaStore.MediaColumns.RELATIVE_PATH,
+                            Environment.DIRECTORY_DOWNLOADS + "/WARPScoutGUI");
+                    cv.put(MediaStore.MediaColumns.IS_PENDING, 1);
+                    Uri uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                    if (uri == null) throw new Exception("MediaStore insert failed");
+                    OutputStream os = cr.openOutputStream(uri);
+                    if (os == null) throw new Exception("openOutputStream failed");
+                    try { os.write(bytes); os.flush(); } finally { try { os.close(); } catch (Exception ignored) {} }
+                    ContentValues done = new ContentValues();
+                    done.put(MediaStore.MediaColumns.IS_PENDING, 0);
+                    try { cr.update(uri, done, null, null); } catch (Throwable ignored) {}
+                    o.put("ok", true);
+                    o.put("path", DOWNLOAD_DIR + "/" + safeName);
+                    o.put("uri", uri.toString());
+                    return o.toString();
+                }
+                if (publicRootAllowed()) {
+                    File dir = new File(DOWNLOAD_DIR);
+                    if (!dir.isDirectory() && !dir.mkdirs()) throw new Exception("mkdirs failed: " + DOWNLOAD_DIR);
+                    File f = uniqueFile(dir, safeName);
+                    FileOutputStream fo = new FileOutputStream(f);
+                    try { fo.write(bytes); fo.flush(); } finally { try { fo.close(); } catch (Exception ignored) {} }
+                    o.put("ok", true);
+                    o.put("path", f.getAbsolutePath());
+                    return o.toString();
+                }
+                o.put("fallback", true);
+                return o.toString();
+            } catch (Throwable t) {
+                try { o.put("error", String.valueOf(t)); } catch (Throwable ignored) {}
+                return o.toString();
+            }
+        }
+
+        /* «Открыть папку» (v2.5.4): открываются СТРОГО
+             • своя папка данных (…/Android/data/…/files/WARPScoutGUI или
+               /storage/emulated/0/WARPScoutGUI) и её подпапки;
+             • публичная папка конфигов Download/WARPScoutGUI и её подпапки.
+           Всё прочее (корень тома, системные каталоги, чужие папки) показываем
+           как свою папку данных. Корень никогда не открываем.
+           Ответ пользователю ГАРАНТИРОВАН в каждой ветке (тост): тишина исключена. */
+        @JavascriptInterface
+        public void openPath(String path) {
+            final String p = String.valueOf(path == null ? "" : path);
+            if (p.startsWith("content://")) {
+                runOnUiThread(() -> {
+                    try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(p))); toast("Открываю…"); }
+                    catch (Throwable e) { toast("Не удалось открыть: нет подходящего приложения"); }
+                });
+                return;
+            }
+            String abs = p;
+            try {
+                File f = new File(p);
+                if (f.exists() && f.isFile()) abs = f.getParent(); // файл → его папка
+            } catch (Throwable ignored) {}
+            String ud = userDir().getAbsolutePath().replace('\\', '/');
+            String a = abs.replace('\\', '/');
+            if (a.equals(EXT_ROOT)) a = ud;  // корень тома не открываем
+            // v2.5.4: разрешены своя папка и публичная папка конфигов (вместе с подпапками)
+            boolean okUser = a.startsWith(ud);
+            boolean okDl = a.startsWith(DOWNLOAD_DIR);
+            if (!okUser && !okDl) a = ud;    // вне разрешённых → своя папка данных
+            try { File d = new File(a); if (!d.exists()) d.mkdirs(); } catch (Throwable ignored) {}
+            // v2.5.4: docId строим по реальному тому папки (своя на /storage или Download)
+            final String fDocId = underExtDocId(a);
+            final String fHuman = a;
+            runOnUiThread(() -> openDirChain(fDocId, fHuman));
+        }
+
+        /* ── буфер обмена (используется fallback-цепочкой app.js и openDirChain) ── */
+        @JavascriptInterface
+        public void clipboardWrite(String text) { setClipboard(text); }
+
         /* результат диалога приходит в MainActivity.onActivityResult — он пишет
            в поля dialogResult/dialogLatch (единственный источник истины) */
     }
@@ -903,42 +1060,8 @@ public class MainActivity extends Activity {
         } catch (Throwable ignored) {}
     }
 
-    /* JS-мост: запросить доступ к общей папке (мост НЕ блокируется):
-       API 30+ — экран «Все файлы» (результат придёт в onResume),
-       API 24–29 — системный диалог WRITE (результат в onRequestPermissionsResult) */
-    @JavascriptInterface
-    public String requestPublicAccess() {
-        JSONObject o = new JSONObject();
-        try {
-            boolean allowed = publicRootAllowed();
-            o.put("ok", true);
-            o.put("mode", allowed ? "public" : "app");
-            if (!allowed) {
-                if (Build.VERSION.SDK_INT >= 30) {
-                    try {
-                        startActivity(new Intent(
-                                android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                Uri.parse("package:" + getPackageName())));
-                        o.put("asked", "manage");
-                    } catch (Exception e) {
-                        try {
-                            startActivity(new Intent(
-                                    android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
-                            o.put("asked", "manage");
-                        } catch (Exception e2) { o.put("asked", "unavailable"); }
-                    }
-                } else {
-                    try {
-                        requestPermissions(new String[]{"android.permission.WRITE_EXTERNAL_STORAGE"}, REQ_WRITE);
-                        o.put("asked", "write");
-                    } catch (Exception e) { o.put("asked", "unavailable"); }
-                }
-            }
-        } catch (Exception e) {
-            try { o.put("error", String.valueOf(e)); } catch (Throwable ignored) {}
-        }
-        return o.toString();
-    }
+    /* v2.5.6: requestPublicAccess перенесён во внутренний Bridge —
+       вне Bridge он не экспортировался в WebView и не работал */
 
     @Override
     public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
@@ -962,77 +1085,9 @@ public class MainActivity extends Activity {
 
 
 
-    /* JS-мост (совместимость v2.5.2): зеркалирование больше не нужно —
-       данные уже лежат в видимой папке. Без "path" в ответе JS покажет
-       исходный путь и не будет говорить про «копию в общей папке». */
-    @JavascriptInterface
-    public String pubMirror(String srcPath) { return "{\"ok\":true}"; }
-
-    /* JS-мост: видимая папка пользователя (подсказки в UI) */
-    @JavascriptInterface
-    public String pubDir() {
-        JSONObject o = new JSONObject();
-        try {
-            o.put("ok", true);
-            o.put("path", userDir().getAbsolutePath());
-            return o.toString();
-        } catch (Exception e) {
-            return "{\"error\":" + JSONObject.quote(String.valueOf(e)) + "}";
-        }
-    }
-
-    /* ── v2.5.4: сохранение готовых конфигов в Download/WARPScoutGUI ──
-       API 29+ (Android 10+): MediaStore.Downloads — БЕЗ каких-либо разрешений;
-       API 24–28 (Android 7–9): прямая запись при выданном WRITE_EXTERNAL_STORAGE
-       (legacy-режим в манифесте); иначе {fallback:true} — JS сохранит в
-       папку приложения и честно скажет об этом.
-       Ответ: {ok:true, path, uri?} | {fallback:true} | {error} */
-    @JavascriptInterface
-    public String saveToDownloads(String name, String mime, String b64) {
-        JSONObject o = new JSONObject();
-        try {
-            byte[] bytes = Base64.decode(b64 == null ? "" : b64, Base64.NO_WRAP);
-            String safeName = String.valueOf(name == null || name.trim().isEmpty() ? "warp.conf" : name.trim());
-            safeName = safeName.replaceAll("[\\\\/:*?\"<>|]", "_");
-            String m = (mime == null || mime.trim().isEmpty()) ? "text/plain" : mime;
-            if (Build.VERSION.SDK_INT >= 29) {
-                ContentResolver cr = getContentResolver();
-                ContentValues cv = new ContentValues();
-                cv.put(MediaStore.MediaColumns.DISPLAY_NAME, safeName);
-                cv.put(MediaStore.MediaColumns.MIME_TYPE, m);
-                cv.put(MediaStore.MediaColumns.RELATIVE_PATH,
-                        Environment.DIRECTORY_DOWNLOADS + "/WARPScoutGUI");
-                cv.put(MediaStore.MediaColumns.IS_PENDING, 1);
-                Uri uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
-                if (uri == null) throw new Exception("MediaStore insert failed");
-                OutputStream os = cr.openOutputStream(uri);
-                if (os == null) throw new Exception("openOutputStream failed");
-                try { os.write(bytes); os.flush(); } finally { try { os.close(); } catch (Exception ignored) {} }
-                ContentValues done = new ContentValues();
-                done.put(MediaStore.MediaColumns.IS_PENDING, 0);
-                try { cr.update(uri, done, null, null); } catch (Throwable ignored) {}
-                o.put("ok", true);
-                o.put("path", DOWNLOAD_DIR + "/" + safeName);
-                o.put("uri", uri.toString());
-                return o.toString();
-            }
-            if (publicRootAllowed()) {
-                File dir = new File(DOWNLOAD_DIR);
-                if (!dir.isDirectory() && !dir.mkdirs()) throw new Exception("mkdirs failed: " + DOWNLOAD_DIR);
-                File f = uniqueFile(dir, safeName);
-                FileOutputStream fo = new FileOutputStream(f);
-                try { fo.write(bytes); fo.flush(); } finally { try { fo.close(); } catch (Exception ignored) {} }
-                o.put("ok", true);
-                o.put("path", f.getAbsolutePath());
-                return o.toString();
-            }
-            o.put("fallback", true);
-            return o.toString();
-        } catch (Throwable t) {
-            try { o.put("error", String.valueOf(t)); } catch (Throwable ignored) {}
-            return o.toString();
-        }
-    }
+    /* v2.5.6: pubMirror/pubDir/saveToDownloads/openPath/clipboardWrite
+       перенесены во внутренний Bridge — вне Bridge они не экспортировались
+       в WebView (причина «B.openPath is not a function» в v2.5.3–2.5.5) */
 
     /* «file.conf» существует → «file (1).conf», «file (2).conf», … (API 7–9) */
     private static File uniqueFile(File dir, String name) {
@@ -1046,42 +1101,6 @@ public class MainActivity extends Activity {
             if (!c.exists()) return c;
         }
         return new File(dir, base + "-" + System.currentTimeMillis() + ext);
-    }
-
-    /* «Открыть папку» (v2.5.4): открываются СТРОГО
-         • своя папка данных (…/Android/data/…/files/WARPScoutGUI или
-           /storage/emulated/0/WARPScoutGUI) и её подпапки;
-         • публичная папка конфигов Download/WARPScoutGUI и её подпапки.
-       Всё прочее (корень тома, системные каталоги, чужие папки) показываем
-       как свою папку данных. Корень никогда не открываем.
-       Ответ пользователю ГАРАНТИРОВАН в каждой ветке (тост): тишина исключена. */
-    @JavascriptInterface
-    public void openPath(String path) {
-        final String p = String.valueOf(path == null ? "" : path);
-        if (p.startsWith("content://")) {
-            runOnUiThread(() -> {
-                try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(p))); toast("Открываю…"); }
-                catch (Throwable e) { toast("Не удалось открыть: нет подходящего приложения"); }
-            });
-            return;
-        }
-        String abs = p;
-        try {
-            File f = new File(p);
-            if (f.exists() && f.isFile()) abs = f.getParent(); // файл → его папка
-        } catch (Throwable ignored) {}
-        String ud = userDir().getAbsolutePath().replace('\\', '/');
-        String a = abs.replace('\\', '/');
-        if (a.equals(EXT_ROOT)) a = ud;  // корень тома не открываем
-        // v2.5.4: разрешены своя папка и публичная папка конфигов (вместе с подпапками)
-        boolean okUser = a.startsWith(ud);
-        boolean okDl = a.startsWith(DOWNLOAD_DIR);
-        if (!okUser && !okDl) a = ud;    // вне разрешённых → своя папка данных
-        try { File d = new File(a); if (!d.exists()) d.mkdirs(); } catch (Throwable ignored) {}
-        // v2.5.4: docId строим по реальному тому папки (своя на /storage или Download)
-        final String fDocId = underExtDocId(a);
-        final String fHuman = a;
-        runOnUiThread(() -> openDirChain(fDocId, fHuman));
     }
 
     /* documentId папки под /storage/emulated/0 ("primary:Android/data/…", "primary:Download/…");
@@ -1130,7 +1149,7 @@ public class MainActivity extends Activity {
                 return;
             } catch (Throwable ignored) {}
         }
-        try { clipboardWrite(human); } catch (Throwable ignored) {}
+        try { setClipboard(human); } catch (Throwable ignored) {}
         toast("Файловый менеджер не смог открыть папку. Путь скопирован: " + human);
     }
 
@@ -1145,10 +1164,9 @@ public class MainActivity extends Activity {
         Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
     }
 
-    /* ── буфер обмена (используется fallback-цепочкой app.js) ── */
-
-    @JavascriptInterface
-    public void clipboardWrite(String text) {
+    /* буфер обмена: логика живёт в MainActivity (вызывается openDirChain),
+       JS-метод clipboardWrite во внутреннем Bridge делегирует сюда */
+    private void setClipboard(String text) {
         try {
             ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             cm.setPrimaryClip(ClipData.newPlainText("WARPScoutGUI", text));

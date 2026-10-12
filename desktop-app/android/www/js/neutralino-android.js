@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.5)
+   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.6)
    Подключается в APK вместо js/neutralino.js (до app.js/mock.js).
    Реализует через AndroidNative-мост ровно тот сурфейс, что
    использует app.js (см. также mock.js — тот же контракт):
@@ -54,7 +54,7 @@
   window.NL_PATH = INFO.nlPath || "/data/user/0/ru.warpscout.gui/files";
   window.NL_CWD = INFO.nlCwd || window.NL_PATH;
   window.NL_OS = "Android";
-  window.NL_APPVERSION = INFO.appVersion || "2.5.5";
+  window.NL_APPVERSION = INFO.appVersion || "2.5.6";
   window.NL_VERSION = "6.1.0"; // совместимость шима с рантаймом 6.x
   window.NL_WS_PATH = INFO.wsPath || ""; // libwarpscout.so в nativeLibraryDir
   /* v2.5.3: видимая «своя папка» пользователя на /storage/emulated/0 */
