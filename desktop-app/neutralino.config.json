@@ -1,6 +1,6 @@
 {
   "applicationId": "ru.warpscout.gui",
-  "version": "2.6.1",
+  "version": "2.6.2",
   "defaultMode": "window",
   "port": 0,
   "documentRoot": "/resources/",

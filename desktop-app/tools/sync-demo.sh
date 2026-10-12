@@ -52,7 +52,10 @@ assert '<script src="js/neutralino.js"></script>' in html, "ожидался т�
 html = html.replace('  <script src="js/neutralino.js"></script>\n', '')
 html = html.replace('<script src="js/neutralino.js"></script>\n', '')
 # 2) cache-busters — демо-свои (не совпадают с desktop, чтобы кэш не путался)
-html = re.sub(r'\?v=[0-9a-z]+', '?v=' + ver, html)
+# v2.6.2: класс [0-9a-z]+ не поглощал ТОЧКИ — точечный бастер (v2.6.1 и т.п.)
+# оставлял хвост («?v=v2 → v2.6.1» давал «?v=v2.6.1.6.1» при повторном прогоне).
+# Теперь поглощаем точки и заглавные: замена идемпотентна для любого бастера.
+html = re.sub(r'\?v=[0-9a-zA-Z.]+', '?v=' + ver, html)
 open(idx, 'w', encoding='utf-8').write(html)
 
 # 3) лишние для веба файлы
