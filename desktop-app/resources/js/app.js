@@ -964,6 +964,7 @@
     "Конфиг готов: {p}": "Config ready: {p}",
     "Конфиг сохранён: {p}": "Config saved: {p}",
     "Отчёты и конфиги дублируются в общую папку устройства: Download/WARPScoutGUI": "Reports and configs are duplicated to the device's shared folder: Download/WARPScoutGUI",
+    "Выбор папки данных работает только в приложении": "Data folder selection works in the app only",
     /* — v2.5.4: главная, открытие папок, конфиги в Download — */
     "Открываю папку{what}: {p}": "Opening folder{what}: {p}",
     "Только в приложении (в демо папки нет)": "Only in the app (no folders in the demo)",
@@ -1019,15 +1020,9 @@
     /* — v2.4.3: IPv6-адреса DNS — */
     "Использовать IPv6": "Use IPv6",
     "Добавляет v6-адреса выбранного DNS-провайдера к IPv4 (отключите, если у сети нет IPv6-маршрута)": "Adds the selected DNS provider's v6 addresses to IPv4 (turn off if your network has no IPv6 route)",
-    /* — v2.5.3: Android — видимая «своя папка» на /storage/emulated/0 — */
-    "🌐 В общую папку…": "🌐 To shared folder…",
-    "Перенести данные в /storage/emulated/0/WARPScoutGUI (запросить доступ)": "Move data to /storage/emulated/0/WARPScoutGUI (request access)",
-    "Выдайте доступ «Все файлы» в открывшихся настройках — общая папка подключится автоматически": "Grant «All files» access in the opened settings — the shared folder will connect automatically",
-    "Доступ к хранилищу выдан — данные переносятся в общую папку": "Storage access granted — data is being moved to the shared folder",
-    "Доступ не выдан — данные остаются в папке приложения (Android/data)": "Access not granted — data stays in the app folder (Android/data)",
-    "Системные настройки недоступны — данные остаются в папке приложения": "System settings are unavailable — data stays in the app folder",
-    "Доступно только в приложении Android": "Available in the Android app only",
-    "Данные уже в общей папке /storage/emulated/0/WARPScoutGUI": "Data is already in the shared folder /storage/emulated/0/WARPScoutGUI",
+    /* v2.6.0 (SEC-6): ключи механики «В общую папку»/«Все файлы» удалены вместе
+       с UI (кнопка убрана, выбор папки данных на Android скрыт). Публичная
+       выгрузка — Download/WARPScoutGUI через MediaStore (см. mirrorPublic). */
   };
 
   let LANG = "ru";
@@ -1481,6 +1476,21 @@
     const n = Math.round(+v);
     if (!isFinite(n)) return fallback != null ? fallback : min;
     return Math.min(max, Math.max(min, n));
+  }
+
+  /* ── v2.6.0 (аудит SEC-5): единые точки сборки shell-команд ──
+     os.execCommand/spawnProcess принимают ТОЛЬКО строку (argv-массива в API
+     Neutralino нет), поэтому структурная защита — одна функция кавычек на
+     платформу + жёсткий фильтр входа ДО кавычек. Новые места сборки команд
+     ОБЯЗАНЫ идти через эти хелперы: конкатенация «в лоб» — источник инъекций. */
+  function psQuote(s) {
+    // PowerShell: одинарные кавычки не интерпретируют содержимое, ' внутри удваивается
+    return "'" + String(s == null ? "" : s).replace(/'/g, "''") + "'";
+  }
+  function cmdWinPath(s) {
+    // путь для cmd.exe: cmd-метасимволы и спецсимволы PowerShell вырезаются,
+    // хвостовые разделители срезаются (хвост «\» перед кавычкой ломал экранирование)
+    return String(s == null ? "" : s).replace(/["%!<>|&^`]/g, "").replace(/[\\/]+$/, "");
   }
 
   // Единый разбор «endpoint» (host:port). Возвращает { host, port } или null.
@@ -4971,12 +4981,12 @@
       const raw = String(S.paths.wsPath || "").replace(/["%!<>|&^`]/g, "");
       if (!raw.trim()) return;
       if (!IS_WIN) {
-        // v2.5.0: Linux — выдаём право на запуск (chmod +x) вместо снятия
-        // метки Zone.Identifier (PowerShell Unblock-File — только Windows)
-        const pL = raw.replace(/'/g, "'\\''"); // POSIX-одинарные кавычки: ' → '\''
-        appendLog($("#accLog"), "\n$ chmod +x '" + pL + "'\n");
+        // v2.5.0: Linux/macOS — выдаём право на запуск; v2.6.0 (SEC-5):
+        // нативный Neutralino.filesystem.setPermissions ВМЕСТО shell-«chmod +x»:
+        // shell-команда больше не собирается вовсе — инъекция невозможна по построению
+        appendLog($("#accLog"), "\n$ chmod +x <warpscout>\n");
         try {
-          await os().execCommand("chmod +x '" + pL + "'");
+          await fs().setPermissions(raw, { all: false, ownerAll: false, ownerRead: true, ownerWrite: true, ownerExec: true, groupAll: false, groupRead: true, groupWrite: false, groupExec: true, othersAll: false, othersRead: true, othersWrite: false, othersExec: true }, "ADD");
           appendLog($("#accLog"), "[GUI] " + t("chmod +x выполнен: право на запуск выдано. Попробуйте регистрацию ещё раз.") + "\n");
           toast(t("Готово — попробуйте регистрацию ещё раз"), "ok");
         } catch (e) {
@@ -4984,10 +4994,14 @@
         }
         return;
       }
-      const p = raw.replace(/'/g, "''"); // v2.4.6 (F04): апостроф удваивается — PowerShell-литерал не разорвать
+      // v2.6.0 (SEC-5): единственная точка сборки PowerShell-команды — psQuote();
+      // вход уже вычищен от cmd/PowerShell-метасимволов (фильтр над raw выше),
+      // cmdWinPath дополнительно срезает хвостовые разделители
+      const p = cmdWinPath(raw);
+      if (!p) return;
       appendLog($("#accLog"), "\n$ powershell Unblock-File <warpscout.exe>\n");
       try {
-        await os().execCommand("powershell -NoProfile -ExecutionPolicy Bypass -Command \"Unblock-File -LiteralPath '" + p + "'\"");
+        await os().execCommand("powershell -NoProfile -ExecutionPolicy Bypass -Command \"Unblock-File -LiteralPath " + psQuote(p) + "\"");
         appendLog($("#accLog"), "[GUI] " + t("Unblock-File выполнен: с exe снята метка «скачано из интернета». Попробуйте регистрацию ещё раз.") + "\n");
         toast(t("Готово — попробуйте регистрацию ещё раз"), "ok");
       } catch (e) {
@@ -5435,27 +5449,6 @@
     }
     toast(tF("Конфиг готов: {p}", { p: pub || savedPath }), "ok");
   }
-
-  /* ─── v2.5.3 (Android): режим хранилища изменился ───
-     Java вызывает __wsStorageChanged, когда пользователь выдал/отозвал
-     доступ к общему хранилищу («Все файлы» на API 30+ / WRITE на 24–29).
-     public → переносим данные в /storage/emulated/0/WARPScoutGUI
-     (applyDataRoot сам всё перенесёт и покажет тост); app → computePaths
-     вернёт папку по умолчанию (Android/data/…/files/WARPScoutGUI). */
-  window.__wsStorageChanged = async (info) => {
-    try {
-      const pub = !!(info && info.mode === "public");
-      toast(pub ? t("Доступ к хранилищу выдан — данные переносятся в общую папку")
-                : t("Доступ не выдан — данные остаются в папке приложения (Android/data)"),
-            pub ? "ok" : "warn");
-      if (pub) {
-        await applyDataRoot(pxJoin(String((info && info.base) || "/storage/emulated/0"), "WARPScoutGUI"));
-      } else {
-        await computePaths();
-        await renderDataFolder().catch(() => {});
-      }
-    } catch (e) {}
-  };
 
   function setupTouchUi() {
     if (!TOUCH_UI) return;
@@ -6077,6 +6070,11 @@
       hint.textContent = custom
         ? tF("Данные (аккаунт, отчёты): {d}. Веб-кэш движка рантайм всегда держит в {u} — техническая папка останется рядом.", { d: S.paths.dataDir, u: S.paths.udfPath })
         : tF("Всё вместе — в одной папке: {u}. Она создаётся программой сама, поэтому всегда на месте.", { u: S.paths.udfPath });
+      // v2.6.0 (SEC-6): на Android данные приватны (app-specific), а наружу
+      // (файловым менеджерам) копируются в единую папку Download/WARPScoutGUI
+      if (IS_ANDROID) {
+        hint.textContent += " " + t("Отчёты и конфиги дублируются в общую папку устройства: Download/WARPScoutGUI");
+      }
     }
     return custom ? "custom" : "default";
   }
@@ -6239,10 +6237,10 @@
 
   async function pickDataRoot() {
     if (IS_MOCK) {
-      // демо: подставляем демо-папку (реальный диалог — только в приложении)
-      const p = window.prompt(t("Демо: путь к новой папке данных:"), "C:\\Users\\Demo\\WarpData");
-      if (!p) return;
-      await applyDataRoot(String(p).replace(/[\\/]+$/, ""));
+      // v2.6.0 (аудит QUAL-2): window.prompt в демо убран — блокирующий диалог
+      // не имеет отношения к реальному SAF/нативному диалогу и дезинформирует.
+      // Демо честно говорит, что выбор папки — только в приложении.
+      toast(t("Выбор папки данных работает только в приложении"), "info");
       return;
     }
     let p = null;
@@ -6304,9 +6302,13 @@
     const custom = String(S.settings.dataRoot || "").trim().toLowerCase();
     if (custom) known.push(custom);
     if (known.indexOf(t0) === -1) return; // чужая папка (например, выбранная пользователем на другом диске) — не трогаем
-    const eb = target + "\\EBWebView";
+    // v2.6.0 (SEC-5): пути прогнаны через cmdWinPath (метасимволы вырезаны) и
+    // только потом кавычки; вход выше ограничен known-list (только НАШИ каталоги)
+    const eb = cmdWinPath(target + "\\EBWebView");
+    const tWin = cmdWinPath(target);
+    if (!eb || !tWin) return;
     // ping — как пауза: за ~25 с приложение закроется/движок отпустит файлы кэша
-    try { os().spawnProcess('cmd /c ping -n 26 127.0.0.1 > nul & rmdir /s /q "' + eb + '" & rmdir "' + target + '"').catch(() => {}); } catch (e) {}
+    try { os().spawnProcess('cmd /c ping -n 26 127.0.0.1 > nul & rmdir /s /q "' + eb + '" & rmdir "' + tWin + '"').catch(() => {}); } catch (e) {}
   }
 
   // v2.2.0 могла оставить junction «<имя exe>» → старая папка данных. Разбираем:
@@ -6321,8 +6323,10 @@
     try { det = await detectUdfJunction(); } catch (e) { det = ""; }
     if (det === "") return; // настоящая папка — порядок и так в порядке
     if (det === "broken") {
-      // битая ссылка: снимаем и оставляем рантайму создать настоящую папку
-      try { await os().execCommand('cmd /c rmdir "' + udf + '"'); } catch (e) {}
+      // битая ссылка: снимаем и оставляем рантайму создать настоящую папку.
+      // v2.6.0 (SEC-5): нативный fs.remove ВМЕСТО shell-«cmd /c rmdir» —
+      // std::filesystem снимает junction как ссылку (в цель не рекурсирует)
+      try { await fs().remove(udf); } catch (e) {}
       try { await ensureDir(udf); } catch (e) {}
       return;
     }
@@ -6341,7 +6345,8 @@
         }
       }
     } catch (e) { /* отчётов нет */ }
-    try { await os().execCommand('cmd /c rmdir "' + udf + '"'); } catch (e) {}
+    // v2.6.0 (SEC-5): нативный fs.remove ВМЕСТО shell-«cmd /c rmdir»
+    try { await fs().remove(udf); } catch (e) {}
     let okDir = true;
     try { await ensureDir(udf); } catch (e) { okDir = false; }
     if (!okDir) {
@@ -6641,40 +6646,25 @@
     });
     // v2.5.4: единый хелпер с гарантированным фидбеком (было: молчаливый .catch)
     $("#btnOpenAccFolder").addEventListener("click", () => openFolderUi(S.paths.dataDir, "аккаунт и отчёты"));
-    // v2.2.0: папка данных (Настройки) — v2.3.0: кнопки выбрать/открыть/по умолчанию
+    // v2.2.0: папка данных (Настройки) — v2.3.0: кнопки выбрать/открыть/по умолчанию.
+    // v2.6.0 (SEC-6): на Android выбор/сброс папки данных скрыты — папка одна,
+    // app-specific; на десктопе выбор остаётся (там это штатный сценарий).
     const bPick = $("#btnDataRootPick");
-    if (bPick) bPick.addEventListener("click", pickDataRoot);
+    if (bPick) {
+      if (IS_ANDROID) bPick.hidden = true;
+      else bPick.addEventListener("click", pickDataRoot);
+    }
     const bReset = $("#btnDataRootReset");
-    if (bReset) bReset.addEventListener("click", () => applyDataRoot(S.paths.dataDirDefault || ""));
+    if (bReset) {
+      if (IS_ANDROID) bReset.hidden = true;
+      else bReset.addEventListener("click", () => applyDataRoot(S.paths.dataDirDefault || ""));
+    }
     const bOpen = $("#btnDataRootOpen");
     if (bOpen) bOpen.addEventListener("click", () => openFolderUi(S.paths.dataDir, "папка данных"));
-    // v2.5.3 (Android): перенос данных в общую папку /storage/emulated/0/WARPScoutGUI
-    const bPub = $("#btnDataRootPublic");
-    if (bPub) {
-      if (!IS_ANDROID || IS_MOCK) { bPub.hidden = true; }
-      else {
-        bPub.hidden = false;
-        bPub.title = t("Перенести данные в /storage/emulated/0/WARPScoutGUI (запросить доступ)");
-        bPub.addEventListener("click", async () => {
-          const osApi = os();
-          if (!osApi || typeof osApi.requestPublicAccess !== "function") {
-            toast(t("Доступно только в приложении Android"), "err"); return;
-          }
-          let r = null;
-          try { r = await osApi.requestPublicAccess(); } catch (e) { r = null; }
-          if (r && r.mode === "public") {
-            // доступ уже выдан — просто переносим
-            await applyDataRoot(pxJoin(String(r.base || "/storage/emulated/0"), "WARPScoutGUI"));
-          } else if (r && r.asked === "manage") {
-            toast(t("Выдайте доступ «Все файлы» в открывшихся настройках — общая папка подключится автоматически"), "info");
-          } else if (r && r.asked === "write") {
-            // системный диалог права поверх приложения — результат придёт в __wsStorageChanged
-          } else {
-            toast(t("Системные настройки недоступны — данные остаются в папке приложения"), "err");
-          }
-        });
-      }
-    }
+    // v2.6.0 (SEC-6): кнопка «В общую папку…» и выбор папки данных на Android
+    // УДАЛЕНЫ вместе с механикой «Все файлы» (MANAGE/WRITE-разрешения больше
+    // не заявлены). Публичная выгрузка — Download/WARPScoutGUI через MediaStore
+    // (mirrorPublic), данные — всегда в app-specific каталоге.
     // v2.1.1: перепроверка / копирование пути / помощь при «коде -1»
     $("#btnAccRecheck").addEventListener("click", async () => {
       const has = await recheckAccount();

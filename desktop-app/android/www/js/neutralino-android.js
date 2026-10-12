@@ -1,20 +1,21 @@
 /* ═══════════════════════════════════════════════════════════════
-   WARPSCOUT GUI — Android-шим Neutralino API (v2.5.9)
+   WARPSCOUT GUI — Android-шим Neutralino API (v2.6.0)
    Подключается в APK вместо js/neutralino.js (до app.js/mock.js).
    Реализует через AndroidNative-мост ровно тот сурфейс, что
    использует app.js (см. также mock.js — тот же контракт):
      Neutralino.init, events.on("ready"|"spawnedProcess"|"storageChanged")
      os.spawnProcess / execCommand / killProcess /
-       updateSpawnedProcess / getSpawnedProcesses / requestPublicAccess
+       updateSpawnedProcess / getSpawnedProcesses
      os.showSaveDialog / showOpenDialog / showFolderDialog
-     os.getPath("data") / os.open / mirrorToPublic (no-op) / publicDir /
+     os.getPath("data") / os.open / mirrorToPublic (копия в Downloads) / publicDir /
        saveToDownloads (v2.5.4: готовые конфиги → Download/WARPScoutGUI)
      fs.readFile / writeFile / writeBinaryFile / readDirectory /
        getStats / createDirectory / remove
      storage.setData / getData
-   Пути: NL_PATH = filesDir; СВОЯ папка данных (NL_DATA_DIR) —
-   /storage/emulated/0/Android/data/…/files/WARPScoutGUI по умолчанию
-   или /storage/emulated/0/WARPScoutGUI после выдачи доступа.
+   Пути: NL_PATH = filesDir; папка данных (NL_DATA_DIR) — ВСЕГДА
+   app-specific (/storage/emulated/0/Android/data/…/files/WARPScoutGUI):
+   v2.6.0 (SEC-6) — разрешений на хранилище нет, выбор/перенос папки
+   убраны; публичная выгрузка — только Download/WARPScoutGUI (MediaStore).
    warpscout — libwarpscout.so из nativeLibraryDir (путь в window.NL_WS_PATH).
    ═══════════════════════════════════════════════════════════════ */
 (function () {
@@ -137,24 +138,20 @@
         return asyncCall(() => B.getPath(String(kind || "data")))
           .then((r) => r.path || r.data || "");
       },
-      /* v2.5.2 (в 2.5.3 — no-op): данные уже лежат в видимой папке,
-         ответ без "path" — JS покажет исходный путь */
+      /* v2.6.0 (SEC-6): копия файла (отчёт/аккаунт) в публичную папку
+         Download/WARPScoutGUI через MediaStore — без разрешений (API 29+).
+         {ok,path} | {fallback:true} | {error} — ответ без "path" деградирует
+         к исходному пути в UI */
       mirrorToPublic(path) {
         return asyncCall(() => B.pubMirror(String(path)));
       },
       publicDir() {
         return asyncCall(() => B.pubDir());
       },
-      /* v2.5.3: запросить доступ к общей папке /storage/emulated/0/WARPScoutGUI.
-         Мост НЕ блокируется: API 30+ откроет экран «Все файлы» (результат —
-         при возврате в приложение), API ≤29 — диалог WRITE (результат —
-         сразу после ответа пользователя). Оба — событием __wsStorageChanged. */
-      requestPublicAccess() {
-        return asyncCall(() => B.requestPublicAccess());
-      },
       /* v2.5.4: сохранить файл в публичную папку Download/WARPScoutGUI.
-         API 29+ — MediaStore.Downloads без разрешений; 7–9 — прямая запись
-         при выданном WRITE. {ok,path} | {fallback:true} | {error} */
+         API 29+ — MediaStore.Downloads без разрешений; 7–9 — честный
+         {fallback:true} (разрешения на запись больше не запрашиваются).
+         {ok,path} | {fallback:true} | {error} */
       saveToDownloads(name, mime, b64) {
         return asyncCall(() => B.saveToDownloads(String(name || "file"), String(mime || "*/*"), String(b64 || "")));
       },

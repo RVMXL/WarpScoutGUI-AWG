@@ -3,6 +3,14 @@
    Схема URI: content://ru.warpscout.gui.files/root/<абсолютный путь>
    Служит только для отдачи файлов/папок системным просмотрщикам
    (os.open из GUI). Экспорт наружу запрещён (exported=false).
+
+   v2.6.0 (аудит SEC-4, defense-in-depth):
+     • fileFor отдаёт ТОЛЬКО файлы внутри корней приложения
+       (filesDir / externalFilesDir / cacheDir) — URI «/root/<любой
+       абсолютный путь>» больше не читает чужие файлы (в т.ч. аккаунт
+       в общем хранилище), даже если будущая функция share выдаст грант;
+     • openFile — только MODE_READ_ONLY: запись через провайдер не
+       используется ни одной кодовой веткой (запись — MediaStore/fs).
    ═══════════════════════════════════════════════════════════════ */
 package ru.warpscout.gui;
 
@@ -16,20 +24,40 @@ import android.provider.OpenableColumns;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class WsFileProvider extends ContentProvider {
 
     private static final String AUTHORITY = "ru.warpscout.gui.files";
     private static final String PREFIX = "/root/";
 
+    /* разрешённые корни: только каталоги самого приложения (SEC-4) */
+    private List<File> allowedRoots() {
+        List<File> roots = new ArrayList<>();
+        try { roots.add(getContext().getFilesDir().getCanonicalFile()); } catch (Throwable ignored) {}
+        try {
+            File ext = getContext().getExternalFilesDir(null);
+            if (ext != null) roots.add(ext.getCanonicalFile());
+        } catch (Throwable ignored) {}
+        try { roots.add(getContext().getCacheDir().getCanonicalFile()); } catch (Throwable ignored) {}
+        return roots;
+    }
+
     private File fileFor(Uri uri) throws FileNotFoundException {
         String path = uri.getEncodedPath();
         if (path == null || !path.startsWith(PREFIX))
             throw new FileNotFoundException("bad path");
         path = Uri.decode(path.substring(PREFIX.length()));
-        File f = new File(path);
+        File f;
+        try { f = new File(path).getCanonicalFile(); } catch (Throwable e) { throw new FileNotFoundException(path); }
         if (!f.exists()) throw new FileNotFoundException(path);
-        return f;
+        // SEC-4: canonical-путь обязан лежать СТРОГО внутри корней приложения;
+        // «..»-обходы и чужие пути отсекаются сравнением префиксов canonical-строк
+        for (File root : allowedRoots()) {
+            if (f.equals(root) || f.getPath().startsWith(root.getPath() + File.separator)) return f;
+        }
+        throw new FileNotFoundException("outside app roots: " + f.getName());
     }
 
     @Override
@@ -69,11 +97,12 @@ public class WsFileProvider extends ContentProvider {
 
     @Override
     public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
-        File f = fileFor(uri);
-        int m = ParcelFileDescriptor.MODE_READ_ONLY;
-        if ("w".equals(mode) || "wt".equals(mode)) m = ParcelFileDescriptor.MODE_WRITE_ONLY
-                | ParcelFileDescriptor.MODE_TRUNCATE | ParcelFileDescriptor.MODE_CREATE;
-        return ParcelFileDescriptor.open(f, m);
+        // SEC-4: только чтение — записывающих веток у провайдера нет
+        // (проверим запрос честно: любые w/wt/rw-режимы отклоняются)
+        if ("r".equals(mode) || "rt".equals(mode) || mode == null || mode.isEmpty()) {
+            return ParcelFileDescriptor.open(fileFor(uri), ParcelFileDescriptor.MODE_READ_ONLY);
+        }
+        throw new FileNotFoundException("write mode is not supported by this provider");
     }
 
     @Override

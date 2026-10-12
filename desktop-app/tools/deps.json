@@ -1,0 +1,70 @@
+{
+  "_comment": "SBOM-lite + пин версий (v2.6.0, аудит INFRA-2). Каждый релиз: verify-deps.py --update пересобирает хэши, CI сверяет.",
+  "neutralino": {
+    "runtimeVersion": "6.10.0",
+    "clientCommit": "425c526c318342e0e5d0f17caceef2a53049eda4",
+    "source": "https://github.com/neutralinojs/neutralinojs",
+    "license": "MIT",
+    "licenseFile": "desktop-app/pkg/WARPScoutGUI-win64/licenses/LICENSE-neutralino.txt"
+  },
+  "neuCli": {
+    "npmPackage": "@neutralinojs/neu",
+    "major": 11,
+    "note": "сборка: npx --yes @neutralinojs/neu@11 — мажор закреплён; CLI в артефакты не попадает"
+  },
+  "qrcode": {
+    "version": "js1.5.2",
+    "commit": "73b65678e76a6a196d941910dd40b87b53457e41",
+    "source": "https://github.com/kazuhikoarase/qrcode-generator",
+    "license": "MIT",
+    "licenseFile": "desktop-app/pkg/WARPScoutGUI-win64/licenses/LICENSE-qrcode.txt"
+  },
+  "warpscout": {
+    "version": "0.16.0",
+    "source": "https://github.com/vernette/warpscout",
+    "license": "MIT",
+    "licenseFile": "desktop-app/pkg/WARPScoutGUI-win64/licenses/LICENSE-warpscout.txt"
+  },
+  "files": {
+    "pkg/WARPScoutGUI-win64/WARPScoutGUI.exe": {
+      "role": "neutralino-runtime-win_x64",
+      "sha256": "2ac1d89d1e0d5bfe0e7dceb8ce113324a26dfde54a233224105c7c3b16a943d5"
+    },
+    "pkg/WARPScoutGUI-linux64/WARPScoutGUI": {
+      "role": "neutralino-runtime-linux_x64",
+      "sha256": "fc55bf46b51eaadcaea589654b0b25772b5922c9a287fd4031681759f5dae69d"
+    },
+    "pkg/WARPScoutGUI-linux-arm64/WARPScoutGUI": {
+      "role": "neutralino-runtime-linux_arm64",
+      "sha256": "45adf8cb979c3ea6b1a305c2a81ab742f44170370aada0e34940b8a8ecf6f36f"
+    },
+    "pkg/WARPScoutGUI-mac-arm64/WARPScoutGUI": {
+      "role": "neutralino-runtime-mac_arm64",
+      "sha256": "465df1dff561716efaecc9e20e481825adf135a0e1587608928820199ce8ae9b"
+    },
+    "pkg/WARPScoutGUI-mac-x64/WARPScoutGUI": {
+      "role": "neutralino-runtime-mac_x64",
+      "sha256": "8267ce6e607da9cf2b230b3fd8f1157fa700782888740e8579c90235895de998"
+    },
+    "pkg/WARPScoutGUI-win64/bin/warpscout.exe": {
+      "role": "warpscout-win64",
+      "sha256": "4ab569b49d3449f4144e65d7cb1b2441730a8e9457c9107089ca52ef4bb28539"
+    },
+    "pkg/WARPScoutGUI-linux64/bin/warpscout": {
+      "role": "warpscout-linux64",
+      "sha256": "bbf165c338cab82427acdfc9da3312c390f38fefa524bbc34054844f28c0300d"
+    },
+    "pkg/WARPScoutGUI-linux-arm64/bin/warpscout": {
+      "role": "warpscout-linux-arm64",
+      "sha256": "eb7ae4b141b9a2d4677a67630f1f8e45105ff9396bb015442cf7d3071ef5c092"
+    },
+    "pkg/WARPScoutGUI-mac-arm64/bin/warpscout": {
+      "role": "warpscout-mac-arm64",
+      "sha256": "2395030cbcfcc2eca4bb77c44eed15bfa0bac6ca8466343b4b0d172bf1f4c424"
+    },
+    "pkg/WARPScoutGUI-mac-x64/bin/warpscout": {
+      "role": "warpscout-mac-x64",
+      "sha256": "b3524632bcf5aff6a1f1c17de4558cddc5157d88ba564098c8bfaec6f2660dec"
+    }
+  }
+}

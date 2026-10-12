@@ -1,0 +1,74 @@
+# WARPScoutGUI-AWG — CI (v2.6.0, аудит INFRA-1 + ARCH-4).
+# Проверяет то, что раньше не проверялось ничем: синтаксис JS/Python,
+# согласованность версии (ARCH-2 кодогенерация), юнит-тесты чистых
+# функций (ARCH-4), хэши сторонних бинарников (INFRA-2), детерминизм
+# resources.neu. Запуск: пуш в main, теги v*, PR.
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: node --check (все JS приложения)
+        run: |
+          fail=0
+          for f in desktop-app/resources/js/app.js \
+                   desktop-app/resources/js/mock.js \
+                   desktop-app/resources/js/neutralino.js \
+                   desktop-app/android/www/js/neutralino-android.js; do
+            [ -f "$f" ] || { echo "нет $f"; exit 1; }
+            node --check "$f" || fail=1
+          done
+          exit $fail
+
+      - name: python -m py_compile (инструменты сборки)
+        run: python3 -m py_compile desktop-app/tools/pack-neu.py desktop-app/tools/build-zips.py desktop-app/tools/unpack-neu.py desktop-app/tools/gen-version.py desktop-app/tools/verify-deps.py desktop-app/tools/fetch-binaries.py
+
+      - name: версия согласована везде (ARCH-2: единый источник neutralino.config.json)
+        run: python3 desktop-app/tools/gen-version.py --check
+
+      - name: юнит-тесты чистых функций (ARCH-4: парсеры/санитайзеры/билдеры)
+        run: node --test desktop-app/tests/*.test.js
+
+      - name: структура Java-моста (баланс скобок; полный javac — в сборке APK)
+        run: |
+          python3 - <<'PY'
+          import sys
+          for f in ["desktop-app/android/java/ru/warpscout/gui/MainActivity.java",
+                    "desktop-app/android/java/ru/warpscout/gui/WsFileProvider.java"]:
+              src = open(f, encoding="utf-8").read()
+              if src.count("{") != src.count("}"):
+                  print(f"{f}: unbalanced braces"); sys.exit(1)
+              if "class " not in src:
+                  print(f"{f}: no class declaration"); sys.exit(1)
+              print(f"{f}: structure OK")
+          PY
+
+      - name: хэши сторонних бинарников согласованы с deps.json (INFRA-2)
+        run: python3 desktop-app/tools/verify-deps.py
+
+      - name: детерминизм resources.neu (двойная сборка → одинаковые байты)
+        run: |
+          python3 desktop-app/tools/pack-neu.py desktop-app /tmp/check1.neu
+          python3 desktop-app/tools/pack-neu.py desktop-app /tmp/check2.neu
+          A=$(sha256sum /tmp/check1.neu | cut -d" " -f1)
+          B=$(sha256sum /tmp/check2.neu | cut -d" " -f1)
+          if [ "$A" != "$B" ]; then
+            echo "NON-DETERMINISTIC: $A != $B"; exit 1
+          fi
+          echo "resources.neu reproducible: $A"

@@ -83,6 +83,10 @@ public class MainActivity extends Activity {
     private static final int REQ_OPEN = 7002;
     private CountDownLatch dialogLatch;
     private final AtomicReference<String> dialogResult = new AtomicReference<>("");
+    /* v2.6.0 (аудит SEC-7): SAF-диалог держит мост не дольше 10 минут
+       (пользователь может уйти в диалог и медленно решать). По таймауту
+       runDialog возвращает пустой результат — мост разблокируется, JS
+       трактовает это как «диалог закрыт без выбора». */
     private static final long DIALOG_TIMEOUT_SEC = 600;
 
     // ── v2.5.5: content:// URI, выданные СОБСТВЕННЫМИ SAF-диалогами приложения ──
@@ -113,24 +117,35 @@ public class MainActivity extends Activity {
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
-        s.setAllowFileAccess(true);
-        s.setAllowContentAccess(true);
+        s.setAllowFileAccess(true);        // только android_asset (SEC-9: loadUrl ниже — единственный источник)
+        s.setAllowContentAccess(true);     // content:// — только URI наших SAF-диалогов (uriAllow)
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setSupportZoom(false);
         s.setJavaScriptCanOpenWindowsAutomatically(false);
+        // v2.6.0 (аудит SEC-9): явная политика file-доступа. Приложение грузит
+        // ТОЛЬКО file:///android_asset/index.html; не-file схемы уходят в
+        // системный браузер (shouldOverrideUrlLoading ниже). XHR из file:-контекста
+        // к другим file: запрещён явно (дефолт и так off — фиксируем от регрессий).
+        if (Build.VERSION.SDK_INT >= 16) {
+            try { s.setAllowFileAccessFromFileURLs(false); } catch (Throwable ignored) {}
+            try { s.setAllowUniversalAccessFromFileURLs(false); } catch (Throwable ignored) {}
+        }
         web.addJavascriptInterface(new Bridge(), "AndroidNative");
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest req) {
                 Uri u = req.getUrl();
                 String sch = u.getScheme() == null ? "" : u.getScheme();
-                // внешние ссылки — только системный браузер
-                if (!sch.equals("file")) {
-                    try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) {}
-                    return true;
+                // v2.6.0 (SEC-9): file: разрешён ТОЛЬКО внутри android_asset; прочие
+                // file:-URL (навигация по томам из веб-контента) блокируются без действия.
+                if (sch.equals("file")) {
+                    String path = u.getPath() == null ? "" : u.getPath();
+                    return !path.startsWith("/android_asset/");
                 }
-                return false;
+                // внешние ссылки — только системный браузер
+                try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) {}
+                return true;
             }
             @Override
             public void onPageFinished(WebView v, String url) {
@@ -168,9 +183,8 @@ public class MainActivity extends Activity {
         // баг с реального устройства, smoke-тест 2026-10-11).
         web.loadUrl("file:///android_asset/index.html");
 
-        // v2.5.3: «своя папка» на /storage/emulated/0 + разовый перенос
-        // пользовательских файлов из приватного каталога v2.5.2
-        lastStorageMode = storageMode();
+        // v2.6.0 (SEC-6): данные всегда в app-specific каталоге (без разрешений);
+        // разовый перенос из приватного каталога v2.5.2 сохранён
         migrateLegacyOnce();
     }
 
@@ -205,15 +219,23 @@ public class MainActivity extends Activity {
                 JSONObject o = new JSONObject();
                 o.put("nlPath", getFilesDir().getAbsolutePath());
                 o.put("nlCwd", getFilesDir().getAbsolutePath());
-                // v2.5.3: «своя папка» на /storage/emulated/0 (см. блок хранилища ниже)
+                // v2.6.0 (SEC-6): данные всегда в app-specific каталоге — разрешений
+                // на хранилище у приложения НЕТ, выбор/перенос папки данных убраны.
                 o.put("dataBase", dataBase().getAbsolutePath());
                 o.put("dataDir", userDir().getAbsolutePath());
-                o.put("storageMode", storageMode());
-                // v2.5.8: прежние папки данных приложения — GUI на запуске переносит
+                o.put("storageMode", "app");
+                // v2.5.8/2.6.0: прежние папки данных — GUI на запуске переносит
                 // из них аккаунт/отчёты в активную папку (migrateAndroidLegacyData);
                 // закрывает последствия бага 2.5.3–2.5.7: «В общую папку» меняла
-                // dataRoot, а файлы оставались в app-specific каталоге
+                // dataRoot, а файлы оставались в app-specific каталоге.
+                // v2.6.0 (SEC-6): к списку добавлена публичная папка 2.5.8
+                // /storage/emulated/0/WARPScoutGUI — пользователи, перенёсшие
+                // данные туда через «Все файлы», автоматически догоняются обратно
+                // в app-specific каталог (запись туда теперь без разрешений невозможна).
                 org.json.JSONArray lg = new org.json.JSONArray();
+                try {
+                    lg.put(new File(EXT_ROOT, "WARPScoutGUI").getAbsolutePath());
+                } catch (Throwable ignored) {}
                 try {
                     File ext = getExternalFilesDir(null);
                     if (ext != null) lg.put(new File(ext, "WARPScoutGUI").getAbsolutePath());
@@ -334,17 +356,36 @@ public class MainActivity extends Activity {
             emitProc(id, pid, stream, new String(b, StandardCharsets.UTF_8));
         }
 
+        /* v2.6.0 (аудит SEC-7): waitFor ограничен — зависший warpscout
+           (медленный антивирус, битый файл) больше не замораживает JavaBridge-
+           поток навсегда: по таймауту процесс убивается, возвращается честная
+           ошибка в stdErr/exitCode. Десктопный аналог починен в v2.2.0. */
+        private static final long EXECSYNC_TIMEOUT_MS = 30_000;
+
         @JavascriptInterface
         public String execSync(String cmd) {
+            Process p = null;
             try {
-                Process p = startProc(cmd);
+                p = startProc(cmd);
+                final Process proc = p;
                 final ByteArrayOutputStream out = new ByteArrayOutputStream();
                 final ByteArrayOutputStream err = new ByteArrayOutputStream();
-                Thread t1 = new Thread(() -> { try { copy(p.getInputStream(), out); } catch (Exception ignored) {} });
-                Thread t2 = new Thread(() -> { try { copy(p.getErrorStream(), err); } catch (Exception ignored) {} });
+                Thread t1 = new Thread(() -> { try { copy(proc.getInputStream(), out); } catch (Exception ignored) {} });
+                Thread t2 = new Thread(() -> { try { copy(proc.getErrorStream(), err); } catch (Exception ignored) {} });
                 t1.start(); t2.start();
                 int code;
-                try { code = p.waitFor(); } catch (Exception e) { code = -1; }
+                boolean done;
+                try { done = p.waitFor(EXECSYNC_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS); }
+                catch (Exception e) { done = false; }
+                if (!done) {
+                    // таймаут: убиваем процесс и честно сообщаем об ошибке вместо вечной блокировки моста
+                    try { p.destroyForcibly(); } catch (Throwable ignored) { try { p.destroy(); } catch (Throwable ignored2) {} }
+                    code = -1;
+                    err.write(0x0A); // \n
+                    err.write("[GUI] execSync: превышен таймаут 30 с — процесс остановлен принудительно".getBytes(StandardCharsets.UTF_8));
+                } else {
+                    code = p.exitValue();
+                }
                 t1.join(5000); t2.join(5000);
                 JSONObject o = new JSONObject();
                 o.put("id", -1);
@@ -658,9 +699,10 @@ public class MainActivity extends Activity {
         public String getPath(String kind) {
             JSONObject o = new JSONObject();
             try {
-                // v2.5.3: база пользовательских данных — том /storage/emulated/0
-                // (после выдачи доступа) или app-specific files (по умолчанию);
-                // GUI добавляет к базе «WARPScoutGUI» (computePaths в app.js)
+                // v2.6.0 (SEC-6): база пользовательских данных — app-specific files
+                // (без разрешений, приватно). GUI добавляет к базе «WARPScoutGUI»
+                // (computePaths в app.js). Публичная выгрузка — только
+                // Download/WARPScoutGUI через MediaStore (pubMirror/saveToDownloads).
                 o.put("ok", true);
                 o.put("path", dataBase().getAbsolutePath());
                 return o.toString();
@@ -735,60 +777,62 @@ public class MainActivity extends Activity {
            внутреннем Bridge — WebView экспортирует ТОЛЬКО Bridge, поэтому из
            JS они не вызывались: openPath падал «B.openPath is not a function»
            (v2.5.3 глотал ошибку молча, v2.5.4+ показывал тост), а
-           requestPublicAccess/pubDir/pubMirror/saveToDownloads/clipboardWrite
+           pubDir/pubMirror/saveToDownloads/clipboardWrite
            молча отсутствовали. Перенесены внутрь Bridge без изменения логики:
-           inner-класс имеет доступ к приватным методам Activity. ═══ */
+           inner-класс имеет доступ к приватным методам Activity. ═══
 
-        /* JS-мост: запросить доступ к общей папке (мост НЕ блокируется):
-           API 30+ — экран «Все файлы» (результат придёт в onResume),
-           API 24–29 — системный диалог WRITE (результат в onRequestPermissionsResult) */
+           v2.6.0 (SEC-6): requestPublicAccess УДАЛЁН — приложение больше не
+           запрашивает «Все файлы»/WRITE; данные живут в app-specific каталоге,
+           публичная выгрузка — только через MediaStore (pubMirror/saveToDownloads). */
+
+        /* JS-мост: копия файла (отчёт, аккаунт) в публичную папку
+           Download/WARPScoutGUI через MediaStore — БЕЗ разрешений (API 29+).
+           Источник — только внутри разрешённых корней (guardPath). На API <29
+           MediaStore.Downloads нет — честный {fallback:true}, JS оставит файл
+           в папке приложения и не будет обещать копию.
+           Ответ: {ok:true, path} | {fallback:true} | {error} */
         @JavascriptInterface
-        public String requestPublicAccess() {
+        public String pubMirror(String srcPath) {
             JSONObject o = new JSONObject();
             try {
-                boolean allowed = publicRootAllowed();
+                String canon = guardPath(String.valueOf(srcPath == null ? "" : srcPath), true);
+                if (canon == null) { o.put("fallback", true); return o.toString(); }
+                File src = new File(canon);
+                if (!src.isFile()) { o.put("fallback", true); return o.toString(); }
+                if (Build.VERSION.SDK_INT < 29) { o.put("fallback", true); return o.toString(); }
+                byte[] bytes = new byte[(int) src.length()];
+                java.io.DataInputStream din = new java.io.DataInputStream(new FileInputStream(src));
+                try { din.readFully(bytes); } finally { try { din.close(); } catch (Exception ignored) {} }
+                String name = src.getName();
+                String m = mimeForName(name, "");
+                ContentResolver cr = getContentResolver();
+                ContentValues cv = new ContentValues();
+                cv.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
+                cv.put(MediaStore.MediaColumns.MIME_TYPE, m);
+                cv.put(MediaStore.MediaColumns.RELATIVE_PATH,
+                        Environment.DIRECTORY_DOWNLOADS + "/WARPScoutGUI");
+                Uri uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                if (uri == null) throw new Exception("MediaStore insert failed");
+                OutputStream os = cr.openOutputStream(uri);
+                if (os == null) throw new Exception("openOutputStream failed");
+                try { os.write(bytes); os.flush(); } finally { try { os.close(); } catch (Exception ignored) {} }
+                String realName = mediaDisplayName(cr, uri);
+                if (realName == null || realName.isEmpty()) realName = name;
                 o.put("ok", true);
-                o.put("mode", allowed ? "public" : "app");
-                if (!allowed) {
-                    if (Build.VERSION.SDK_INT >= 30) {
-                        try {
-                            startActivity(new Intent(
-                                    android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                    Uri.parse("package:" + getPackageName())));
-                            o.put("asked", "manage");
-                        } catch (Exception e) {
-                            try {
-                                startActivity(new Intent(
-                                        android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
-                                o.put("asked", "manage");
-                            } catch (Exception e2) { o.put("asked", "unavailable"); }
-                        }
-                    } else {
-                        try {
-                            requestPermissions(new String[]{"android.permission.WRITE_EXTERNAL_STORAGE"}, REQ_WRITE);
-                            o.put("asked", "write");
-                        } catch (Exception e) { o.put("asked", "unavailable"); }
-                    }
-                }
-            } catch (Exception e) {
+                o.put("path", DOWNLOAD_DIR + "/" + realName);
+            } catch (Throwable e) {
                 try { o.put("error", String.valueOf(e)); } catch (Throwable ignored) {}
             }
             return o.toString();
         }
 
-        /* JS-мост (совместимость v2.5.2): зеркалирование больше не нужно —
-           данные уже лежат в видимой папке. Без "path" в ответе JS покажет
-           исходный путь и не будет говорить про «копию в общей папке». */
-        @JavascriptInterface
-        public String pubMirror(String srcPath) { return "{\"ok\":true}"; }
-
-        /* JS-мост: видимая папка пользователя (подсказки в UI) */
+        /* JS-мост: видимая публичная папка (подсказки в UI) — Download/WARPScoutGUI */
         @JavascriptInterface
         public String pubDir() {
             JSONObject o = new JSONObject();
             try {
                 o.put("ok", true);
-                o.put("path", userDir().getAbsolutePath());
+                o.put("path", DOWNLOAD_DIR);
                 return o.toString();
             } catch (Exception e) {
                 return "{\"error\":" + JSONObject.quote(String.valueOf(e)) + "}";
@@ -881,16 +925,9 @@ public class MainActivity extends Activity {
                     o.put("uri", uri.toString());
                     return o.toString();
                 }
-                if (publicRootAllowed()) {
-                    File dir = new File(DOWNLOAD_DIR);
-                    if (!dir.isDirectory() && !dir.mkdirs()) throw new Exception("mkdirs failed: " + DOWNLOAD_DIR);
-                    File f = uniqueFile(dir, safeName);
-                    FileOutputStream fo = new FileOutputStream(f);
-                    try { fo.write(bytes); fo.flush(); } finally { try { fo.close(); } catch (Exception ignored) {} }
-                    o.put("ok", true);
-                    o.put("path", f.getAbsolutePath());
-                    return o.toString();
-                }
+                // v2.6.0 (SEC-6): API 24–28 — MediaStore.Downloads недоступен, разрешений
+                // на прямой запись в общее хранилище больше нет — честный fallback:
+                // JS сохранит файл в папку приложения и сообщит об этом без обмана.
                 o.put("fallback", true);
                 return o.toString();
             } catch (Throwable t) {
@@ -968,23 +1005,20 @@ public class MainActivity extends Activity {
         }
     }
 
-    /* ── хранилище пользователя (v2.5.3) и открытие папок ──
+    /* ── хранилище пользователя (v2.6.0, SEC-6) и открытие папок ──
 
-       Пользовательские файлы (аккаунт, отчёты, конфиги) живут ТОЛЬКО в
-       «своей папке» на /storage/emulated/0 — файловые менеджеры видят их
-       без root, зеркалирование в Downloads больше не нужно:
-
-       • режим "app" (по умолчанию, без разрешений):
+       Пользовательские файлы (аккаунт, отчёты) живут ТОЛЬКО в app-specific
+       каталоге (приватно, без каких-либо разрешений):
            /storage/emulated/0/Android/data/ru.warpscout.gui/files/WARPScoutGUI
-         (своя папка внутри app-specific каталога — видна большинству
-         файловых менеджеров, пишется всегда);
-       • режим "public" (после выдачи доступа):
-           /storage/emulated/0/WARPScoutGUI
-         – Android 11+ (API 30+): переключатель «Все файлы» (MANAGE);
-         – Android 7–10 (API 24–29): WRITE_EXTERNAL_STORAGE + legacy-режим
-           (requestLegacyExternalStorage в манифесте).
+       Выбор папки данных и перенос в общий том УДАЛЕНЫ (v2.5.3–2.5.8)
+       вместе с разрешениями WRITE/MANAGE — класс рисков миграции F12–F15
+       на Android больше недостижим.
 
-       os.getPath("data") возвращает БАЗУ (том или app-specific files),
+       ПУБЛИЧНАЯ выгрузка (копия, не перенос) — через MediaStore без
+       разрешений (API 29+): /storage/emulated/0/Download/WARPScoutGUI —
+       одна фиксированная папка, видимая любому файловому менеджеру.
+
+       os.getPath("data") возвращает базу app-specific files,
        GUI добавляет к ней «WARPScoutGUI» (computePaths в app.js).
        Рабочий каталог warpscout — тоже эта папка (startProc).
 
@@ -996,29 +1030,9 @@ public class MainActivity extends Activity {
     /* v2.5.4: публичная папка готовых конфигов — видна в любом файловом
        менеджере, на API 29+ пишется через MediaStore без разрешений */
     private static final String DOWNLOAD_DIR = "/storage/emulated/0/Download/WARPScoutGUI";
-    private static final int REQ_WRITE = 7101;
-    private String lastStorageMode = null;
 
-    /* доступна ли запись в корень общего хранилища */
-    private boolean publicRootAllowed() {
-        if (Build.VERSION.SDK_INT >= 30) {
-            try { return Environment.isExternalStorageManager(); }
-            catch (Throwable t) { return false; }
-        }
-        try {
-            return checkSelfPermission("android.permission.WRITE_EXTERNAL_STORAGE")
-                    == android.content.pm.PackageManager.PERMISSION_GRANTED;
-        } catch (Throwable t) { return false; }
-    }
-
-    /* база путей для GUI: том (public) или app-specific files (app) */
+    /* база путей для GUI: app-specific files (SEC-6: безусловно — без разрешений) */
     private File dataBase() {
-        if (publicRootAllowed()) {
-            try {
-                File r = Environment.getExternalStorageDirectory();
-                if (r != null && r.isDirectory()) return r;
-            } catch (Throwable ignored) {}
-        }
         File ext = getExternalFilesDir(null);
         return ext != null ? ext : getFilesDir();
     }
@@ -1108,10 +1122,8 @@ public class MainActivity extends Activity {
         return out;
     }
 
-    private String storageMode() { return publicRootAllowed() ? "public" : "app"; }
-
     /* разовый перенос пользовательских файлов из приватного каталога
-       v2.5.2 (files/WARPScoutGUI) в новую видимую папку */
+       v2.5.2 (files/WARPScoutGUI) в активную папку данных */
     private void migrateLegacyOnce() {
         try {
             File flag = new File(getFilesDir(), ".migrated-253");
@@ -1149,46 +1161,13 @@ public class MainActivity extends Activity {
         }
     }
 
-    /* Java → JS: режим хранилища изменился (выдача/отзыв доступа) */
-    private void emitStorageChanged() {
-        try {
-            JSONObject o = new JSONObject();
-            o.put("mode", storageMode());
-            o.put("base", dataBase().getAbsolutePath());
-            o.put("userDir", userDir().getAbsolutePath());
-            evalJs("window.__wsStorageChanged && window.__wsStorageChanged(JSON.parse("
-                    + JSONObject.quote(o.toString()) + "));");
-        } catch (Throwable ignored) {}
-    }
+    /* v2.6.0 (SEC-6): storageMode/publicRootAllowed/emitStorageChanged
+       и колбэки onRequestPermissionsResult/onResume УДАЛЕНЫ вместе с
+       механикой «Все файлы» — разрешений на хранилище больше нет.
 
-    /* v2.5.6: requestPublicAccess перенесён во внутренний Bridge —
-       вне Bridge он не экспортировался в WebView и не работал */
-
-    @Override
-    public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
-        if (req == REQ_WRITE) {
-            boolean ok = res != null && res.length > 0
-                    && res[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
-            toast(ok
-                    ? "Доступ к хранилищу выдан — данные переносятся в общую папку"
-                    : "Доступ не выдан — данные остаются в папке приложения (Android/data)");
-            if (ok) { lastStorageMode = storageMode(); emitStorageChanged(); }
-        } else super.onRequestPermissionsResult(req, perms, res);
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        String m = storageMode();
-        if (lastStorageMode == null) { lastStorageMode = m; return; }
-        if (!m.equals(lastStorageMode)) { lastStorageMode = m; emitStorageChanged(); }
-    }
-
-
-
-    /* v2.5.6: pubMirror/pubDir/saveToDownloads/openPath/clipboardWrite
+       v2.5.6: pubMirror/pubDir/saveToDownloads/openPath/clipboardWrite
        перенесены во внутренний Bridge — вне Bridge они не экспортировались
-       в WebView (причина «B.openPath is not a function» в v2.5.3–2.5.5) */
+       в WebView (причина «B.openPath is not a function» в v2.5.3–2.5.5). */
 
     /* «file.conf» существует → «file (1).conf», «file (2).conf», … (API 7–9) */
     private static File uniqueFile(File dir, String name) {

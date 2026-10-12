@@ -12,7 +12,18 @@
 # Использование:
 #   python3 tools/pack-neu.py [app_dir] [out]
 #   app_dir = папка с neutralino.config.json и resources/, out = путь ресурсов.neu
-import json, hashlib, os, struct, sys
+import json, hashlib, os, struct, subprocess, sys
+
+def _ensure_version_sync(app_dir):
+    """v2.6.0 (аудит ARCH-2): перед упаковкой убеждаемся, что версия согласована
+    во всех зависимых файлах (mock/index/README/манифест). Несогласованность —
+    ошибка сборки, а не тихий рассинхрон артефактов."""
+    gen = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gen-version.py")
+    try:
+        subprocess.run([sys.executable, gen, "--check"], check=True,
+                       cwd=os.path.dirname(gen), capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        sys.exit("pack-neu: версия рассинхронизирована:\n" + e.stdout + e.stderr)
 
 def build_manifest(app_dir, files):
     m = {"files": {}}
@@ -34,6 +45,7 @@ def build_manifest(app_dir, files):
 
 def pack(app_dir, out_path):
     app_dir = os.path.abspath(app_dir)
+    _ensure_version_sync(app_dir)
     # Порядок как у neu CLI: алфавитный обход дерева (папки и файлы вперемешку,
     # побайтово по имени) + neutralino.config.json в корне.
     def walk(dir_abs, prefix):

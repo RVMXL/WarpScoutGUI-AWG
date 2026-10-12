@@ -6,6 +6,13 @@
 //
 // URL: http://www.d-project.com/
 //
+// v2.6.0 (аудит INFRA-3): провенанс вендоренной копии.
+//   Источник: https://github.com/kazuhikoarase/qrcode-generator
+//   Ревизия: тег js1.5.2 (commit 73b65678e76a6a196d941910dd40b87b53457e41),
+//   файл js/qrcode.js — байт-в-байт идентичен этому содержимому
+//   (содержимое не менялось с тега js1.4.4). При обновлении сверять diff
+//   с апстримом; лицензия — licenses/LICENSE-qrcode.txt (MIT).
+//
 // Licensed under the MIT license:
 //  http://www.opensource.org/licenses/mit-license.php
 //

@@ -10,6 +10,13 @@ desktop-app/.tmp/
 desktop-app/bin/
 desktop-app/pkg/*/.storage/
 desktop-app/pkg/*/.tmp/
+# v2.6.0 (аудит ARCH-3): прекомпилированные бинарники НЕ в git —
+# артефакты живут в GitHub Releases, хэши — в tools/deps.json.
+# Восстановить: python3 desktop-app/tools/fetch-binaries.py --release v2.6.0
+desktop-app/pkg/*/WARPScoutGUI
+desktop-app/pkg/*/WARPScoutGUI.exe
+desktop-app/pkg/*/resources.neu
+desktop-app/pkg/*/bin/
 
 # release artifacts & signing material (never commit)
 download/
@@ -31,3 +38,7 @@ postcss.config.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python
+desktop-app/tools/__pycache__/
+__pycache__/

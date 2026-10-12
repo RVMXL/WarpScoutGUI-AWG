@@ -12,8 +12,8 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data:; font-src 'self' file: data:; connect-src 'self' ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*; object-src 'none'; base-uri 'none'; form-action 'none'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=25v11" />
-  <link rel="stylesheet" href="css/touch.css?v=25v11" />
+  <link rel="stylesheet" href="css/app.css?v=v2.6.0" />
+  <link rel="stylesheet" href="css/touch.css?v=v2.6.0" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -63,7 +63,7 @@
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светлую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v2.5.9 · warpscout v0.16.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v2.6.0 · warpscout v0.16.0</div>
       </div>
     </aside>
 
@@ -688,7 +688,9 @@
                   <input type="text" id="setDataRoot" readonly />
                   <button class="btn btn--ghost" id="btnDataRootPick" type="button">📁 Выбрать…</button>
                   <button class="btn btn--ghost" id="btnDataRootOpen" type="button">📂 Открыть</button>
-                  <button class="btn btn--ghost" id="btnDataRootPublic" type="button" hidden>🌐 В общую папку…</button>
+                  <!-- v2.6.0 (SEC-6): кнопка «В общую папку…» удалена вместе с
+                       разрешением «Все файлы» — публичная выгрузка идёт в
+                       Download/WARPScoutGUI через MediaStore без разрешений -->
                   <button class="btn btn--ghost" id="btnDataRootReset" type="button">↩ По умолчанию</button>
                 </div>
               </label>
@@ -836,8 +838,8 @@
   </datalist>
 
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js?v=25v11"></script>
-  <script src="js/qrcode.js?v=25v11"></script>
-  <script src="js/app.js?v=25v11"></script>
+  <script src="js/mock.js?v=v2.6.0"></script>
+  <script src="js/qrcode.js?v=v2.6.0"></script>
+  <script src="js/app.js?v=v2.6.0"></script>
 </body>
 </html>
