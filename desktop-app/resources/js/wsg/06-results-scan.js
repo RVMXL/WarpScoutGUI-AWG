@@ -549,6 +549,15 @@
     S.staggerNext = true; // v1.7.0: строки таблицы появятся каскадом
     stopScanLive(); // v1.8.0: прячем живую панель
     renderResults();
+    // v2.6.4 (запрос пользователя): после скана сразу ставим лучший эндпоинт —
+    // чтобы «В конфиг»/генерация работали с ним без лишних кликов
+    const gBest = endpointGroups(S.results).best;
+    if (gBest) {
+      S.cfg.endpoint = gBest.endpoint;
+      const inp = $("#cfgEndpoint");
+      if (inp) inp.value = gBest.endpoint;
+      renderConf();
+    }
     fillEndpointSelect();
     switchSubtab("results");
     // v2.5.2 (Android): копия отчёта в общую папку Download/WARPScoutGUI —

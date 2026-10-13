@@ -89,6 +89,9 @@
     "scan.filters.04": { ru: "Исключить страны", en: "Exclude countries" },
     "scan.filters.05": { ru: "Только узлы", en: "Only nodes" },
     "scan.filters.06": { ru: "Только страны", en: "Only countries" },
+    // v2.6.4: живой бейдж фильтров (scan.filters.02 «DME исключён» больше не используется — индикатор динамический)
+    "scan.filters.07": { ru: "страны", en: "countries" },
+    "scan.filters.08": { ru: "Активные фильтры: {v}", en: "Active filters: {v}" },
     /* — scan.obf — */
     /* — скан: обфускация — */
     "scan.obf.01": { ru: "Обфускация AmneziaWG", en: "AmneziaWG obfuscation" },
@@ -279,6 +282,7 @@
     "tools.14": { ru: "Нажмите «Применить к скану».", en: "Press 'Apply to scan'." },
     "tools.15": { ru: "Параметры применены к скану", en: "Parameters applied to the scan" },
     "tools.16": { ru: "Сначала найдите команду", en: "Find a command first" },
+    "tools.17": { ru: "Найденный I1 подставлен в конфиг (вкладка «Конфиг»)", en: "Found I1 inserted into the config ('Config' tab)" },
     /* — settings — */
     /* — настройки — */
     "settings.01": { ru: "Пути", en: "Paths" },
@@ -668,6 +672,10 @@
     "conf.56": { ru: "Отчёт скопирован в общую папку: {p}", en: "Report copied to the shared folder: {p}" },
     "conf.57": { ru: "Копия в общей папке: {p}", en: "Copy in shared folder: {p}" },
     "conf.58": { ru: "Скан уже выполняется", en: "A scan is already running" },
+    // v2.6.4: группы селекта эндпоинтов + подсказка I1
+    "conf.59": { ru: "Лучшие с каждой ноды", en: "Best per node" },
+    "conf.60": { ru: "Остальные", en: "Others" },
+    "conf.61": { ru: "Скан с -gen-i1 генерирует I1 на лету и в отчёт не выносит — конкретный пакет даёт «Поиск параметров» → find-junk: «Применить найденное» подставит его сюда автоматически.", en: "A scan with -gen-i1 generates I1 on the fly and does not include it in the report — the concrete packet comes from 'Param finder' → find-junk: 'Apply found' inserts it here automatically." },
     /* — data — */
     /* — v2.2.0: единая папка данных — (v2.3.0: данные перенесены в папку «<имя exe>», объединение удалено) — */
     "data.01": { ru: "Папка данных", en: "Data folder" },

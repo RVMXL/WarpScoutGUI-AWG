@@ -151,6 +151,12 @@
     // v2.4.6 (F21): строим НОВЫЙ согласованный профиль с нуля, а не подмешиваем
     // найденные флаги в текущую форму (старые through/target/gen-junk искажали смысл)
     const s = Object.assign({}, DEFAULT_SCAN);
+    const tokens = cmd.split(/\s+/);
+    // v2.6.4 (запрос пользователя): найденный find-junk КОНКРЕТНЫЙ I1 (CLI сохраняет
+    // его сырым флагом -i1, findjunk.go:155) больше не выбрасывается — он ровно то,
+    // что лежит в поле I1 вкладки «Конфиг» (S.cfg.obf.i1). Раньше GUI «не представлял»
+    // его и предупреждал (extra.40) — теперь подставляем в конфиг.
+    let foundI1 = "";
     const flags = {
       "-p": (v) => (s.proto = v),
       "-proto": (v) => (s.proto = v),
@@ -161,18 +167,12 @@
       "-jmin": (v) => (s.jmin = clampInt(v, 0, 5000, 10)),
       "-jmax": (v) => (s.jmax = clampInt(v, 0, 5000, 50)),
       "-masque-sni": (v) => (s.masqueSni = strField(v, 200)),
+      "-i1": (v) => (foundI1 = strField(String(v == null ? "" : v), 600)),
       "-threshold": () => {},
     };
-    const tokens = cmd.split(/\s+/);
-    let sawRawI1 = false;
     for (let i = 0; i < tokens.length; i++) {
       const f = tokens[i];
-      if (!Object.prototype.hasOwnProperty.call(flags, f)) {
-        // v2.4.6 (F21): CLI сохраняет найденный пакет сырым флагом -i1 (findjunk.go:155) —
-        // конкретный I1 в GUI не представим, честно сообщаем ниже
-        if (f === "-i1") { sawRawI1 = true; i++; }
-        continue;
-      }
+      if (!Object.prototype.hasOwnProperty.call(flags, f)) continue;
       if (f === "-P") { flags[f](); continue; }
       const v = tokens[i + 1];
       if (v == null) continue;
@@ -184,16 +184,18 @@
     // найденные конкретные jc/jmin/jmax несовместимы с генератором junk
     if (s.jc !== "" || s.jmin !== "" || s.jmax !== "") s.genJunk = false;
     S.scan = s;
+    // v2.6.4: конкретный I1 из find-junk — в конфиг (пробелы вычищает и buildConf)
+    if (foundI1) {
+      S.cfg.obf.i1 = foundI1.replace(/\s+/g, "");
+      syncCfgInputsFromState();
+    }
     S.lastRunParams = null; // применён новый профиль — старый снимок больше не источник параметров
     syncInputsFromState();
     updateCmdPreview();
     persist();
     switchTab("scan");
-    if (sawRawI1) {
-      toast(t("extra.40"), "warn");
-    } else {
-      toast(t("tools.15"), "ok");
-    }
+    if (foundI1) toast(t("tools.17"), "ok");
+    else toast(t("tools.15"), "ok");
   }
 
   /* ───────── вкладки/интерфейс ───────── */

@@ -125,14 +125,26 @@
   function fillEndpointSelect() {
     const sel = $("#cfgEndpointSel");
     const cur = sel.value;
+    // v2.6.4 (запрос пользователя): список перестроен группами — сначала лучший
+    // эндпоинт каждой ноды (общему лучшему — ★), пинг рядом для наглядности,
+    // ниже — все остальные. Порядок в группе «лучших» — по пингу.
+    const g = endpointGroups(S.results);
+    const opt = (r, star) =>
+      '<option value="' + esc(r.endpoint) + '">' +
+        (star ? "★ " : "") + esc(r.endpoint) + " · " + esc(r.node || "?") + " · " + esc(r.loc || r.seenAs || "?") +
+        " · " + esc(String(r.tunPing || r.ping || "?")) +
+      "</option>";
     const options = ['<option value="">' + t("conf.04") + "</option>"];
-    S.results.filter((r) => !r.torn).forEach((r) => {
-      options.push(
-        '<option value="' + esc(r.endpoint) + '">' +
-          esc(r.endpoint) + " · " + esc(r.node || "?") + " · " + esc(r.loc || r.seenAs || "?") +
-        "</option>"
-      );
-    });
+    if (g.nodeBest.length) {
+      options.push('<optgroup label="' + esc(t("conf.59")) + '">');
+      for (const r of g.nodeBest) options.push(opt(r, r === g.best));
+      options.push("</optgroup>");
+    }
+    if (g.rest.length) {
+      options.push('<optgroup label="' + esc(t("conf.60")) + '">');
+      for (const r of g.rest) options.push(opt(r, false));
+      options.push("</optgroup>");
+    }
     sel.innerHTML = options.join("");
     if (cur) sel.value = cur;
     if (S.cfg.endpoint && S.results.some((r) => r.endpoint === S.cfg.endpoint && !r.torn)) {

@@ -181,6 +181,7 @@
       ? cmd.replace(/^"[^"]*"/, "warpscout").replace(/ -o "[^"]*"/, "").replace(/ -a "[^"]*"/, "")
       : cmd;
     $("#cmdPreview").textContent = show;
+    renderNodeFilterBadge(); // v2.6.4: живой индикатор фильтров узлов (реагирует на те же события)
   }
 
   /* ───────── парсер отчёта ───────── */
@@ -237,6 +238,25 @@
   function pingMs(pingStr) {
     const m = /(\d+)/.exec(pingStr || "");
     return m ? +m[1] : Infinity;
+  }
+
+  /* ───────── v2.6.4: группировка эндпоинтов для селекта конфига ─────────
+     Запрос пользователя: «в выпадающем списке конфига неочевидно, что верхний
+     эндпоинт самый быстрый». Группируем: лучший эндпоинт КАЖДОЙ ноды (по
+     tunPing||ping, отсортирован по пингу; первый — общий лучший, ему рисуем
+     ★), затем все остальные живые строки. Чистая функция — покрыта тестами. */
+  function endpointGroups(results) {
+    const ok = (results || []).filter((r) => r && r.endpoint && !r.torn);
+    const byNode = new Map();
+    for (const r of ok) {
+      const k = r.node || "?";
+      const prev = byNode.get(k);
+      if (!prev || pingMs(r.tunPing || r.ping) < pingMs(prev.tunPing || prev.ping)) byNode.set(k, r);
+    }
+    const nodeBest = Array.from(byNode.values()).sort((a, b) => pingMs(a.tunPing || a.ping) - pingMs(b.tunPing || b.ping));
+    const bestSet = new Set(nodeBest.map((r) => r.endpoint));
+    const rest = ok.filter((r) => !bestSet.has(r.endpoint)).sort((a, b) => pingMs(a.tunPing || a.ping) - pingMs(b.tunPing || b.ping));
+    return { best: nodeBest[0] || null, nodeBest, rest };
   }
 
   function pingCell(ping) {
