@@ -16,7 +16,7 @@
 
 Готовые сборки — в разделе **[Releases](https://github.com/RVMXL/WarpScoutGUI-AWG/releases)**.
 
-Текущая версия: **v2.6.1** (кроссплатформенный пререлиз) — [releases/tag/v2.6.1](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.6.1), единый выпуск для шести целевых платформ. Стабильный Windows-релиз — **v2.4.6**.
+Текущая версия: **v2.6.1** (кроссплатформенный релиз) — [releases/tag/v2.6.1](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.6.1), единый выпуск для шести целевых платформ. 
 
 Ключевые свойства текущей сборки:
 
