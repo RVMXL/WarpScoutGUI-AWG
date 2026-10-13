@@ -209,6 +209,7 @@
       } else if (fileThere) {
         let proc = null;
         let exitCode = null; // v2.4.6 (F37)
+        let killedByTimeout = false; // v2.6.3: процесс убили МЫ по таймауту (killProc exit-событие не синтезирует)
         try { proc = await os().spawnProcess(quoteExe() + " version"); } catch (e) { proc = null; }
         const out = await new Promise((resolve) => {
           let buf = "";
@@ -219,12 +220,27 @@
               if (d.type === "stdout" || d.type === "stderr") buf += typeof d.data === "string" ? d.data : "";
               else if (d.type === "exit") { exitCode = exitCodeOf(d.data); unregisterProc(proc.id); finish(); }
             });
-            setTimeout(async () => { await killProc(proc.id); unregisterProc(proc.id); finish(); }, 8000);
+            // v2.6.3 (фикс регресса FE-3): таймаут 12 с — БОЛЬШЕ двухтактного свипа
+            // моста (2 × 5 с, 04-bridge). Раньше было 8 с: при потере exit-события
+            // синтетический exit (-1) приходил ПОЗЖЕ нашего таймаута, exitCode
+            // оставался null, и гейт F37 ниже отвергал ВАЛИДНУЮ версию из stdout —
+            // пользователь получал «warpscout: не найден» / «версию получить
+            // не удалось» при живом exe (регресс 2.6.2 против 2.6.1, где свип
+            // был однотактным и успевал за 8 с).
+            setTimeout(async () => {
+              killedByTimeout = true;
+              await killProc(proc.id);
+              unregisterProc(proc.id);
+              finish();
+            }, 12000);
           } else finish();
         });
         // v2.4.6 (F37): версия принимается только при чистом завершении процесса.
-        // 143/потерянный exit прощаем (это наш таймаут/синтетика), ненулевой настоящий код — нет.
-        if (/^\d+\.\d+/.test(out) && (exitCode === 0 || exitCode === 143 || exitCode === -1)) {
+        // 143/-1 прощаем (наш таймаут/синтетика свипа); v2.6.3: exitCode == null
+        // прощаем ТОЛЬКО когда процесс убили мы сами по таймауту (killedByTimeout:
+        // killProc не синтезирует exit-событие, но stdout-ответ warpscout уже в buf).
+        // Настоящий ненулевой код (антивирус-обёртка и т.п.) по-прежнему отвергается.
+        if (/^\d+\.\d+/.test(out) && (exitCode === 0 || exitCode === 143 || exitCode === -1 || (exitCode == null && killedByTimeout))) {
           S.wsVersion = out;
           ok = true;
         } else {
