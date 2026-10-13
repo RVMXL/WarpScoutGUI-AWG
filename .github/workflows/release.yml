@@ -93,7 +93,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: 8. Android SDK: build-tools 34 + platform 34 → раскладка build-apk.sh
+      - name: "8. Android SDK: build-tools 34 + platform 34 → раскладка build-apk.sh"
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;34.0.0" "platforms;android-34" >/dev/null
@@ -128,7 +128,7 @@ jobs:
           SDK_DIR=/tmp/android-sdk bash desktop-app/android/build-apk.sh
 
       # ── публикация ──
-      - name: 11. заметки релиза: RELEASE-$VER.md + SHA-таблица, собранная здесь
+      - name: "11. заметки релиза: RELEASE-$VER.md + SHA-таблица, собранная здесь"
         run: |
           [ -f "desktop-app/RELEASE-$VER.md" ] || { echo "✗ нет desktop-app/RELEASE-$VER.md"; exit 1; }
           {
