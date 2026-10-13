@@ -110,6 +110,7 @@ jobs:
           if [ -z "$APK_KEYSTORE_B64" ]; then
             echo "✗ секрет APK_KEYSTORE_B64 не задан (Settings → Secrets → Actions)"; exit 1
           fi
+          mkdir -p desktop-app/android/keystore
           printf '%s' "$APK_KEYSTORE_B64" | base64 -d > desktop-app/android/keystore/warpscout.keystore
           chmod 600 desktop-app/android/keystore/warpscout.keystore
           GOT="$(sha256sum desktop-app/android/keystore/warpscout.keystore | cut -d' ' -f1)"
