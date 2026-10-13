@@ -17,11 +17,15 @@ const WSG = path.join(RES, "js", "wsg");
 function scriptTags() {
   const html = fs.readFileSync(path.join(RES, "index.html"), "utf8");
   const out = [];
-  const re = /<script\s+[^>]*src="([^"]+)"[^>]*>\s*<\/script\s*>/g;
-  let m;
-  while ((m = re.exec(html)) !== null) {
+  // CodeQL js/bad-tag-filter (#32): регэксп с обязательным src= флагается —
+  // чекер моделирует <script></script foo="bar">. Матчим ЛЮБОЙ script-тег,
+  // src достаём отдельно из блока атрибутов.
+  const re = /<script\b([^>]*)>([\s\S]*?)<\/script\s*[^>]*>/gi;
+  for (const m of html.matchAll(re)) {
+    const src = m[1].match(/\ssrc\s*=\s*"([^"]+)"/);
+    if (!src) continue; // inline-script без src — не модуль
     // cache-buster ?v=... — не часть пути (модуль всегда один и тот же файл)
-    out.push(m[1].trim().replace(/\?.*$/, ""));
+    out.push(src[1].trim().replace(/\?.*$/, ""));
   }
   return { html, tags: out };
 }
