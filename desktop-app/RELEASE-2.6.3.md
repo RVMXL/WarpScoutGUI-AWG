@@ -91,17 +91,21 @@ tab → “Check warpscout” (forced re-check).
 | `WARPScoutGUI-2.6.3-linux-arm64.zip` | `03c9f960da73963ce9d5591e74ac6bb75c1ac43eb83716b31268f5d7b47a8e51` |
 | `WARPScoutGUI-2.6.3-mac-arm64.zip` | `440eb4ad146688f0a9df856f375ae7b603a04b3d8c4353fdb7ad654b0d522da4` |
 | `WARPScoutGUI-2.6.3-mac-x64.zip` | `70e28711a55d886d1d44b7c192d4a2a0c5eea4bdfb440a1f1dc506e77167f7c5` |
-| `WARPScoutGUI-2.6.3-android-arm64.apk` | см. примечание ниже / see note below |
+| `WARPScoutGUI-2.6.3-android-arm64.apk` | `0087ccdf2111709e8a43e4d15facd2fbd566faa18f9611c1539c804d703efbc2` |
 
 **APK (android-arm64):** versionCode 20603, только разрешение `INTERNET`,
 ядро `libwarpscout.so` — warpscout 0.16.0 (SHA-пин `deps.json`, AND-2),
-подпись — мастер-ключ проекта. SHA-256 APK вписывается в эти заметки при
-сборке (`APK-SHA256-PLACEHOLDER` заменяется sed-командой на машине сборщика).
+подпись — мастер-ключ проекта (серт. SHA-256 `67969ff2…ac9841`, тот же,
+что в 2.6.1/2.6.2 — обновление поверх без переустановки). SHA-256 APK
+`0087ccdf2111709e8a43e4d15facd2fbd566faa18f9611c1539c804d703efbc2`;
+apksigner verify: OK.
 
 **APK (android-arm64):** versionCode 20603, single `INTERNET` permission,
 core `libwarpscout.so` — warpscout 0.16.0 (pinned in `deps.json`, AND-2),
-signed with the project master key. The APK SHA-256 is substituted for
-`APK-SHA256-PLACEHOLDER` at build time on the signing machine.
+signed with the project master key (cert SHA-256 `67969ff2…ac9841`, the same
+key as 2.6.1/2.6.2 — updates install over without reinstalling). APK SHA-256:
+`0087ccdf2111709e8a43e4d15facd2fbd566faa18f9611c1539c804d703efbc2`;
+apksigner verify: OK.
 
 ## Верификация / Verification
 
