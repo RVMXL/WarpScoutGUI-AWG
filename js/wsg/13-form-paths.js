@@ -7,6 +7,34 @@
 "use strict";
 
   /* ───────── синхронизация формы ↔ состояние ───────── */
+  /* ── v2.6.4 (запрос пользователя): живой индикатор фильтров узлов.
+     Раньше в шапке карточки «Фильтры узлов» висела статичная надпись
+     «DME исключён» — она показывалась ВСЕГДА, даже когда DME убирали из
+     исключений. Теперь бейдж отражает АКТИВНЫЕ фильтры в реальном времени:
+     «✗ DME» — исключённые узлы, «✓ HEL» — «только узлы», страны — с пометкой;
+     нет активных фильтров — бейдж скрыт. Компактно (ellipsis), полный текст
+     в title. Вызывается из updateCmdPreview — то есть на любое изменение
+     полей скана (input/change/пресеты/applyFoundCmd/init/смена языка). ── */
+  function renderNodeFilterBadge() {
+    const el = document.getElementById("nodeFilterBadge");
+    if (!el) return;
+    const s = S.scan;
+    const exN = String(s.exclNode || "").trim();
+    const exC = String(s.exclCountry || "").trim();
+    const onN = String(s.node || "").trim();
+    const onC = String(s.country || "").trim();
+    const cc = " (" + t("scan.filters.07") + ")";
+    const parts = [];
+    if (exN) parts.push("✗ " + exN);
+    if (exC) parts.push("✗ " + exC + cc);
+    if (onN) parts.push("✓ " + onN);
+    if (onC) parts.push("✓ " + onC + cc);
+    if (!parts.length) { el.hidden = true; el.textContent = ""; el.removeAttribute("title"); return; }
+    el.hidden = false;
+    el.textContent = parts.join(" · ");
+    el.setAttribute("title", tF("scan.filters.08", { v: parts.join("; ") }));
+  }
+
   function syncStateFromInputs() {
     const s = S.scan;
     s.tunPing = $("#fTunPing").checked;
