@@ -36,6 +36,20 @@ match). Scanning and config generation behaviour is unchanged.
   код (антивирус-обёртка, повреждённый exe) по-прежнему отвергается — защита
   F37 не ослаблена.
 
+- **Fix 3 (15-init.js / 12-socks-tools-ui.js) — плавающий фриз UI при старте.**
+  Второй отчёт пользователя: «иногда после запуска несколько секунд интерфейс
+  не отвечает». Причина: привязка кнопок (bindEvents) выполнялась ПОСЛЕ цепочки
+  последовательных await'ов инициализации (restoreState → computePaths →
+  repairUdfJunction → migrateAndroidLegacyData), а нативные вызовы Neutralino
+  обрабатываются по очереди (websocket-хендлер синхронный) — на медленном диске
+  или при активном антивирусе цепочка растягивалась на секунды, и всё это время
+  интерфейс был глух к нажатиям; плавающий характер — зависимость от состояния
+  диска/антивируса. Теперь setupTouchUi + bindEvents выполняются сразу при
+  разборе скриптов (preInitUi — ещё до готовности рантайма, у обоих самозащита
+  от двойного вызова), а repairUdfJunction и migrateAndroidLegacyData идут
+  параллельно. Пользовательский сценарий/поведение не менялись — ускорен и
+  «оживлён» только старт.
+
 - **Тесты.** +5 юнит-тестов (`tests/wscheck.test.js`): потерянный exit + валидный
   stdout → принимается; штатный exit 0 → принимается; настоящий exit 1 →
   отвергается; мусор в stdout → отвергается; файла нет → «не найден». Тест
@@ -45,7 +59,7 @@ match). Scanning and config generation behaviour is unchanged.
 
 | Платформа | Изменения |
 |---|---|
-| **Windows (win64)** | Фикс проверки warpscout в `resources.neu` (одна функция `checkWarpscoutRun`); остальное — как 2.6.2. |
+| **Windows (win64)** | Фикс проверки warpscout + раннее оживление UI в `resources.neu` (`checkWarpscoutRun`, `init`/`bindEvents`/`setupTouchUi`); остальное — как 2.6.2. |
 | **Linux (linux64)** | Как win64. |
 | **Linux (linux-arm64)** | Как win64. |
 | **macOS (mac-arm64)** | Как win64. |
@@ -53,7 +67,8 @@ match). Scanning and config generation behaviour is unchanged.
 | **Android (android-arm64)** | Как win64; разрешение — по-прежнему только `INTERNET`, versionCode 20603. |
 
 Windows / Linux / macOS / Android: only the warpscout version-check timing fix
-inside resources.neu; everything else is unchanged from 2.6.2.
+and the early-UI bootstrap inside resources.neu; everything else is unchanged
+from 2.6.2.
 
 ## Обновление / Upgrade
 
@@ -71,11 +86,11 @@ tab → “Check warpscout” (forced re-check).
 
 | Файл | SHA-256 |
 |---|---|
-| `WARPScoutGUI-2.6.3-win64.zip` | `8d2ffc487be736e6d53040d59ca680ddfc67dfb4b35c843950018b7fa0df0bc8` |
-| `WARPScoutGUI-2.6.3-linux64.zip` | `b72be089fae19d3ffd9695fdd650a43e4a95a440abbeef62b9b4c52f0c5ab2ed` |
-| `WARPScoutGUI-2.6.3-linux-arm64.zip` | `5810fc479c85fd732315b6269b1c62d96144a8c42f79bd3f193e0b108772fce4` |
-| `WARPScoutGUI-2.6.3-mac-arm64.zip` | `d2795c31d52a39305a8b135ffc4b6b273dcbe7a1883b9fa3f7b9b795f138441f` |
-| `WARPScoutGUI-2.6.3-mac-x64.zip` | `e058e64d24b7daed1e2a5a9a377c89a27ac95394821a93d58cad96d9c8818227` |
+| `WARPScoutGUI-2.6.3-win64.zip` | `bd65e61624d75c0c5fbf406378a3256216b318daa9cb31d248bb3d30a86380a9` |
+| `WARPScoutGUI-2.6.3-linux64.zip` | `05c981d38f00bb90cfc05c12774017bf2916266811480c9bb78991a8d084cf04` |
+| `WARPScoutGUI-2.6.3-linux-arm64.zip` | `03c9f960da73963ce9d5591e74ac6bb75c1ac43eb83716b31268f5d7b47a8e51` |
+| `WARPScoutGUI-2.6.3-mac-arm64.zip` | `440eb4ad146688f0a9df856f375ae7b603a04b3d8c4353fdb7ad654b0d522da4` |
+| `WARPScoutGUI-2.6.3-mac-x64.zip` | `70e28711a55d886d1d44b7c192d4a2a0c5eea4bdfb440a1f1dc506e77167f7c5` |
 | `WARPScoutGUI-2.6.3-android-arm64.apk` | см. примечание ниже / see note below |
 
 **APK (android-arm64):** versionCode 20603, только разрешение `INTERNET`,

@@ -7,6 +7,11 @@
 "use strict";
 
   function bindEvents() {
+    // v2.6.3 (QUAL-2): самозащита от двойной привязки — теперь вызывается и из
+    // preInitUi (при разборе скриптов), и из init(); повтор — безопасный no-op
+    // (иначе двойные слушатели = двойные persist/действия на клик).
+    if (bindEvents.done) return;
+    bindEvents.done = true;
     // вкладки
     $$(".nav__item").forEach((b) => b.addEventListener("click", () => switchTab(b.getAttribute("data-tab"))));
     $$(".subtab").forEach((b) => b.addEventListener("click", () => switchSubtab(b.getAttribute("data-subtab"))));
@@ -429,10 +434,32 @@
     );
   }
 
+  // v2.6.3 (QUAL-2): раннее оживление интерфейса — исправление плавающего
+  // «после запуска несколько секунд интерфейс не отвечает».
+  // Причина: bindEvents() вызывался ПОСЛЕ цепочки последовательных await'ов
+  // (restoreState → computePaths → repairUdfJunction → migrateAndroidLegacyData),
+  // а нативные вызовы Neutralino обрабатываются ПО ОЧЕРЕДИ (websocket-хендлер
+  // синхронный — см. комментарий к checkWarpscout в 13-form-paths): на медленном
+  // диске/при активном антивирусе цепочка растягивалась на секунды, и всё это
+  // время кнопки были НЕ привязаны — интерфейс «не отвечал». Плавающий характер
+  // — зависимость от состояния диска/антивируса/холодного старта.
+  // Фикс: (1) preInitUi — setupTouchUi + bindEvents выполняются сразу при разборе
+  // скриптов (DOM уже разобран — скрипты в конце body), ещё ДО готовности рантайма;
+  // (2) в init() bindEvents больше не ждёт миграций; (3) repairUdfJunction и
+  // migrateAndroidLegacyData идут параллельно (независимы), а не строго последовательно.
+  // Обработчики безопасны на дефолтном состоянии: все поля S инициализированы в
+  // 02-state, пользовательские действия асинхронны и валидируют ввод на месте.
+  function preInitUi() {
+    setupTouchUi();
+    bindEvents();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", preInitUi);
+  else preInitUi();
+
   async function init() {
     // v2.6.2 (QUAL-1): linuxPlatInit упразднён — REV строится лениво в applyLang,
     // платформенные фразы резолвит platPhraseOf (см. 01-platform / 03-i18n)
-    setupTouchUi(); // v2.5.0: сенсорный режим (Android) — построить вкладки/главную до bindEvents
+    preInitUi(); // v2.6.3 (QUAL-2): обычно уже выполнено при разборе скриптов (самозащита — no-op)
     if (IS_ANDROID) { const bu = $("#btnAccUnblock"); if (bu) bu.hidden = true; } // v2.5.0: бинарь уже исполняемый (nativeLibraryDir), chmod-кнопка не нужна
     // v2.5.4 (Android): путь до warpscout (libwarpscout.so в nativeLibraryDir)
     // и кнопки «показать его папку» пользователю недоступны и не нужны — убраны:
@@ -452,16 +479,20 @@
     applyCompact();
     renderCustomPresets();
     await computePaths();
-    // v2.3.0: разбираем junction v2.2.0 (если «Объединить» нажимали) ДО чтения аккаунта
-    await repairUdfJunction().catch(() => {});
+    // v2.3.0: разбираем junction v2.2.0 (если «Объединить» нажимали) ДО чтения аккаунта;
+    // v2.6.3 (QUAL-2): обе миграции независимы — идём параллельно (последовательное
+    // ожидание растягивало старт на медленном диске; кнопки к этому моменту уже
+    // привязаны preInitUi, но loadAccount/statusline тоже не должны тормозить)
     // v2.5.8 (Android): автодогон аккаунта/отчётов из прежних папок в активную —
     // ДО loadAccount, чтобы «аккаунт: есть» появился уже на первом запуске после обновления
-    await migrateAndroidLegacyData().catch(() => {});
+    await Promise.all([
+      repairUdfJunction().catch(() => {}),
+      migrateAndroidLegacyData().catch(() => {}),
+    ]);
     syncInputsFromState();
     syncCfgInputsFromState();
     $("#presetHint").innerHTML = t(PRESETS.default.hint);
     highlightMatchingPreset(); // v1.5.0: подсветить пресет, соответствующий сохранённой форме
-    bindEvents();
     updateCmdPreview();
     renderResults();
     renderConf();

@@ -429,7 +429,11 @@
   }
 
   function setupTouchUi() {
-    if (!TOUCH_UI) return;
+    // v2.6.3 (QUAL-2): самозащита от двойного вызова — теперь строится РАНЬШЕ
+    // (preInitUi при разборе скриптов, до готовности рантайма), init вызывает
+    // повторно — повтор должен быть безопасным no-op (иначе дубли DOM).
+    if (setupTouchUi.done || !TOUCH_UI) return;
+    setupTouchUi.done = true;
     document.body.classList.add("touch-ui");
     const main = $("main.main");
     if (!main) return;
