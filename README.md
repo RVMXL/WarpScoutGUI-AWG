@@ -16,7 +16,7 @@
 
 Готовые сборки — в разделе **[Releases](https://github.com/RVMXL/WarpScoutGUI-AWG/releases)**.
 
-Текущая версия: **v2.6.1** (кроссплатформенный релиз) — [releases/tag/v2.6.1](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.6.1), единый выпуск для шести целевых платформ. 
+Текущая версия: **v2.6.5** — [releases/tag/v2.6.5](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.6.5), единый выпуск для шести целевых платформ, собирается и публикуется CI по пушу тега.
 
 Ключевые свойства текущей сборки:
 
@@ -24,22 +24,22 @@
 - **Десктоп — portable без установки**: распакованный архив самодостаточен; `chmod +x` выдаётся штатно нативным `fs.setPermissions` (Linux/macOS), команды собираются через единые экранирующие точки (`psQuote`/`cmdWinPath`).
 - **Модульная архитектура**: логика интерфейса — 15 модулей `resources/js/wsg/` (01-platform … 15-init), подключаемых `index.html` строго по номеру.
 - **Ядро `warpscout` v0.16.0** во всех пакетах; GUI не меняет поведение сканера.
-- **Инженерная обвязка**: CI (GitHub Actions), 50 юнит-тестов чистых функций (node --test, ноль зависимостей), SBOM-lite (`tools/deps.json` + `verify-deps.py`), провенанс вендореного qrcode.js (js1.5.2), единая точка версии (`tools/gen-version.py`), детерминированная сборка `resources.neu`, бинарники распространяются через Releases (`tools/fetch-binaries.py`).
+- **Инженерная обвязка**: CI (GitHub Actions: статические проверки на каждый пуш + полный релизный конвейер по тегу), 80 юнит-тестов чистых функций (node --test, ноль зависимостей), SBOM-lite (`tools/deps.json` + `verify-deps.py`), провенанс вендореного qrcode.js (js1.5.2), единая точка версии (`tools/gen-version.py`), детерминированная сборка `resources.neu`, бинарники распространяются через Releases (`tools/fetch-binaries.py`).
 
 История изменений по версиям — в [`CHANGELOG.md`](CHANGELOG.md) и примечаниях к релизам.
 
-**Политика выпуска:** каждый релиз содержит артефакты **всех** поддерживаемых платформ под единым номером версии — включая платформы, код которых в данном выпуске не менялся; в примечаниях к релизу для каждой платформы указано, что изменилось либо зафиксировано отсутствие изменений. Публикация гейтится CI (v2.6.2, аудит INFRA-H): тег запускает workflow `release` (полный прогон проверок + сборка десктоп-зипов той же цепочкой, что и релиз), а `scripts/release.sh` перед созданием релиза ждёт зелёный прогон «ci» на коммите тега и падает, если проверка красная; pre-flight проверки скрипта (согласованность версий, секция CHANGELOG, примечания релиза, наличие всех 6 артефактов) — fail-fast, мягкий режим только с явным `WS_FORCE=1` (аудит INFRA-G).
+**Политика выпуска:** каждый релиз содержит артефакты **всех** поддерживаемых платформ под единым номером версии — включая платформы, код которых в данном выпуске не менялся; в примечаниях к релизу для каждой платформы указано, что изменилось либо зафиксировано отсутствие изменений. Публикация автоматизирована (с v2.6.5, аудит INFRA-H): пуш тега `v*` запускает workflow `release`, который прогоняет гейт проверок (версия = тег, юнит-тесты, i18n, SHA-пины бинарников), собирает все 6 артефактов — включая APK с ключом подписи из зашифрованного секрета репозитория (SHA-контроль против подмены) — и публикует релиз с заметками и SHA-таблицей, затем обновляет веб-демо на gh-pages. Прежний ручной публикатор `scripts/release.sh` сохранён как альтернатива: перед созданием релиза ждёт зелёный прогон «ci» на коммите тега и падает, если проверка красная; pre-flight проверки скрипта (согласованность версий, секция CHANGELOG, примечания релиза, наличие всех 6 артефактов) — fail-fast, мягкий режим только с явным `WS_FORCE=1` (аудит INFRA-G). Дожим существующего тега — Actions → release → Run workflow (ввод тега).
 
 | Артефакт | Платформа | Размер |
 |---|---|---|
-| `WARPScoutGUI-2.6.1-win64.zip` | Windows 10/11 (x86_64) | 6,3 МБ |
-| `WARPScoutGUI-2.6.1-linux64.zip` | Linux (x86_64) | 4,8 МБ |
-| `WARPScoutGUI-2.6.1-linux-arm64.zip` | Linux (ARM64 / aarch64) | 4,4 МБ |
-| `WARPScoutGUI-2.6.1-mac-arm64.zip` | macOS Apple Silicon (M1–M4) | 5,8 МБ |
-| `WARPScoutGUI-2.6.1-mac-x64.zip` | macOS Intel | 6,1 МБ |
-| `WARPScoutGUI-2.6.1-android-arm64.apk` | Android 7.0+ (ARM64) | 5,0 МБ |
+| `WARPScoutGUI-2.6.5-win64.zip` | Windows 10/11 (x86_64) | 6,3 МБ |
+| `WARPScoutGUI-2.6.5-linux64.zip` | Linux (x86_64) | 4,8 МБ |
+| `WARPScoutGUI-2.6.5-linux-arm64.zip` | Linux (ARM64 / aarch64) | 4,4 МБ |
+| `WARPScoutGUI-2.6.5-mac-arm64.zip` | macOS Apple Silicon (M1–M4) | 5,7 МБ |
+| `WARPScoutGUI-2.6.5-mac-x64.zip` | macOS Intel | 6,1 МБ |
+| `WARPScoutGUI-2.6.5-android-arm64.apk` | Android 7.0+ (ARM64) | 5,0 МБ |
 
-Контрольные суммы SHA-256 всех артефактов — в [примечаниях к релизу](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.6.1) и в разделе [«Проверка целостности»](#проверка-целостности) ниже.
+Контрольные суммы SHA-256 всех артефактов — в [примечаниях к релизу](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.6.5) и в разделе [«Проверка целостности»](#проверка-целостности) ниже.
 
 **Состав desktop-архива** (одинаков на всех платформах, 9 записей):
 
@@ -55,7 +55,7 @@ licenses/               — лицензии всех компонентов (4 
 
 ### Windows (x64)
 
-1. Скачайте `WARPScoutGUI-2.6.1-win64.zip` из [релиза](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/latest).
+1. Скачайте `WARPScoutGUI-2.6.5-win64.zip` из [релиза](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/latest).
 2. Распакуйте папку целиком в любое место (например, `D:\WARPScoutGUI`). Внутри должна остаться структура `WARPScoutGUI.exe`, `resources.neu`, `bin\`, `licenses\` — не разъединяйте их.
 3. Запустите `WARPScoutGUI.exe` — установка не требуется.
 4. Если SmartScreen предупреждает (приложение не подписано сертификатом Microsoft): «Подробнее» → «Выполнить в любом случае».
@@ -106,7 +106,7 @@ Arch:           sudo pacman -S webkit2gtk-4.1
 
 ### Android (ARM64)
 
-1. Скачайте `WARPScoutGUI-2.6.1-android-arm64.apk` из релиза.
+1. Скачайте `WARPScoutGUI-2.6.5-android-arm64.apk` из релиза.
 2. Откройте файл на устройстве и разрешите установку из неизвестных источников для приложения, которым открываете (Chrome/Файлы) — стандартный запрос Android для APK вне Play Market.
 3. Установите APK и запустите приложение **WARPScoutGUI**.
 
@@ -130,24 +130,24 @@ Arch:           sudo pacman -S webkit2gtk-4.1
 
 ### Проверка целостности
 
-SHA-256 артефактов релиза v2.6.1:
+SHA-256 артефактов релиза v2.6.5:
 
 | Файл | SHA-256 |
 |---|---|
-| `WARPScoutGUI-2.6.1-win64.zip` | `4755ec2f917aae6b01a5246b41af37660a2d4c542972a855dbfcb9dea18e588c` |
-| `WARPScoutGUI-2.6.1-linux64.zip` | `bfee8d781cc03f461ad155e4f2c2c5d826ce54c385fd7beeedf164150c91ed5e` |
-| `WARPScoutGUI-2.6.1-linux-arm64.zip` | `1ab20b7f4ba34a884e782681147bbd223cdc07d16aa021d79ed5e1150e21124c` |
-| `WARPScoutGUI-2.6.1-mac-arm64.zip` | `24d176f3cc2d87783f2ce18707749dbfe37ada3b4b4e912a9b0144fd129f27f2` |
-| `WARPScoutGUI-2.6.1-mac-x64.zip` | `622821d25883872982b68a5fa30d66b46e670e0ef315a9ced494f57f6838e26f` |
-| `WARPScoutGUI-2.6.1-android-arm64.apk` | `9e73326ef00574893dea04f720e554efce77131e28db629a54b1ef29f403d000` |
+| `WARPScoutGUI-2.6.5-win64.zip` | `e601bc2e22840a67e17858b713e504f7a2893e40a976b4b81ae117f6812927b0` |
+| `WARPScoutGUI-2.6.5-linux64.zip` | `7057dacaf651ddaefd7c71b713a6b98e56de044cdd97e65d6a9cb0d5dab13e6b` |
+| `WARPScoutGUI-2.6.5-linux-arm64.zip` | `52a6970fae3e8dc7a4538582e35fc098de6cbecb5ce358701ade0428bf2f55b2` |
+| `WARPScoutGUI-2.6.5-mac-arm64.zip` | `c0afd5c5f71b7214ad35e64d9b15a1cf9b79e1f7f7e26c152727cf8a0294d208` |
+| `WARPScoutGUI-2.6.5-mac-x64.zip` | `53e4138072a1edf6e419fe9fc1417b919d17cc00532b4d8c40de715bf9955eb2` |
+| `WARPScoutGUI-2.6.5-android-arm64.apk` | `b816879b9ee87ad1f18b67a46a6b857064229b71bb48517b1bf785461624db60` |
 
 Проверка после скачивания:
 
 ```bash
 # Linux / macOS
-shasum -a 256 WARPScoutGUI-2.6.1-*.zip
+shasum -a 256 WARPScoutGUI-2.6.5-*.zip
 # Windows (PowerShell)
-Get-FileHash WARPScoutGUI-2.6.1-win64.zip -Algorithm SHA256
+Get-FileHash WARPScoutGUI-2.6.5-win64.zip -Algorithm SHA256
 ```
 
 **Подпись APK.** Android-сборка подписана фиксированным ключом — обновления устанавливаются поверх установленной версии без потери данных. Отпечаток сертификата (SHA-256) для проверки:
@@ -188,7 +188,7 @@ Get-FileHash WARPScoutGUI-2.6.1-win64.zip -Algorithm SHA256
 | `desktop-app/tools/` | Инструменты сборки и верификации цепочки поставки: `pack-neu.py` (сборка `resources.neu`), `build-zips.py` (детерминированные release-zip; футер README печатается из единого источника версии — аудит INFRA-D), `gen-version.py` (кодогенерация версии, `--check` — гейт CI), `verify-deps.py` + `fetch-binaries.py` + `deps.json` (SBOM-lite: SHA-256 всех 13 поставляемых артефактов), `check-i18n.py` (аудит i18n), `unpack-neu.py`, `sync-demo.sh` |
 | `desktop-app/android/` | Android-проект без Gradle: `AndroidManifest.xml`, `java/`, `res/`, `build-apk.sh` (aapt2 + d8 + apksigner) |
 | `desktop-app/pkg/WARPScoutGUI-<платформа>/` | Собранные пакеты (бинарь + `resources.neu` + `bin/warpscout` + `licenses/` + `README.txt`) |
-| `desktop-app/AUDIT-v2.5.0.md`, `desktop-app/RELEASE-2.5.0.md` … `desktop-app/RELEASE-2.6.1.md` | Отчёт первого аудита и построчные примечания к каждому релизу (RU/EN, платформенная таблица, SHA-256) |
+| `desktop-app/AUDIT-v2.5.0.md`, `desktop-app/RELEASE-2.5.0.md` … `desktop-app/RELEASE-2.6.5.md` | Отчёт первого аудита и построчные примечания к каждому релизу (RU/EN, платформенная таблица, SHA-256) |
 | `docs/` | Скриншоты интерфейса |
 
 ## Сборка из исходников
@@ -245,3 +245,4 @@ node --test desktop-app/tests/*.test.js
 - **Этот репозиторий — не форк**: это независимый проект (Neutralino.js GUI), написанный с нуля вокруг CLI-утилиты; общей истории коммитов с апстримом нет.
 - Приложения распространяются без подписных сертификатов Apple/Microsoft, поэтому SmartScreen и Gatekeeper могут предупреждать при первом запуске (см. разделы установки выше) — это ожидаемое поведение для portable-сборок.
 - Не аффилировано с Cloudflare, Amnezia и DENSO WAVE. WARP — товарный знак Cloudflare, Inc.
+[README.md](https://github.com/user-attachments/files/33390295/README.md)
