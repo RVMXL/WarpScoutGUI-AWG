@@ -118,7 +118,16 @@ find "$BUILD/classes" -name "*.class" > "$BUILD/classlist.txt"
 "$BT/zipalign" -f -p 4 "$BUILD/base.apk" "$BUILD/aligned.apk"
 
 if [ ! -f "$KS" ]; then
-  echo "→ генерация ключа подписи $KS"
+  # v2.6.5: автогенерация только по явному флагу. Молчаливый новый ключ =
+  # пользователи не смогут обновиться поверх (сертификат другой) — CI обязан
+  # упасть явно, если секрет APK_KEYSTORE_B64 не расшифровался.
+  if [ "${KS_ALLOW_GENERATE:-0}" != "1" ]; then
+    echo "✗ $KS не найден. CI: секрет APK_KEYSTORE_B64 (Settings → Secrets → Actions)." >&2
+    echo "  Локально: восстановите из бэкапа (RELEASE-SECRETS.txt) или задайте" >&2
+    echo "  KS_ALLOW_GENERATE=1 ОСОЗНАННО — новый ключ не даёт обновлений поверх!" >&2
+    exit 1
+  fi
+  echo "→ генерация ключа подписи $KS (KS_ALLOW_GENERATE=1)"
   "$JDK_BIN/keytool" -genkeypair -keystore "$KS" -alias warpscout \
     -keyalg RSA -keysize 2048 -validity 10000 \
     -storepass "$KSPASS" -keypass "$KSPASS" \

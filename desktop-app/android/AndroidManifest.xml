@@ -4,8 +4,8 @@
      desktop-app/android/keystore/) — новая версия ставится как апдейт. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="ru.warpscout.gui"
-    android:versionCode="20604"
-    android:versionName="2.6.4">
+    android:versionCode="20605"
+    android:versionName="2.6.5">
 
     <!-- Сеть: регистрация аккаунта в Cloudflare и сканирование (ядро warpscout) -->
     <uses-permission android:name="android.permission.INTERNET" />

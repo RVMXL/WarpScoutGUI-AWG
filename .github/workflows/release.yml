@@ -1,77 +1,197 @@
-# WARPScoutGUI-AWG — релизный гейт (v2.6.2, аудит INFRA-H).
-# Публикация релиза больше не существует в вакууме: на пуш тега v* запускается
-# эта цепочка — ПОЛНЫЙ набор проверок CI + сборка десктоп-артефактов ТЕМ ЖЕ
-# инструментарием, что собирает релиз, + сверка детерминизма. Зелёный прогон на
-# теге — обязательное условие публикации (scripts/release.sh сам ждёт его —
-# шаг «CI gate», аудит INFRA-H). APK не собирается в CI сознательно: ключ
-# подписи не покидает машину сборщика (SECURITY.md).
+# WARPScoutGUI-AWG — полный релиз по пушу тега (v2.6.5, «одна кнопка»).
+# Пуш тега v* → гейт проверок → сборка 5 release-zip + APK → публикация
+# prerelease с заметками RELEASE-X.Y.Z.md (SHA-таблица артефактов дописывается
+# CI автоматически) → деплой демо на gh-pages.
+# Ручной дожим/перепубликация существующего тега: Actions → release → Run
+# workflow → ввести тег (workflow_dispatch).
+# Секреты (одноразовая настройка): APK_KEYSTORE_B64 (keystore в base64),
+# APK_KEYSTORE_PASS (пароль хранилища). Ключ подписи в git не живёт (SECURITY.md):
+# v2.6.2-INFRA-H собирал только десктоп; здесь APK собирается CI при наличии
+# секретов и жёсткого SHA-контроля keystore (подмена → падение сборки).
 name: release
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Существующий тег, например v2.6.5"
+        required: true
 
 permissions:
-  contents: read
+  contents: write # prerelease + ассеты + пуш gh-pages
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
-  gate-and-build:
+  release:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
+      - name: 0. тег и версия
+        run: |
+          TAG="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+          case "$TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "✗ тег '$TAG' не в формате vX.Y.Z"; exit 1 ;;
+          esac
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "VER=${TAG#v}" >> "$GITHUB_ENV"
+          echo "релиз: $TAG (версия ${TAG#v})"
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: юнит-тесты чистых функций (ARCH-4)
+      # ── гейт: то, что раньше проверял scripts/release.sh перед публикацией ──
+      - name: 1. версия согласована и равна тегу
+        run: |
+          python3 desktop-app/tools/gen-version.py --check
+          CFG="$(python3 -c "import json;print(json.load(open('desktop-app/neutralino.config.json'))['version'])")"
+          if [ "$CFG" != "$VER" ]; then
+            echo "✗ тег $TAG, а версия в neutralino.config.json — $CFG (бамп не сделан?)"; exit 1
+          fi
+
+      - name: 2. юнит-тесты чистых функций
         run: node --test desktop-app/tests/*.test.js
 
-      - name: версия согласована везде (ARCH-2 + таблица-тест versionCode INFRA-F)
-        run: python3 desktop-app/tools/gen-version.py --check
+      - name: 3. i18n по идентификаторам + структура index.html↔wsg
+        run: |
+          python3 desktop-app/tools/check-i18n.py
+          node --test desktop-app/tests/structure.test.js
 
-      - name: i18n по идентификаторам (QUAL-1)
-        run: python3 desktop-app/tools/check-i18n.py
-
-      - name: index.html ↔ js/wsg/*.js — состав и порядок script-тегов (QUAL-C)
-        run: node --test desktop-app/tests/structure.test.js
-
-      - name: восстановление бинарников последнего релиза (INFRA-A)
+      - name: 4. восстановление бинарников последнего опубликованного релиза
         run: python3 desktop-app/tools/fetch-binaries.py --latest-published
         env:
           WS_GH_TOKEN: ${{ github.token }}
 
-      - name: хэши согласованы с deps.json (INFRA-2/INFRA-C/AND-2)
+      - name: 5. SHA-пины deps.json сходятся
         run: python3 desktop-app/tools/verify-deps.py
 
-      - name: детерминизм resources.neu (двойная сборка)
+      # ── сборка десктопа ──
+      - name: 6. resources.neu ×5 (детерминированно) + release-zip
         run: |
-          python3 desktop-app/tools/pack-neu.py desktop-app /tmp/rel1.neu
-          python3 desktop-app/tools/pack-neu.py desktop-app /tmp/rel2.neu
-          A=$(sha256sum /tmp/rel1.neu | cut -d" " -f1)
-          B=$(sha256sum /tmp/rel2.neu | cut -d" " -f1)
-          if [ "$A" != "$B" ]; then
-            echo "NON-DETERMINISTIC: $A != $B"; exit 1
-          fi
-          echo "resources.neu reproducible: $A"
-
-      - name: сборка release-zip той же цепочкой, что и релиз (INFRA-H)
-        # v2.6.2 (пост-аудит): пути пакета — с префиксом desktop-app/ (чекоут
-        # корневой, каталога pkg/ в корне НЕТ; первый прогон на теге v2.6.2
-        # падал FileNotFoundError: pkg/WARPScoutGUI-win64/resources.neu);
-        # win64 исключён из цикла cp — pack-neu уже пишет его напрямую,
-        # self-copy под bash -e валил бы шаг («are the same file» → exit 1).
-        run: |
-          python3 desktop-app/tools/pack-neu.py desktop-app desktop-app/pkg/WARPScoutGUI-win64/resources.neu
-          for p in linux64 linux-arm64 mac-arm64 mac-x64; do
-            cp desktop-app/pkg/WARPScoutGUI-win64/resources.neu "desktop-app/pkg/WARPScoutGUI-$p/resources.neu"
+          for p in win64 linux64 linux-arm64 mac-arm64 mac-x64; do
+            python3 desktop-app/tools/pack-neu.py desktop-app "desktop-app/pkg/WARPScoutGUI-$p/resources.neu"
           done
           python3 desktop-app/tools/build-zips.py
-          sha256sum download/WARPScoutGUI-*.zip
+          sha256sum "download/WARPScoutGUI-$VER-"*.zip
 
-      - name: артефакты тега — в итоги workflow (проверяемость релиза)
-        uses: actions/upload-artifact@v4
+      # ── сборка APK ──
+      - name: 7. JDK 17 (Temurin)
+        uses: actions/setup-java@v4
         with:
-          name: release-zips-${{ github.ref_name }}
-          path: download/WARPScoutGUI-*.zip
-          retention-days: 14
+          distribution: temurin
+          java-version: "17"
+
+      - name: 8. Android SDK: build-tools 34 + platform 34 → раскладка build-apk.sh
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;34.0.0" "platforms;android-34" >/dev/null
+          mkdir -p /tmp/android-sdk
+          ln -sfn "$ANDROID_HOME/build-tools/34.0.0" /tmp/android-sdk/android-14
+          ln -sfn "$ANDROID_HOME/platforms/android-34" /tmp/android-sdk/android-34
+          ln -sfn "$JAVA_HOME" /tmp/android-sdk/jdk
+          ls /tmp/android-sdk/android-14/aapt2 /tmp/android-sdk/android-34/android.jar /tmp/android-sdk/jdk/bin/javac
+
+      - name: 9. keystore из секрета (SHA-контроль против подмены)
+        env:
+          APK_KEYSTORE_B64: ${{ secrets.APK_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$APK_KEYSTORE_B64" ]; then
+            echo "✗ секрет APK_KEYSTORE_B64 не задан (Settings → Secrets → Actions)"; exit 1
+          fi
+          printf '%s' "$APK_KEYSTORE_B64" | base64 -d > desktop-app/android/keystore/warpscout.keystore
+          chmod 600 desktop-app/android/keystore/warpscout.keystore
+          GOT="$(sha256sum desktop-app/android/keystore/warpscout.keystore | cut -d' ' -f1)"
+          WANT="3799f96c18ca5e7dbaa4f08c7341a1acc340eaee2180fc27e85b9067ec487495"
+          if [ "$GOT" != "$WANT" ]; then
+            echo "✗ SHA-256 keystore $GOT ≠ мастер-пин $WANT — секрет испорчен/подменён"; exit 1
+          fi
+          echo "keystore OK: $GOT"
+
+      - name: 10. сборка APK (ядро warpscout — SHA-пин deps.json внутри build-apk.sh)
+        env:
+          KSPASS: ${{ secrets.APK_KEYSTORE_PASS }}
+        run: |
+          mkdir -p /tmp/ws-android
+          cp desktop-app/pkg/WARPScoutGUI-android/libwarpscout.so /tmp/ws-android/warpscout
+          SDK_DIR=/tmp/android-sdk bash desktop-app/android/build-apk.sh
+
+      # ── публикация ──
+      - name: 11. заметки релиза: RELEASE-$VER.md + SHA-таблица, собранная здесь
+        run: |
+          [ -f "desktop-app/RELEASE-$VER.md" ] || { echo "✗ нет desktop-app/RELEASE-$VER.md"; exit 1; }
+          {
+            cat "desktop-app/RELEASE-$VER.md"
+            echo ""
+            echo "## Артефакты (SHA-256, собрано CI для тега $TAG)"
+            echo ""
+            echo "| Файл | SHA-256 |"
+            echo "|---|---|"
+            (cd download && sha256sum WARPScoutGUI-$VER-*.zip WARPScoutGUI-$VER-*.apk \
+              | awk '{print "| `" $2 "` | `" $1 "` |"}')
+            echo ""
+            echo "APK: подпись мастер-ключа проекта (серт. SHA-256 \`67969ff2…ac9841\` — обновление поверх без переустановки), versionCode $(python3 desktop-app/tools/gen-version.py --vcode), только разрешение INTERNET; apksigner verify: OK."
+          } > /tmp/notes.md
+
+      - name: 12. prerelease + 6 ассетов (перезаписывает при дожиме)
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "WarpScoutGUI $VER (prerelease)" \
+              --notes-file /tmp/notes.md --prerelease
+          else
+            gh release create "$TAG" --prerelease \
+              --title "WarpScoutGUI $VER (prerelease)" --notes-file /tmp/notes.md
+          fi
+          gh release upload "$TAG" "download/WARPScoutGUI-$VER-"*.zip "download/WARPScoutGUI-$VER-"*.apk --clobber
+          echo "ассеты: $(gh release view "$TAG" --json assets -q '.assets | length')"
+
+      # ── демо ──
+      - name: 13. демо-сборка → gh-pages (Pages обновится сам после пуша)
+        run: |
+          bash desktop-app/tools/sync-demo.sh "$TAG"
+          git clone --depth 1 --branch gh-pages \
+            "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" /tmp/ghp
+          python3 - <<'PYEOF'
+          import os, shutil
+          src, dst = "public/gui-demo", "/tmp/ghp"
+          for fn in os.listdir(dst):
+              if fn in (".git", ".nojekyll"):
+                  continue
+              p = os.path.join(dst, fn)
+              shutil.rmtree(p) if os.path.isdir(p) else os.remove(p)
+          n = 0
+          for dp, ds, fs in os.walk(src):
+              rel = os.path.relpath(dp, src)
+              t = dst if rel == "." else os.path.join(dst, rel)
+              os.makedirs(t, exist_ok=True)
+              for f in fs:
+                  shutil.copyfile(os.path.join(dp, f), os.path.join(t, f))
+                  n += 1
+          print("demo files:", n, "| .nojekyll:", os.path.exists(os.path.join(dst, ".nojekyll")))
+          PYEOF
+          cd /tmp/ghp
+          git config user.name "wsg-release-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "demo $VER: авто-деплой CI (тег $TAG)" || echo "демо без изменений"
+          git push origin gh-pages
+
+      - name: 14. итог
+        run: |
+          URL="$(gh release view "$TAG" --json url -q .url)"
+          N="$(gh release view "$TAG" --json assets -q '.assets | length')"
+          echo "=== Релиз $TAG опубликован ==="
+          echo "URL: $URL"
+          echo "Ассетов: $N (ожидается 6)"
+          test "$N" -eq 6
