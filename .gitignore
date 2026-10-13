@@ -1,46 +1,54 @@
-# dependencies / build
-node_modules/
-.next/
-out/
-build/
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# desktop-app build output
-desktop-app/dist/
-desktop-app/.tmp/
-desktop-app/bin/
-desktop-app/pkg/*/.storage/
-desktop-app/pkg/*/.tmp/
-# v2.6.0 (аудит ARCH-3): прекомпилированные бинарники НЕ в git —
-# артефакты живут в GitHub Releases, хэши — в tools/deps.json.
-# Восстановить: python3 desktop-app/tools/fetch-binaries.py --release v2.6.0
-desktop-app/pkg/*/WARPScoutGUI
-desktop-app/pkg/*/WARPScoutGUI.exe
-desktop-app/pkg/*/resources.neu
-desktop-app/pkg/*/bin/
-# v2.6.2 (аудит AND-2/INFRA-C): android-ядро восстанавливается fetch-binaries.py
-desktop-app/pkg/*/libwarpscout.so
+# dependencies
+node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# release artifacts & signing material (never commit)
-download/
-*.keystore
-*.idsig
+# testing
+/coverage
 
-# sandbox / agent work artifacts — never publish
-worklog.md
-postcss.config.json
+# next.js
+/.next/
+/out/
+
+# production
+/build
 
 # misc
 .DS_Store
-*.log
 *.pem
 
-# env files
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
 .env*
+
+# vercel
+.vercel
+
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+local-*
+.claude
+.z-ai-config
+*.log
+dev.log
+dev.out.log
+test
+prompt
 
-# python
-desktop-app/tools/__pycache__/
-__pycache__/
+server.log
+# Skills directory
+/skills/
