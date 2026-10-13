@@ -17,7 +17,7 @@ const WSG = path.join(RES, "js", "wsg");
 function scriptTags() {
   const html = fs.readFileSync(path.join(RES, "index.html"), "utf8");
   const out = [];
-  const re = /<script\s+[^>]*src="([^"]+)"[^>]*>\s*<\/script>/g;
+  const re = /<script\s+[^>]*src="([^"]+)"[^>]*>\s*<\/script\s*>/g;
   let m;
   while ((m = re.exec(html)) !== null) {
     // cache-buster ?v=... — не часть пути (модуль всегда один и тот же файл)
