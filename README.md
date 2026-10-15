@@ -245,4 +245,3 @@ node --test desktop-app/tests/*.test.js
 - **Этот репозиторий — не форк**: это независимый проект (Neutralino.js GUI), написанный с нуля вокруг CLI-утилиты; общей истории коммитов с апстримом нет.
 - Приложения распространяются без подписных сертификатов Apple/Microsoft, поэтому SmartScreen и Gatekeeper могут предупреждать при первом запуске (см. разделы установки выше) — это ожидаемое поведение для portable-сборок.
 - Не аффилировано с Cloudflare, Amnezia и DENSO WAVE. WARP — товарный знак Cloudflare, Inc.
-[README.md](https://github.com/user-attachments/files/33390295/README.md)
