@@ -121,7 +121,11 @@
     "scan.run.01": { ru: "команда", en: "command" },
     "scan.run.02": { ru: "Начать скан", en: "Start scan" },
     "scan.run.03": { ru: "Сканирую…", en: "Scanning…" },
+    // v2.6.6: кнопка «Остановить» в живой карточке на главной удалена (обработчик
+    // ей не привязывался), но ключ остаётся: он покрывает СТАТИЧЕСКИЙ текст
+    // штатной кнопки btnStopScan (index.html) — REV-покрытие check-i18n + EN-перевод
     "scan.run.04": { ru: "Остановить", en: "Stop" },
+    "scan.lock.01": { ru: "🔒 Сканирование идёт — параметры заблокированы до завершения или остановки", en: "🔒 Scan in progress — parameters are locked until it finishes or is stopped" },
     "scan.run.05": { ru: "Phase 1…", en: "Phase 1…" },
     /* — results — */
     /* — результаты — */

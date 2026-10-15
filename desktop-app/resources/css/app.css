@@ -348,6 +348,15 @@ textarea { resize: vertical; min-height: 40px; line-height: 1.4; }
 /* ═══ Scan tab ═══ */
 .scan-grid { display: grid; grid-template-columns: minmax(360px, 480px) minmax(0, 1fr); gap: 18px; align-items: start; height: 100%; }
 .scan-form { display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 40px); overflow-y: auto; padding-right: 6px; }
+/* v2.6.6 (запрос пользователя): параметры скана недоступны, пока идёт скан —
+   случайные нажатия по полям не выглядят как «что-то сломалось». Гасим всю
+   колонку параметров; Пуск/Стоп, командная строка и лог — вне .scan-form и
+   остаются доступными. disabled ставится кодом (setScanParamsLocked),
+   pointer-events дополнительно отсекает тапы по не-контролам (чипы пресетов
+   уже disabled, но подписи/лейблы тоже не должны ловить нажатия). */
+.scan-form.is-locked { opacity: 0.55; pointer-events: none; user-select: none; }
+.scan-form.is-locked input, .scan-form.is-locked select, .scan-form.is-locked textarea, .scan-form.is-locked button { cursor: not-allowed; }
+.scan-lock-hint { color: var(--warn); font-weight: 600; margin: 0; }
 .scan-exec { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 
 .cmd-bar {

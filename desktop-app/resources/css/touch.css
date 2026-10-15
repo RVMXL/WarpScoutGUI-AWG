@@ -101,6 +101,11 @@ body.touch-ui .home-status {
   font-size: 13px;
 }
 body.touch-ui .home-status__row { color: var(--text-dim); min-height: 20px; }
+/* v2.6.6: зеркала статуса красятся как на десктопе — is-ok (warpscout готов /
+   аккаунт есть) зелёным, is-err (не найдено) красным; специфичность выше
+   базового .home-status__row, иначе серый цвет побеждал */
+body.touch-ui .home-status__row.is-ok { color: var(--ok); }
+body.touch-ui .home-status__row.is-err { color: var(--err); }
 body.touch-ui .home-status__hint { color: var(--text-faint); font-size: 12px; margin-top: 2px; }
 body.touch-ui .home-title {
   font-size: 13px;
@@ -318,22 +323,9 @@ body.touch-ui .home-scanlive__meta {
   display: flex;
   gap: 8px;
 }
-body.touch-ui .home-scanlive__stop {
-  flex: 0 0 auto;
-  min-height: 44px;
-  padding: 8px 14px;
-  border-radius: 9px;
-  border: 1px solid var(--err);
-  background: transparent;
-  color: var(--err);
-  font-family: var(--font);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-body.touch-ui .home-scanlive__stop:active { transform: scale(0.97); }
+/* v2.6.6: стили .home-scanlive__stop удалены вместе с кнопкой —
+   обработчика клика у неё не было (нажатие ничего не делало), рабочий
+   останов — штатная кнопка скана и большая кнопка на главной */
 /* кнопка главной во время скана — «занята» (нажатие останавливает) */
 body.touch-ui .home-act--busy {
   border-color: var(--accent-line);

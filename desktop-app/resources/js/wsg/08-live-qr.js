@@ -32,6 +32,11 @@
     const ss = String(sec % 60).padStart(2, "0");
     const el = $("#scanLiveElapsed");
     if (el) el.textContent = mm + ":" + ss;
+    // v2.6.6: посекундный ре-ассерт блокировки параметров — если какой-то
+    // асинхронный ре-рендер (восстановление пресетов, i18n-прогон) пересоздал
+    // контрол .scan-form уже ПОСЛЕ setScanRunning(true), он попадёт в замку
+    // не позже секунды. Дешёво: 46 disabled-присваиваний раз в секунду.
+    try { if (S.running.scan) setScanParamsLocked(true); } catch (e) {}
     try { homeScanTick(); } catch (e) {} // v2.5.4: таймер/шаги на главной
   }
 

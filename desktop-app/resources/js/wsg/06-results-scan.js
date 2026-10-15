@@ -365,6 +365,38 @@
 
   /* ───────── прогон скана ───────── */
   let scanSeq = 0; // v2.4.6 (F31): счётчик запусков — id сессии
+
+  /* ── v2.6.6 (запрос пользователя): блокировка параметров скана на время прогона ──
+     Случайные нажатия по полям вкладки «Скан» во время скана выглядели как
+     «что-то сломалось». Все контролы .scan-form гасятся (disabled + .is-locked);
+     Пуск/Стоп, команда и лог/результаты остаются доступны — они вне .scan-form.
+     Чистая часть (applyScanLock) вынесена для юнит-теста: принимает любой
+     array-like контролов, возвращает число обработанных. */
+  function applyScanLock(controls, locked) {
+    const list = Array.prototype.slice.call(controls || []);
+    for (const c of list) { try { c.disabled = !!locked; } catch (e) { /* чужой объект — пропускаем */ } }
+    return list.length;
+  }
+
+  function setScanParamsLocked(locked) {
+    const form = document.querySelector(".scan-form");
+    if (form && form.classList) form.classList.toggle("is-locked", !!locked);
+    applyScanLock(
+      document.querySelectorAll(".scan-form input, .scan-form select, .scan-form textarea, .scan-form button"),
+      locked
+    );
+    // короткая подсказка над параметрами — почему поля погасли (и зачем она
+    // создаётся один раз, дальше только hidden-переключение)
+    let hint = document.getElementById("scanLockHint");
+    if (!hint && form) {
+      hint = document.createElement("p");
+      hint.id = "scanLockHint";
+      hint.className = "hint scan-lock-hint";
+      form.insertBefore(hint, form.firstChild);
+    }
+    if (hint) { hint.textContent = t("scan.lock.01"); hint.hidden = !locked; }
+  }
+
   function setScanRunning(run) {
     S.running.scan = run;
     $("#btnRunScan").hidden = run;
@@ -372,6 +404,7 @@
     $("#btnRunScanLabel").textContent = run ? t("scan.run.03") : t("scan.run.02");
     $("#scanProgress").hidden = !run;
     if (!run) { $("#scanBarFill").style.width = "0%"; }
+    try { setScanParamsLocked(run); } catch (e) {} // v2.6.6: параметры недоступны, пока идёт скан
     try { homeScanUi(); } catch (e) {} // v2.5.4: синхронный индикатор на главной
   }
 
