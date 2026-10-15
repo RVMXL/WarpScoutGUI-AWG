@@ -322,8 +322,12 @@
   }
   /* ── v2.5.4 (fix): realtime-индикатор скана на главной ──
      Раньше на главной видно было только текстовое зеркало фазы. Теперь:
-     пульсирующая точка + «Сканирую…» + фаза + таймер + шаги/узлы + кнопка
-     «Остановить». Обновляется из setPhase/scanLiveClock/scanLiveFeed. */
+     пульсирующая точка + «Сканирую…» + фаза + таймер + шаги/узлы.
+     v2.6.6: кнопка «Остановить» из карточки УДАЛЕНА (запрос пользователя):
+     обработчик клика ей привязан не был — нажатие ничего не делало, а рабочий
+     останов и так был под рукой (штатная кнопка скана / большая кнопка
+     «■ Остановить скан» на главной). Обновляется из
+     setPhase/scanLiveClock/scanLiveFeed. */
   function homeScanUi() {
     const liveEl = document.getElementById("homeScanLive");
     if (!liveEl) return;
@@ -459,7 +463,6 @@
         '<span class="home-scanlive__dot" aria-hidden="true"></span>' +
         '<span class="home-scanlive__main"><b>' + t("scan.run.03") + '</b><span id="homeScanPhase"></span></span>' +
         '<span class="home-scanlive__meta"><span id="homeScanTime">00:00</span><span id="homeScanSteps"></span></span>' +
-        '<button class="home-scanlive__stop" id="homeScanStop" type="button">■ ' + t("scan.run.04") + '</button>' +
       '</div>' +
       '<div class="home-status__row" id="homeScanRow"></div>' +
       '<div class="home-status__row" id="homeResRow"></div>' +
