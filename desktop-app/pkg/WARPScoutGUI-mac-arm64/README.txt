@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════
- WARPSCOUT GUI v2.6.7 — macOS (Apple Silicon / Intel)
+ WARPSCOUT GUI v2.6.8 — macOS (Apple Silicon / Intel)
  Графическая оболочка для warpscout v0.16.0 (github.com/vernette/warpscout)
 ════════════════════════════════════════════════════════════
 
@@ -12,7 +12,7 @@
  (M1/M2/M3/M4 и новее) и WARPScoutGUI-2.5.1-mac-x64.zip для
  Intel-маков. Какая у вас: меню  → «Об этом Mac», или в
  Терминале uname -m (arm64 — Apple Silicon, x86_64 — Intel).
- Статус выпуска: ПРЕРЕЛИЗ 2.6.7 — кроссплатформенный выпуск
+ Статус выпуска: ПРЕРЕЛИЗ 2.6.8 — кроссплатформенный выпуск
  на единой кодовой базе (Windows, Linux x64/arm64, macOS Intel/
  Apple Silicon, Android). Стабильный Windows-релиз:
  WARPScoutGUI-2.4.6-win64.zip. Все исправления аудита v2.4.6
@@ -142,7 +142,7 @@
  - Neutralinojs: MIT — licenses/LICENSE-neutralino.txt.
  - qrcode: licenses/LICENSE-qrcode.txt.
 
- СТАТУС ВЕРИФИКАЦИИ (ПРЕРЕЛИЗ 2.6.7)
+ СТАТУС ВЕРИФИКАЦИИ (ПРЕРЕЛИЗ 2.6.8)
  - Выполнено: статический аудит кода и пакетов (методика аудита
    2.4.6); регрессионные E2E платформенного слоя на живом
    Linux-рантайме (регистрация аккаунта через Cloudflare API,
@@ -155,4 +155,4 @@
  - О найденных проблемах сообщайте в Issues:
    github.com/RVMXL/WarpScoutGUI-AWG/issues
 
- WARPSCOUT GUI v2.6.7 · warpscout v0.16.0
+ WARPSCOUT GUI v2.6.8 · warpscout v0.16.0

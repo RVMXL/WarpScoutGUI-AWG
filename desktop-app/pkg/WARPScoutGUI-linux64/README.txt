@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════
- WARPSCOUT GUI v2.6.7 — LINUX (x86_64)
+ WARPSCOUT GUI v2.6.8 — LINUX (x86_64)
  Графическая оболочка для warpscout v0.16.0 (github.com/vernette/warpscout)
 ════════════════════════════════════════════════════════════
 
@@ -8,7 +8,7 @@
  эндпоинты Cloudflare WARP из вашей сети, показывает узел и регион
  выхода и генерирует готовые конфиги WireGuard / AmneziaWG
  (версии 1.5 / 2.0 / 3.1).
- Статус выпуска: ПРЕРЕЛИЗ 2.6.7 — кроссплатформенный выпуск
+ Статус выпуска: ПРЕРЕЛИЗ 2.6.8 — кроссплатформенный выпуск
  на единой кодовой базе (Windows, Linux x64/arm64, macOS Intel/
  Apple Silicon, Android). Стабильный Windows-релиз:
  WARPScoutGUI-2.4.6-win64.zip. Все исправления аудита v2.4.6
@@ -124,7 +124,7 @@
  - Neutralinojs: MIT — licenses/LICENSE-neutralino.txt.
  - qrcode: licenses/LICENSE-qrcode.txt.
 
- СТАТУС ВЕРИФИКАЦИИ (ПРЕРЕЛИЗ 2.6.7)
+ СТАТУС ВЕРИФИКАЦИИ (ПРЕРЕЛИЗ 2.6.8)
  - Выполнено: статический аудит кода и пакетов (методика аудита
    2.4.6); E2E на живом Linux-рантайме (регистрация аккаунта через
    Cloudflare API, скан с отчётом, генерация конфигов, SOCKS);
@@ -135,4 +135,4 @@
  - О найденных проблемах сообщайте в Issues:
    github.com/RVMXL/WarpScoutGUI-AWG/issues
 
- WARPSCOUT GUI v2.6.7 · warpscout v0.16.0
+ WARPSCOUT GUI v2.6.8 · warpscout v0.16.0
