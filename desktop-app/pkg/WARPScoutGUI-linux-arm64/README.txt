@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════
- WARPSCOUT GUI v2.6.6 — LINUX (ARM64 / AArch64)
+ WARPSCOUT GUI v2.6.7 — LINUX (ARM64 / AArch64)
  Графическая оболочка для warpscout v0.16.0 (github.com/vernette/warpscout)
 ════════════════════════════════════════════════════════════
 
@@ -11,7 +11,7 @@
  Сборка для 64-битных ARM-систем: Raspberry Pi 5 (64-битная ОС),
  ARM-ноутбуки и серверы, Apple Silicon (Mac M1/M2/M3/M4) под
  виртуальной машиной или эмуляцией с Linux ARM64.
- Статус выпуска: ПРЕРЕЛИЗ 2.6.6 — кроссплатформенный выпуск
+ Статус выпуска: ПРЕРЕЛИЗ 2.6.7 — кроссплатформенный выпуск
  на единой кодовой базе (Windows, Linux x64/arm64, macOS Intel/
  Apple Silicon, Android). Стабильный Windows-релиз:
  WARPScoutGUI-2.4.6-win64.zip. Все исправления аудита v2.4.6
@@ -132,7 +132,7 @@
  - Neutralinojs: MIT — licenses/LICENSE-neutralino.txt.
  - qrcode: licenses/LICENSE-qrcode.txt.
 
- СТАТУС ВЕРИФИКАЦИИ (ПРЕРЕЛИЗ 2.6.6)
+ СТАТУС ВЕРИФИКАЦИИ (ПРЕРЕЛИЗ 2.6.7)
  - Выполнено: статический аудит кода и пакетов (методика аудита
    2.4.6); E2E на живом Linux-рантайме (регистрация аккаунта через
    Cloudflare API, скан с отчётом, генерация конфигов, SOCKS);
@@ -144,4 +144,4 @@
  - О найденных проблемах сообщайте в Issues:
    github.com/RVMXL/WarpScoutGUI-AWG/issues
 
- WARPSCOUT GUI v2.6.6 · warpscout v0.16.0
+ WARPSCOUT GUI v2.6.7 · warpscout v0.16.0
