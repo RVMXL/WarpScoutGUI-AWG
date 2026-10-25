@@ -38,6 +38,28 @@
     }
   }
 
+  /* ── v2.6.7 (FIX i1-truncation, отчёт пользователя) ──
+     Raw-пакет I1 печатается CLI в найденной команде как -i1 "<b 0xce…>" — в кавычках
+     (shell-артефакт из-за пробела) и со значимым пробелом после «<b»; эталонный
+     EXAMPLE_I1 в 02-state — та же форма БЕЗ кавычек. Раньше пробелы вычищались
+     безусловно (applyFoundCmd, buildConf) → в конфиг уезжала форма без пробела, а до
+     неё значение ещё рвалось по split(/\s+/) — в поле попадал обрывок «"<b».
+     Теперь: окружающие кавычки снимаются (как и при импорте .conf — parseConfText),
+     форма «<b …>» хранится/выводится как есть; прочим форматам (base64 и пр.)
+     пробелы вычищаются как раньше. */
+  function isI1RawPacket(v) {
+    let s = String(v == null ? "" : v).trim();
+    if (s.length > 1 && s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1).trim();
+    return /^<b\s[^>]*>$/.test(s);
+  }
+  function normI1Store(v) {
+    let s = String(v == null ? "" : v).trim();
+    // кавычки — артефакт shell-печати CLI/импорта, значением не являются
+    if (s.length > 1 && s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1).trim();
+    // raw-пакет «<b 0x…>» — пробел после <b значим, храним как есть
+    return isI1RawPacket(s) ? s : s.replace(/\s+/g, "");
+  }
+
   function buildConf() {
     const acc = S.account;
     const c = S.cfg;
@@ -71,12 +93,12 @@
       kv("Jmax", jmax);
       kv("S1", o.s1); kv("S2", o.s2); kv("S3", o.s3); kv("S4", o.s4);
       kv("H1", o.h1); kv("H2", o.h2); kv("H3", o.h3); kv("H4", o.h4);
-      if ((o.i1 || "").trim()) kv("I1", String(o.i1).replace(/\s+/g, "").trim());
+      if ((o.i1 || "").trim()) kv("I1", normI1Store(o.i1)); // v2.6.7: raw-форма «<b 0x…>» — без чистки пробелов
       // v2.4.6 (F26): I2–I5 больше не теряются (нужны профилям AWG 2.0)
-      if ((o.i2 || "").trim()) kv("I2", String(o.i2).replace(/\s+/g, "").trim());
-      if ((o.i3 || "").trim()) kv("I3", String(o.i3).replace(/\s+/g, "").trim());
-      if ((o.i4 || "").trim()) kv("I4", String(o.i4).replace(/\s+/g, "").trim());
-      if ((o.i5 || "").trim()) kv("I5", String(o.i5).replace(/\s+/g, "").trim());
+      if ((o.i2 || "").trim()) kv("I2", normI1Store(o.i2));
+      if ((o.i3 || "").trim()) kv("I3", normI1Store(o.i3));
+      if ((o.i4 || "").trim()) kv("I4", normI1Store(o.i4));
+      if ((o.i5 || "").trim()) kv("I5", normI1Store(o.i5));
     }
     if (ver === "awg31") {
       kv("ContentPaddingAddition", o.cpa);
