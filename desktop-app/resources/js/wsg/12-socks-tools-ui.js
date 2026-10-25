@@ -146,12 +146,19 @@
   }
 
   function applyFoundCmd() {
-    const cmd = strField(S.foundCmd, 1000);
+    // v2.6.7 (FIX i1-truncation): лимит 1000 резал команду с длинным raw-I1
+    // (эталонный пакет — 2506 символов, суммарно команда ~2.6 КБ)
+    const cmd = strField(S.foundCmd, 8000);
     if (!cmd) { toast(t("tools.16"), "err"); return; }
     // v2.4.6 (F21): строим НОВЫЙ согласованный профиль с нуля, а не подмешиваем
     // найденные флаги в текущую форму (старые through/target/gen-junk искажали смысл)
     const s = Object.assign({}, DEFAULT_SCAN);
-    const tokens = cmd.split(/\s+/);
+    // v2.6.7 (FIX i1-truncation, отчёт пользователя): CLI печатает найденную команду
+    // со значением в кавычках, внутри которых есть пробел (raw I1: -i1 "<b 0xce…>"),
+    // прежний split(/\s+/) рвал такое значение на части — в конфиг уходил обрывок
+    // «"<b», остальное пропадало. Токенизируем с учётом кавычек; незакрытая кавычка —
+    // до конца строки (обрезанный лог).
+    const tokens = cmd.match(/"[^"]*"|"[^"]*$|\S+/g) || [];
     // v2.6.4 (запрос пользователя): найденный find-junk КОНКРЕТНЫЙ I1 (CLI сохраняет
     // его сырым флагом -i1, findjunk.go:155) больше не выбрасывается — он ровно то,
     // что лежит в поле I1 вкладки «Конфиг» (S.cfg.obf.i1). Раньше GUI «не представлял»
@@ -167,7 +174,8 @@
       "-jmin": (v) => (s.jmin = clampInt(v, 0, 5000, 10)),
       "-jmax": (v) => (s.jmax = clampInt(v, 0, 5000, 50)),
       "-masque-sni": (v) => (s.masqueSni = strField(v, 200)),
-      "-i1": (v) => (foundI1 = strField(String(v == null ? "" : v), 600)),
+      // v2.6.7: лимит 600 → 6000 (как в QC/sanitize) — эталонный raw-I1 — 2506 символов
+      "-i1": (v) => (foundI1 = strField(String(v == null ? "" : v), 6000)),
       "-threshold": () => {},
     };
     for (let i = 0; i < tokens.length; i++) {
@@ -184,9 +192,11 @@
     // найденные конкретные jc/jmin/jmax несовместимы с генератором junk
     if (s.jc !== "" || s.jmin !== "" || s.jmax !== "") s.genJunk = false;
     S.scan = s;
-    // v2.6.4: конкретный I1 из find-junk — в конфиг (пробелы вычищает и buildConf)
+    // v2.6.4: конкретный I1 из find-junk — в конфиг
     if (foundI1) {
-      S.cfg.obf.i1 = foundI1.replace(/\s+/g, "");
+      // v2.6.7: raw-пакет «<b 0x…>» — как есть (пробел после <b значим); normI1Store
+      // снимает shell-кавычки и чистит пробелы прочим формам (base64) как раньше
+      S.cfg.obf.i1 = normI1Store(foundI1);
       syncCfgInputsFromState();
     }
     S.lastRunParams = null; // применён новый профиль — старый снимок больше не источник параметров

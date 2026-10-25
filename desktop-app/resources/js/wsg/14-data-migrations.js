@@ -421,7 +421,9 @@
       S.compact = !!st.compact;
       if (Array.isArray(st.history)) S.history = st.history.map(sanitizeHistoryItem).filter(Boolean).slice(0, 10);
       if (Array.isArray(st.qcHistory)) S.qcHistory = st.qcHistory.map(sanitizeQcItem).filter(Boolean).slice(0, 50);
-      S.foundCmd = strField(st.foundCmd, 500);
+      // v2.6.7 (FIX i1-truncation): 500 → 8000 — команда с raw-I1 (эталон ~2.6 КБ)
+      // больше не режется при восстановлении состояния
+      S.foundCmd = strField(st.foundCmd, 8000);
     } catch (e) {}
   }
 
