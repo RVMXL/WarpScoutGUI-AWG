@@ -51,9 +51,13 @@ function toastsOf(doc) {
   }));
 }
 
-/* ── FE-21: пользовательский путь warpscout не самоуничтожается ── */
+/* ── FE-21 → v2.6.9: custom-путь warpscout — живой хранится, мёртвый самоочищается ──
+   Регресс отчёта 2026-10-25: на Android бинарь лежит в /data/app/~~<random>/…,
+   путь меняется при каждом обновлении APK; автосохранённая (v2.4.0 нормализация)
+   копия протухала → data.22 при каждом запуске, а «очистить поле» было нечем:
+   поле в настройках показывает НАЙДЕННЫЙ путь, протухший нигде не виден. */
 
-test("FE-21: custom-путь не найден, бинарь найден в штатном месте — настройка СОХРАНАЕТСЯ + тост-конфликт", async () => {
+test("v2.6.9: custom-путь не найден, бинарь найден в штатном месте — настройка ОЧИЩЕНА + одноразовый тост", async () => {
   const custom = "C:\\Custom\\ws\\warpscout.exe";
   const files = {}, store = {};
   const nl = fakeNL({ files, store });
@@ -61,11 +65,17 @@ test("FE-21: custom-путь не найден, бинарь найден в ш�
   const { wsgui, document } = loadApp({ nlOs: "Windows", neutralino: nl, autoDom: true });
   wsgui.S.settings.wsPath = custom;
   await wsgui.computePaths();
-  // раньше здесь было S.settings.wsPath = "" + persist — самоуничтожение молча
-  assert.strictEqual(wsgui.S.settings.wsPath, custom, "настройка пользователя затёрта!");
+  // старое поведение (v2.6.2–2.6.8) хранило мёртвый custom и тостило при КАЖДОМ запуске;
+  // новое: мёртвый custom очищен один раз, тост объясняет и не повторяется
+  assert.strictEqual(wsgui.S.settings.wsPath, "", "мёртвый custom должен быть очищен");
+  assert.strictEqual(wsgui.S.paths.wsCustom, "", "paths.wsCustom должен отражать очистку");
   assert.strictEqual(wsgui.S.paths.wsPath, DEFAULT_WS, "рабочим должен стать найденный штатный бинарь");
   const ts = toastsOf(document);
-  assert.ok(ts.some((t) => t.text.indexOf(DEFAULT_WS) !== -1), "нет тоста-конфликта с найденным путём");
+  assert.ok(ts.some((t) => t.text.indexOf(DEFAULT_WS) !== -1), "нет тоста с найденным путём");
+  assert.ok(ts.some((t) => t.text.indexOf("очищена автоматически") !== -1), "в тосте должно быть сказано про автоочистку");
+  // повторный computePaths (следующий запуск приложения) — БЕЗ нового тоста
+  await wsgui.computePaths();
+  assert.strictEqual(toastsOf(document).length, 1, "тост не должен повторяться на следующем запуске");
 });
 
 test("FE-21: custom-путь существует — используется он сам, без тоста-конфликта", async () => {
@@ -79,6 +89,40 @@ test("FE-21: custom-путь существует — используется �
   await wsgui.computePaths();
   assert.strictEqual(wsgui.S.paths.wsPath, custom, "легитимный custom должен побеждать (кандидаты custom — первыми)");
   assert.ok(!toastsOf(document).some((t) => t.text.indexOf(DEFAULT_WS) !== -1), "тост-конфликт не нужен");
+});
+
+test("v2.6.9: custom-ПАПКА жива (exe внутри) — работает без тоста, настройка не трогается", async () => {
+  const folder = "C:\\MyWS";
+  const files = {};
+  const nl = fakeNL({ files });
+  files[folder + "\\warpscout.exe"] = "MZ";
+  files[DEFAULT_WS] = "MZ";
+  const { wsgui, document } = loadApp({ nlOs: "Windows", neutralino: nl, autoDom: true });
+  wsgui.S.settings.wsPath = folder;
+  await wsgui.computePaths();
+  // старое условие (custom !== найденный) тостило и здесь — найденный exe ЛЕЖИТ в custom-папке
+  assert.strictEqual(wsgui.S.paths.wsPath, folder + "\\warpscout.exe", "exe из custom-папки должен использоваться");
+  assert.strictEqual(wsgui.S.settings.wsPath, folder, "живой custom (папка) не должен трогаться");
+  assert.strictEqual(toastsOf(document).length, 0, "для живой custom-папки тостов быть не должно");
+});
+
+test("v2.6.9 (Android): протухший /data/app/~~old после обновления APK — очищен, используется NL_WS_PATH, тост один", async () => {
+  const NEW_LIB = "/data/app/~~NEW0HASH==/ru.warpscout.gui-kubS==/lib/arm64/libwarpscout.so";
+  const OLD_LIB = "/data/app/~~OLD0HASH==/ru.warpscout.gui-kubS==/lib/arm64/libwarpscout.so";
+  const files = {}, store = {};
+  const nl = fakeNL({ files, store });
+  files[NEW_LIB] = "ELF";
+  const { wsgui, document, window } = loadApp({ nlOs: "Android", neutralino: nl, autoDom: true, nlPath: "/data/app/~~NEW0HASH==/ru.warpscout.gui-kubS==/lib" });
+  window.NL_WS_PATH = NEW_LIB; // путь приносит оболочка (v2.5.0)
+  wsgui.S.settings.wsPath = OLD_LIB; // автосохранённая нормализацией v2.4.0 копия прошлого install
+  await wsgui.computePaths();
+  assert.strictEqual(wsgui.S.paths.wsPath, NEW_LIB, "должен использоваться бинарь текущего install");
+  assert.strictEqual(wsgui.S.settings.wsPath, "", "протухший путь прошлого install должен быть очищен");
+  const ts = toastsOf(document);
+  assert.strictEqual(ts.length, 1, "ровно один объясняющий тост");
+  assert.ok(ts[0].text.indexOf(NEW_LIB) !== -1, "в тосте — путь текущего бинаря");
+  await wsgui.computePaths(); // следующий запуск после обновления — уже чисто
+  assert.strictEqual(toastsOf(document).length, 1, "повторного тоста быть не должно");
 });
 
 test("FE-21: custom не задан — никакого тоста-конфликта", async () => {

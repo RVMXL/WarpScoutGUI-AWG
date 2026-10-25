@@ -703,7 +703,7 @@
     "data.19": { ru: "Папка данных изменена", en: "Data folder changed" },
     "data.20": { ru: "Демо: путь к новой папке данных:", en: "Demo: path of the new data folder:" },
     "data.21": { ru: "Выберите папку для данных WARPSCOUT GUI", en: "Choose a folder for WARPSCOUT GUI data" },
-    "data.22": { ru: "Указанный путь к warpscout не используется — бинарь найден в штатном месте: {p}. Настройка сохранена — очистите поле в Настройках, чтобы убрать предупреждение.", en: "The custom warpscout path is not in use — the binary was found at the standard location: {p}. The setting is kept — clear the field in Settings to dismiss this warning." },
+    "data.22": { ru: "Путь к warpscout из настроек больше не существует (например, после обновления приложения) — используется штатный бинарь: {p}. Настройка очищена автоматически, это сообщение не повторится.", en: "The warpscout path from Settings no longer exists (e.g. after an app update) — using the standard binary: {p}. The setting was cleared automatically; this message won't repeat." },
     /* — junction — */
     /* — v2.3.0: разбор junction v2.2.0 и перенос данных из старой папки — */
     "junction.01": { ru: "Не удалось снять ссылку «<имя exe>» — данные доступны, папка осталась ссылкой. Закройте приложение и удалите ссылку вручную (Проводник удаляет только ссылку), затем запустите снова.", en: "Could not remove the «<exe name>» link — data is accessible, the folder remained a link. Close the app and delete the link manually (Explorer removes only the link), then start the app again." },

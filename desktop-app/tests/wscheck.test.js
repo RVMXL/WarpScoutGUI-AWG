@@ -141,3 +141,37 @@ test("WSCHK: бинаря нет ни в одном кандидате — fail 
   const ok = await wsgui.checkWarpscout(true);
   assert.strictEqual(ok, false, "файла нет — fail без запуска процесса");
 });
+
+test("WSCHK v2.6.9: custom не задан — найденный штатный путь НЕ записывается в настройки (регресс вечного data.22 после обновления APK)", async () => {
+  // v2.4.0-нормализация писала найденный путь в S.settings.wsPath даже при пустом
+  // custom. На Android этот путь (/data/app/~~<random>/…) меняется при каждом
+  // обновлении приложения → сохранённая копия протухала → data.22 при каждом
+  // запуске. Теперь пустой custom остаётся пустым: путь резолвится динамически.
+  const nl = fakeSpawnNL({
+    onSpawn: (p, n) => {
+      n.__emit(p.id, "stdOut", "0.16.0\n");
+      n.__emit(p.id, "exit", 0);
+    },
+  });
+  const { wsgui } = loadApp({ nlOs: "Windows", neutralino: nl, autoDom: true });
+  wsgui.bindProcEvents();
+  wsgui.S.settings.wsPath = "";
+  const ok = await wsgui.checkWarpscout(true);
+  assert.strictEqual(ok, true, "штатный бинарь должен находиться и проверяться");
+  assert.strictEqual(wsgui.S.settings.wsPath, "", "автозапись найденного пути в настройки запрещена (v2.6.9)");
+  assert.strictEqual(wsgui.S.paths.wsPath, WS_EXE, "рабочий путь при этом найден");
+});
+
+test("WSCHK v2.6.9: custom задан явно — нормализация в точный путь exe сохранена (легитимный сценарий)", async () => {
+  const nl = fakeSpawnNL({
+    onSpawn: (p, n) => {
+      n.__emit(p.id, "stdOut", "0.16.0\n");
+      n.__emit(p.id, "exit", 0);
+    },
+  });
+  const { wsgui } = loadApp({ nlOs: "Windows", neutralino: nl, autoDom: true });
+  wsgui.bindProcEvents();
+  wsgui.S.settings.wsPath = "C:\\Program Files\\WARPScoutGUI\\bin"; // пользователь указал ПАПКУ
+  await wsgui.checkWarpscout(true);
+  assert.strictEqual(wsgui.S.settings.wsPath, WS_EXE, "явный custom нормализуется до точного пути exe (как в v2.4.0)");
+});

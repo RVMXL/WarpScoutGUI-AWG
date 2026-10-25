@@ -226,7 +226,15 @@
         fileThere = true;
         const inp = $("#setWsPath");
         if (inp && inp.value.trim() !== res.path) inp.value = res.path;
-        if (String(S.settings.wsPath || "").trim().toLowerCase() !== res.path.toLowerCase()) {
+        // v2.6.9: нормализация ТОЛЬКО явно заданного custom. Найденный штатный
+        // путь больше не записывается в настройки сам по себе: на Android он
+        // лежит в /data/app/~~<random>/… и МЕНЯЕТСЯ при каждом обновлении APK —
+        // автосохранённая копия протухала, и computePaths при каждом запуске
+        // писал data.22, а «очистить поле» в настройках было нечем (регресс
+        // отчёта 2026-10-25). Пустой custom остаётся пустым — путь резолвится
+        // динамически при каждом запуске.
+        const cur = String(S.settings.wsPath || "").trim();
+        if (cur && cur.toLowerCase() !== res.path.toLowerCase()) {
           S.settings.wsPath = res.path; // нормализация: в настройках храним точный путь к exe
           persist();
         }
@@ -489,21 +497,30 @@
     S.paths.wsFound = wsRes.found;
     if (wsRes.found) {
       S.paths.wsPath = wsRes.path;
-      // v2.6.2 (FE-21): пользовательская настройка больше не самоуничтожается молча.
-      // Если custom не совпал с найденным (мусор/переезд папки) — показываем
-      // тост-конфликт, но НАСТРОЙКУ СОХРАНЯЕМ: битый custom больше не перекрывает
-      // штатные места (wsCandidates проверяет ВСЕХ кандидатов по порядку — корень
-      // регресса v2.3.0 устранён конструктивно), а легитимный сценарий «сознательно
-      // держу другую версию CLI» не ломается. Сброс — только явным действием
-      // пользователя в настройках (очистка поля).
-      if (wsCustom && wsCustom.toLowerCase() !== wsRes.path.toLowerCase()) {
+      // v2.6.2 (FE-21) → v2.6.9: custom хранится, только пока он ЖИВОЙ.
+      // Живой = найденный бинарь произошёл от custom (custom — префикс найденного
+      // пути: сам exe или папка, из которой достали exe). Легитимные сценарии
+      // («сознательно держу другую версию CLI», custom-папка) не ломаются и
+      // не тостят. А вот если найденный путь НЕ произошёл от custom — custom-файла
+      // на диске больше нет (типовой случай: обновление Android-приложения сменило
+      // /data/app/~~<random>/…, но и переезд/удаление папки на десктопе). Такая
+      // настройка бесполезна (wsCandidates и так проверяет ВСЕХ кандидатов по
+      // порядку) и невидима в UI (поле показывает найденный путь) — оставленная
+      // она превращалась в ВЕЧНЫЙ тост data.22 при каждом запуске. Поэтому
+      // очищаем её ЯВНО, но не молча: одноразовый тост с найденным путём.
+      const cl = wsCustom.replace(/[\\/]+$/, "").toLowerCase();
+      const pl = wsRes.path.toLowerCase();
+      const customAlive = !wsCustom || pl === cl || pl.startsWith(cl + "\\") || pl.startsWith(cl + "/");
+      if (wsCustom && !customAlive) {
+        S.settings.wsPath = "";
+        persist();
         toast(tF("data.22", { p: wsRes.path }), "warn");
       }
     }
     if (!S.paths.wsPath) {
       S.paths.wsPath = wsCustom || (S.paths.appDir ? pxJoin(pxJoin(S.paths.appDir, "bin"), WS_EXE) : (window.NL_PATH ? pxJoin(pxJoin(window.NL_PATH, "bin"), WS_EXE) : pxJoin("bin", WS_EXE))); // v2.5.0
     }
-    S.paths.wsCustom = wsCustom;
+    S.paths.wsCustom = String(S.settings.wsPath || "").trim(); // v2.6.9: после возможной самоочистки мёртвого custom
     // v2.1.0: папка данных существует с первого запуска — иначе warpscout не сможет
     // сохранить аккаунт (не создаёт родительские каталоги), а «Открыть папку» падал
     await ensureDir(S.paths.dataDir);
