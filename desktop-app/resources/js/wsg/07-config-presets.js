@@ -46,18 +46,82 @@
      неё значение ещё рвалось по split(/\s+/) — в поле попадал обрывок «"<b».
      Теперь: окружающие кавычки снимаются (как и при импорте .conf — parseConfText),
      форма «<b …>» хранится/выводится как есть; прочим форматам (base64 и пр.)
-     пробелы вычищаются как раньше. */
-  function isI1RawPacket(v) {
-    let s = String(v == null ? "" : v).trim();
-    if (s.length > 1 && s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1).trim();
-    return /^<b\s[^>]*>$/.test(s);
-  }
-  function normI1Store(v) {
+     пробелы вычищаются как раньше.
+   ── v2.6.8 (FIX i1-compact, повторный отчёт: «unknown tag», конфиги не рабочие) ──
+     Грамматика obf-chain у AWG-демона (amneziawg-go device/obf.go — newObfChain):
+     значение режется на теги «<…>», содержимое тега — strings.Fields, ПЕРВОЕ поле —
+     ключ (b/t/r/rc/rd/d/ds/dz), ВТОРОЕ — значение. Валидны только «<b 0x…>» и
+     «<r 23>» — с пробелом; компактные «<b0x…>»/«<r23>» демон не понимает: ключом
+     становится вся строка «b0xc1…» → «IPC error -22: unknown tag», туннель мёртв.
+     Дыра v2.6.7: isI1RawPacket узнавал raw-форму только при ОДНОМ теге «<b …>» на
+     всё значение, а warpscout печатает найденный I1 МУЛЬТИБЛОЧНЫМ
+     («<b 0x…><r 23><b 0x…><r 16>») — такое значение шло по ветке «не raw» и
+     чистилось от значимых пробелов → в конфиг уезжала компактная форма. Теперь
+     raw-цепочка — значение, целиком состоящее из тегов; каждый тег канонизируется
+     к виду «ключ+пробел+значение», hex-байты b-тега склеиваются (форма
+     «<b 0xc1 0x00 …>» демон молча читал бы как ОДИН байт 0xc1), межтеговые пробелы
+     не значимы и исчезают. Неопознанные/битые теги не трогаем (демон сам скажет);
+     base64 и прочие не-цепочки чистятся от пробелов как в v2.6.7. */
+  const OBF_CHAIN_RE = /^\s*(?:<[^<>]*>\s*)+$/; // всё значение — теги <…>
+  const OBF_TAG_KEYS = ["rc", "rd", "ds", "dz", "b", "t", "r", "d"];
+
+  function i1Unquote(v) {
     let s = String(v == null ? "" : v).trim();
     // кавычки — артефакт shell-печати CLI/импорта, значением не являются
     if (s.length > 1 && s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1).trim();
-    // raw-пакет «<b 0x…>» — пробел после <b значим, храним как есть
-    return isI1RawPacket(s) ? s : s.replace(/\s+/g, "");
+    return s;
+  }
+
+  /* тег цепочки → канонический вид демона «<ключ значение>»; null — не разобрали (не трогаем) */
+  function normI1Tag(content) {
+    const fields = String(content == null ? "" : content).trim().split(/\s+/).filter(Boolean);
+    if (!fields.length) return null;
+    let key = fields[0];
+    let rest = fields.slice(1);
+    if (OBF_TAG_KEYS.indexOf(key) === -1) {
+      // компактная форма «b0x…»/«r23»/«rd12»: ключ слит со значением
+      const m = /^(rc|rd|ds|dz|b|t|r|d)(.+)$/.exec(fields[0]);
+      if (!m) return null;
+      key = m[1];
+      rest = [m[2]].concat(rest);
+    }
+    if (key === "b") {
+      // newBytesObf: 0x-префикс опционален, hex сплошняком и чётной длины
+      const hex = rest.map((x) => x.replace(/^0x/i, "")).join("");
+      if (!hex || hex.length % 2 !== 0 || /[^0-9a-fA-F]/.test(hex)) return null;
+      return "<b 0x" + hex + ">";
+    }
+    if (key === "r" || key === "rc" || key === "rd" || key === "dz") {
+      // newRandObf/newRandCharObf/newRandDigitsObf/newDataSizeObf: длина — число
+      if (!/^\d+$/.test(rest[0] || "")) return null;
+      return "<" + key + " " + rest[0] + ">";
+    }
+    // t/d/ds — значение демон игнорирует (obf_timestamp/obf_data/obf_datastring):
+    // слитную форму с цифрами («<t12>» — демон увидел бы ключ «t12») схлопываем
+    if ((key === "t" || key === "d" || key === "ds") && (!rest.length || /^\d+$/.test(rest[0]))) {
+      return "<" + key + ">";
+    }
+    return null;
+  }
+
+  function isI1RawPacket(v) {
+    return OBF_CHAIN_RE.test(i1Unquote(v));
+  }
+  function normI1Store(v) {
+    const s = i1Unquote(v);
+    if (!s) return "";
+    // raw-цепочка (один или несколько тегов): канонизируем каждый тег (v2.6.8)
+    if (OBF_CHAIN_RE.test(s)) {
+      return s
+        .match(/<[^<>]*>/g)
+        .map((t) => {
+          const norm = normI1Tag(t.slice(1, -1));
+          return norm == null ? t : norm;
+        })
+        .join("");
+    }
+    // base64 и прочие не-цепочки — пробелы вычищаются как раньше
+    return s.replace(/\s+/g, "");
   }
 
   function buildConf() {

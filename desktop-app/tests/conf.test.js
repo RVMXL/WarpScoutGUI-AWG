@@ -96,3 +96,30 @@ test("parseConfText: ключи вне секций уходят в unknown", ()
   assert.strictEqual(JSON.stringify(c.unknown), '["key"]');
   assert.strictEqual(c.interface.mtu, "1280");
 });
+
+/* ── v2.6.8 (отчёт пользователя): импорт .conf с компактным I1 («<b0x…><r23>…»)
+   уезжал в конфиг как есть → демон: «unknown tag», туннель мёртв. Теперь
+   applyImportedConf канонизирует I1..I5 к виду демона через normI1Store. ── */
+test("applyImportedConf: компактный мультиблочный I1 чинится при импорте (v2.6.8)", () => {
+  const ctx = loadApp({ nlOs: "Windows", autoDom: true });
+  const wsgui = ctx.wsgui;
+  wsgui.S.cfg = wsgui.defaultCfg();
+  // дословно строка I1 из конфига пользователя (warp-awg315.conf)
+  const confText = [
+    "[Interface]",
+    "PrivateKey = " + "A".repeat(43) + "=",
+    "I1 = <b0xc100000001014d0000405b4845071e837d0f03d633e1022240a5ca67509578><r23><b0x57010bff6ab65539d2147418f07659d7ee743f02f65dc552917d3694e86ab674><r16>",
+    "[Peer]",
+    "Endpoint = 162.159.192.135:2408",
+  ].join("\n");
+  wsgui.applyImportedConf(confText);
+  assert.strictEqual(
+    wsgui.S.cfg.obf.i1,
+    "<b 0xc100000001014d0000405b4845071e837d0f03d633e1022240a5ca67509578><r 23>" +
+      "<b 0x57010bff6ab65539d2147418f07659d7ee743f02f65dc552917d3694e86ab674><r 16>",
+    "компактная форма должна канонизироваться при импорте"
+  );
+  // и экспортированный конфиг — рабочий для демона
+  const out = wsgui.buildConf();
+  assert.ok(!/<(?:b|r|rc|rd|dz)[0-9a-fx]/i.test(out), "в экспорте остался компактный тег");
+});

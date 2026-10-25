@@ -107,8 +107,11 @@
       const v = strField(o[k], 60).replace(/\s+/g, "");
       c.obf[k] = v || hdef[i];
     });
-    c.obf.i1 = strField(o.i1, 6000).replace(/[\r\n]/g, "");
-    ["i2", "i3", "i4", "i5"].forEach((k) => { c.obf[k] = strField(o[k], 6000).replace(/[\r\n]/g, ""); });
+    // v2.6.8: I1..I5 канонизируются при восстановлении состояния — raw-цепочка
+    // (в т.ч. мультиблочная и компактная «<b0x…><r23>») приводится к виду демона,
+    // старые сломанные состояния самоисправляются при первом же запуске
+    c.obf.i1 = strField(normI1Store(o.i1), 6000);
+    ["i2", "i3", "i4", "i5"].forEach((k) => { c.obf[k] = strField(normI1Store(o[k]), 6000); });
     const dObf = defaultCfg().obf;
     ["cpa", "rekeyAfter", "rekeyTo", "rejectAfter", "keepaliveTo", "maxHs", "trailers", "noCookies", "hpk"].forEach((k) => {
       const v = strField(o[k], 120);

@@ -88,6 +88,21 @@ test("sanitizeCfg: h1..h4 дефолтятся к 1..4, s1..s4 clamp 0..65535", 
   assert.strictEqual(c2.obf.s2, 0);
 });
 
+/* ── v2.6.8: I1..I5 канонизируются при восстановлении состояния — старые сломанные
+   состояния (компактная форма «<b0x…><r23>» из v2.6.7) самоисправляются ── */
+test("sanitizeCfg: I1 канонизируется (compact → вид демона), raw-цепочка не меняется", () => {
+  // компактная форма чинится при восстановлении
+  const c = wsgui.sanitizeCfg({ obf: { i1: "<b0xc1004d40><r23>" } });
+  assert.strictEqual(c.obf.i1, "<b 0xc1004d40><r 23>");
+  // уже каноничная — как есть
+  const c2 = wsgui.sanitizeCfg({ obf: { i1: "<b 0xce00ab12>" } });
+  assert.strictEqual(c2.obf.i1, "<b 0xce00ab12>");
+  // I2–I5 — то же правило
+  const c3 = wsgui.sanitizeCfg({ obf: { i2: "<r40>", i5: "<b0xaa><r8>" } });
+  assert.strictEqual(c3.obf.i2, "<r 40>");
+  assert.strictEqual(c3.obf.i5, "<b 0xaa><r 8>");
+});
+
 /* ── sanitizeHistoryItem: F03 — числа, а не HTML-строки ── */
 test("sanitizeHistoryItem: working/torn — intField, не HTML (F03)", () => {
   const h = wsgui.sanitizeHistoryItem({

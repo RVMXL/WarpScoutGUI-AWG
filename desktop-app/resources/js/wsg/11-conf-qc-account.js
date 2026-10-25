@@ -106,7 +106,10 @@
       ["s1", "s2", "s3", "s4"].forEach((k, idx) => { if (has(k)) { const v = num(k); if (v != null) { o["s" + (idx + 1)] = clampInt(v, 0, 65535, 0); heads.push("S" + (idx + 1)); } } });
       ["h1", "h2", "h3", "h4"].forEach((k, idx) => { if (has(k)) { o["h" + (idx + 1)] = strField(all[k], 60).replace(/\s+/g, "") || String(idx + 1); heads.push("H" + (idx + 1)); } });
       if (heads.length) applied.push(tF("conf.io.20", { n: heads.length }));
-      if (has("i1")) { o.i1 = strField(all.i1, 6000).replace(/[\r\n]/g, "").trim(); applied.push("I1"); }
+      // v2.6.8: через normI1Store — raw-цепочка (в т.ч. мультиблочная и компактная
+      // «<b0x…><r23>») канонизируется к виду демона; раньше компактная форма уезжала
+      // как есть и демон отвечал «unknown tag»
+      if (has("i1")) { o.i1 = strField(normI1Store(all.i1), 6000); applied.push("I1"); }
       if (has31) {
         if (has("contentpaddingaddition")) { o.cpa = strField(all.contentpaddingaddition, 60).trim(); applied.push("CPA"); }
         if (has("rekeyaftertime")) { o.rekeyAfter = strField(all.rekeyaftertime, 60).trim(); }
@@ -120,9 +123,9 @@
         applied.push(t("conf.io.21"));
       }
     }
-    // v2.4.6 (F26): I2–I5 больше не теряются
+    // v2.4.6 (F26): I2–I5 больше не теряются; v2.6.8: и канонизируются как I1
     if (hasI2plus) {
-      ["i2", "i3", "i4", "i5"].forEach((k) => { if (has(k)) nc.obf[k] = strField(all[k], 6000).replace(/[\r\n]/g, "").trim(); });
+      ["i2", "i3", "i4", "i5"].forEach((k) => { if (has(k)) nc.obf[k] = strField(normI1Store(all[k]), 6000); });
       applied.push("I2–I5");
     }
 
