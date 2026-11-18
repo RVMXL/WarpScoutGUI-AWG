@@ -223,17 +223,10 @@
               return;
             }
             S.cfg.endpoint = ep;
-            // v2.4.6 (F18): junk-параметры ИЗ ПАРАМЕТРОВ СКАНА — конфиг воспроизводит проверенный туннель,
-            // а не дефолтные 4/40/70 при скане с 6/10/50
-            const lp = S.lastRunParams;
-            if (lp && lp.proto === "awg" && !lp.genJunk) {
-              S.cfg.obf.jc = clampInt(lp.jc !== "" && lp.jc != null ? lp.jc : 6, 1, 128, 4);
-              let jmin = clampInt(lp.jmin !== "" && lp.jmin != null ? lp.jmin : 10, 0, 1280, 40);
-              const jmax = clampInt(lp.jmax !== "" && lp.jmax != null ? lp.jmax : 50, 0, 1280, 70);
-              if (jmin > jmax) jmin = jmax;
-              S.cfg.obf.jmin = jmin;
-              S.cfg.obf.jmax = jmax;
-            }
+            // v2.7.0: junk-параметры общие между сканом и конфигом (S.cfg.obf —
+            // единый источник) — блок v2.4.6 (F18) «копии junk из параметров
+            // последнего запуска» больше не нужен: значения всегда согласованы,
+            // а при -gen-junk CLI рандомизирует набор только на время прогона
             syncCfgInputsFromState();
             switchTab("config");
             toast(tF("extra.03", { ep: ep }), "ok");

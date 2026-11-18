@@ -48,9 +48,22 @@
     s.node = $("#fNode").value;
     s.country = $("#fCountry").value;
     s.i1Sni = $("#fI1Sni").value;
-    s.jc = $("#fJc").value === "" ? "" : +$("#fJc").value;
-    s.jmin = $("#fJmin").value === "" ? "" : +$("#fJmin").value;
-    s.jmax = $("#fJmax").value === "" ? "" : +$("#fJmax").value;
+    // v2.7.0 (объединение параметров): Jc/Jmin/Jmax на вкладке «Скан» — ТЕ ЖЕ
+    // значения, что и в генераторе конфигов (S.cfg.obf — единый источник):
+    // правка в любом месте синхронно обновляет другое и предпросмотр конфига
+    const junkIn = {
+      jc: $("#fJc").value === "" ? "" : +$("#fJc").value,
+      jmin: $("#fJmin").value === "" ? "" : +$("#fJmin").value,
+      jmax: $("#fJmax").value === "" ? "" : +$("#fJmax").value,
+    };
+    const oj = S.cfg.obf;
+    if (junkIn.jc !== oj.jc || junkIn.jmin !== oj.jmin || junkIn.jmax !== oj.jmax) {
+      oj.jc = junkIn.jc;
+      oj.jmin = junkIn.jmin;
+      oj.jmax = junkIn.jmax;
+      syncCfgInputsFromState();
+      renderConf();
+    }
     s.genJunk = $("#fGenJunk").checked;
     s.masqueSni = $("#fMasqueSni").value;
     s.masqueAttempts = +$("#fMasqueAttempts").value || 3;
@@ -77,9 +90,11 @@
     $("#fNode").value = s.node;
     $("#fCountry").value = s.country;
     $("#fI1Sni").value = s.i1Sni;
-    $("#fJc").value = s.jc;
-    $("#fJmin").value = s.jmin;
-    $("#fJmax").value = s.jmax;
+    // v2.7.0: junk-поля скана показывают ОБЩИЕ значения S.cfg.obf (как на вкладке «Конфиг»)
+    const oj2 = S.cfg.obf;
+    $("#fJc").value = oj2.jc;
+    $("#fJmin").value = oj2.jmin;
+    $("#fJmax").value = oj2.jmax;
     $("#fGenJunk").checked = s.genJunk;
     $("#fMasqueSni").value = s.masqueSni;
     $("#fMasqueAttempts").value = s.masqueAttempts;
@@ -108,6 +123,15 @@
     c.allowed = $("#cfgAllowed").value;
     c.allowedCustom = $("#cfgAllowedCustom").value;
     c.tableOff = $("#cfgTableOff").checked;
+    // v2.7.0: экспорт в сторонние клиенты — reserved/доп. ключи WireSock
+    // (guard: в тестовом окружении без autoDom полей может не быть)
+    const exRes = document.getElementById("cfgReserved");
+    if (exRes) {
+      c.reserved = exRes.value.replace(/[^0-9,]/g, "").replace(/,+$/, "").trim();
+      c.wsId = $("#cfgWsId").value.trim();
+      c.wsIp = $("#cfgWsIp").value.trim();
+      c.wsIb = $("#cfgWsIb").value.trim();
+    }
     o.jc = +$("#cfgJc").value || 0;
     o.jmin = +$("#cfgJmin").value || 0;
     o.jmax = +$("#cfgJmax").value || 0;
@@ -143,6 +167,9 @@
     $("#cfgAllowedCustom").value = c.allowedCustom;
     $("#cfgTableOff").checked = c.tableOff;
     $("#cfgJc").value = o.jc; $("#cfgJmin").value = o.jmin; $("#cfgJmax").value = o.jmax;
+    // v2.7.0: junk-поля карточки «Обфускация AmneziaWG» на вкладке «Скан» — те же
+    // общие значения: правка на «Конфиге» мгновенно видна на «Скан»
+    $("#fJc").value = o.jc; $("#fJmin").value = o.jmin; $("#fJmax").value = o.jmax;
     $("#cfgS1").value = o.s1; $("#cfgS2").value = o.s2; $("#cfgS3").value = o.s3; $("#cfgS4").value = o.s4;
     $("#cfgH1").value = o.h1; $("#cfgH2").value = o.h2; $("#cfgH3").value = o.h3; $("#cfgH4").value = o.h4;
     $("#cfgI1").value = o.i1;
@@ -153,6 +180,13 @@
     $$("#cfgDnsSeg .seg__btn").forEach((b) => b.classList.toggle("is-active", b.getAttribute("data-dns") === c.dns));
     $("#cfgDnsCustom").classList.toggle("hidden", c.dns !== "custom");
     $("#cfgAllowedCustom").classList.toggle("hidden", c.allowed !== "custom");
+    // v2.7.0: экспорт в сторонние клиенты
+    if (document.getElementById("cfgReserved")) {
+      $("#cfgReserved").value = c.reserved || "";
+      $("#cfgWsId").value = c.wsId || "";
+      $("#cfgWsIp").value = c.wsIp || "";
+      $("#cfgWsIb").value = c.wsIb || "";
+    }
   }
 
   function stateJson() {

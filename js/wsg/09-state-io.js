@@ -74,9 +74,9 @@
     s.tunPingCount = clampInt(src.tunPingCount, 5, 50, 10);
     s.masqueAttempts = clampInt(src.masqueAttempts, 1, 10, 3);
     s.port = src.port === "" || src.port == null ? "" : clampInt(src.port, 0, 65535, "");
-    s.jc = src.jc === "" || src.jc == null ? "" : clampInt(src.jc, 0, 255, "");
-    s.jmin = src.jmin === "" || src.jmin == null ? "" : clampInt(src.jmin, 0, 5000, "");
-    s.jmax = src.jmax === "" || src.jmax == null ? "" : clampInt(src.jmax, 0, 5000, "");
+    /* v2.7.0: jc/jmin/jmax из старых состояний/пресетов НЕ восстанавливаются —
+       junk-параметры общие с конфигом (S.cfg.obf); протухшие скановые копии
+       игнорируются, единый источник остаётся в конфиге */
     ["exclNode", "exclCountry", "node", "country", "i1Sni", "masqueSni", "through", "target", "pingTarget"].forEach((k) => {
       s[k] = strField(src[k], 300);
     });
@@ -96,6 +96,12 @@
     c.allowed = enumOf(strField(src.allowed, 10), ["both", "v4", "v6", "custom"], "both");
     c.allowedCustom = strField(src.allowedCustom, 300);
     c.tableOff = !!src.tableOff;
+    // v2.7.0: экспорт в сторонние клиенты — reserved только цифры/запятые (YAML-флоу
+    // список), доп. ключи WireSock — однострочные тексты без переводов строк
+    c.reserved = strField(src.reserved, 40).replace(/[^0-9,]/g, "").replace(/,+$/, "").trim();
+    c.wsId = strField(src.wsId, 100).replace(/[\r\n\t]+/g, " ").trim();
+    c.wsIp = strField(src.wsIp, 100).replace(/[\r\n\t]+/g, " ").trim();
+    c.wsIb = strField(src.wsIb, 100).replace(/[\r\n\t]+/g, " ").trim();
     const o = src.obf && typeof src.obf === "object" && !Array.isArray(src.obf) ? src.obf : {};
     c.obf.jc = clampInt(o.jc, 0, 255, 4);
     c.obf.jmin = clampInt(o.jmin, 0, 5000, 40);

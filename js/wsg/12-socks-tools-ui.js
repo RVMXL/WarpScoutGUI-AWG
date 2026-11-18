@@ -164,15 +164,18 @@
     // что лежит в поле I1 вкладки «Конфиг» (S.cfg.obf.i1). Раньше GUI «не представлял»
     // его и предупреждал (extra.40) — теперь подставляем в конфиг.
     let foundI1 = "";
+    // v2.7.0 (объединение параметров): junk-параметры общие с конфигом — собираем
+    // отдельно и пишем в S.cfg.obf, а не в профиль скана
+    const junk = { jc: "", jmin: "", jmax: "" };
     const flags = {
       "-p": (v) => (s.proto = v),
       "-proto": (v) => (s.proto = v),
       "-P": () => (s.tunPing = true),
       "-n": (v) => (s.sample = clampInt(v, 1, 256, 10)),
       "-gen-i1": (v) => (s.genI1 = v),
-      "-jc": (v) => (s.jc = clampInt(v, 0, 255, 6)),
-      "-jmin": (v) => (s.jmin = clampInt(v, 0, 5000, 10)),
-      "-jmax": (v) => (s.jmax = clampInt(v, 0, 5000, 50)),
+      "-jc": (v) => (junk.jc = clampInt(v, 0, 255, "")),
+      "-jmin": (v) => (junk.jmin = clampInt(v, 0, 5000, "")),
+      "-jmax": (v) => (junk.jmax = clampInt(v, 0, 5000, "")),
       "-masque-sni": (v) => (s.masqueSni = strField(v, 200)),
       // v2.6.7: лимит 600 → 6000 (как в QC/sanitize) — эталонный raw-I1 — 2506 символов
       "-i1": (v) => (foundI1 = strField(String(v == null ? "" : v), 6000)),
@@ -189,15 +192,26 @@
     }
     s.proto = enumOf(s.proto, SCAN_ENUMS.proto, "awg");
     s.genI1 = enumOf(s.genI1, SCAN_ENUMS.genI1, "");
-    // найденные конкретные jc/jmin/jmax несовместимы с генератором junk
-    if (s.jc !== "" || s.jmin !== "" || s.jmax !== "") s.genJunk = false;
     S.scan = s;
+    // v2.7.0: найденные junk-параметры — в ОБЩИЙ источник S.cfg.obf (и скан, и конфиг);
+    // с генератором junk (-gen-junk) конкретные значения несовместимы
+    let junkFound = false;
+    if (junk.jc !== "") { S.cfg.obf.jc = junk.jc; junkFound = true; }
+    if (junk.jmin !== "") { S.cfg.obf.jmin = junk.jmin; junkFound = true; }
+    if (junk.jmax !== "") { S.cfg.obf.jmax = junk.jmax; junkFound = true; }
+    if (junkFound) {
+      if (S.cfg.obf.jmin > S.cfg.obf.jmax) S.cfg.obf.jmin = S.cfg.obf.jmax; // CLI: jmin <= jmax
+      s.genJunk = false;
+    }
     // v2.6.4: конкретный I1 из find-junk — в конфиг
     if (foundI1) {
       // v2.6.7: raw-пакет «<b 0x…>» — как есть (пробел после <b значим); normI1Store
       // снимает shell-кавычки и чистит пробелы прочим формам (base64) как раньше
       S.cfg.obf.i1 = normI1Store(foundI1);
-      syncCfgInputsFromState();
+    }
+    if (junkFound || foundI1) {
+      syncCfgInputsFromState(); // поля конфига + junk-поля скана = новые общие значения
+      renderConf();
     }
     S.lastRunParams = null; // применён новый профиль — старый снимок больше не источник параметров
     syncInputsFromState();

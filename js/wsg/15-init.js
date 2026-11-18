@@ -123,15 +123,8 @@
         return;
       }
       S.cfg.endpoint = best.endpoint;
-      const lp = S.lastRunParams;
-      if (lp && lp.proto === "awg" && !lp.genJunk) {
-        S.cfg.obf.jc = clampInt(lp.jc !== "" && lp.jc != null ? lp.jc : 6, 1, 128, 4);
-        let jmin = clampInt(lp.jmin !== "" && lp.jmin != null ? lp.jmin : 10, 0, 1280, 40);
-        const jmax = clampInt(lp.jmax !== "" && lp.jmax != null ? lp.jmax : 50, 0, 1280, 70);
-        if (jmin > jmax) jmin = jmax;
-        S.cfg.obf.jmin = jmin;
-        S.cfg.obf.jmax = jmax;
-      }
+      // v2.7.0: junk-параметры общие (S.cfg.obf) — копия из параметров запуска
+      // (v2.4.6 F18) больше не нужна: значения всегда согласованы
       syncCfgInputsFromState();
       switchTab("config");
       toast(tF("toasts.11", { ep: best.endpoint }), "ok");
@@ -198,7 +191,10 @@
     $("#btnImportConf").addEventListener("click", importConf); // v1.5.0
     bindImportConfFile(); // v1.5.0
     $("#btnCopyConf").addEventListener("click", () => { if (confExportReady()) copyText(buildConf(), t("toasts.09")); }); // v2.4.6 (F27)
-    $("#btnSaveConf").addEventListener("click", saveConf);
+    $("#btnSaveConf").addEventListener("click", () => saveConf("conf"));
+    // v2.7.0: экспорт для сторонних клиентов (Clash / WireSock)
+    $("#btnExportClash").addEventListener("click", () => saveConf("clash"));
+    $("#btnExportWs").addEventListener("click", () => saveConf("wiresock"));
 
     // аккаунт
     $("#btnRegister").addEventListener("click", () => runRegister(false));
@@ -534,7 +530,7 @@
   else syncSidebarVer();
 
   // v2.4.6: + валидаторы/санитайзеры (аудит-тесты и диагностика)
-  window.__WSGUI = { S, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildScanArgs, argPath, buildCheckCmd, checkWarpscout, bindProcEvents, restoreState, computePaths, buildConf, parseReport, switchTab, parseConfText, applyImportedConf, applyImportedState, applyImportedPresets, applyFoundCmd, parseEndpoint, splitEpPort, safeVal, enumOf, clampInt, sanitizeScan, sanitizeCfg, sanitizeHistoryItem, sanitizeQcItem, sanitizePresets, csvSafe, isWgKey, validateAccountJson, normWinPath, isSameWinPath, isWinPathInside, migrateData, migrateAndroidLegacyData, confExportReady, defaultCfg, flushSave, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage, endpointGroups, renderNodeFilterBadge, applyScanLock, setScanParamsLocked, normI1Store, isI1RawPacket };
+  window.__WSGUI = { S, syncStateFromInputs, syncInputsFromState, syncCfgFromInputs, syncCfgInputsFromState, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildScanArgs, argPath, buildCheckCmd, checkWarpscout, bindProcEvents, restoreState, computePaths, buildConf, buildClashYaml, buildWireSockConf, saveConf, parseReport, switchTab, parseConfText, applyImportedConf, applyImportedState, applyImportedPresets, applyFoundCmd, parseEndpoint, splitEpPort, safeVal, enumOf, clampInt, sanitizeScan, sanitizeCfg, sanitizeHistoryItem, sanitizeQcItem, sanitizePresets, csvSafe, isWgKey, validateAccountJson, normWinPath, isSameWinPath, isWinPathInside, migrateData, migrateAndroidLegacyData, confExportReady, defaultCfg, flushSave, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage, endpointGroups, renderNodeFilterBadge, applyScanLock, setScanParamsLocked, normI1Store, isI1RawPacket };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {

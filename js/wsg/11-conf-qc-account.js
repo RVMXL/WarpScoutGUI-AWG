@@ -209,18 +209,21 @@
     // v2.6.2 (аудит FE-23): путь аккаунта — через argPath (дубль FE-1)
     const acc = S.paths.accPath ? " -a " + argPath(S.paths.accPath) : "";
     // v2.4.6 (F18): воспроизводим параметры туннеля из последнего запуска (AWG)
+    // v2.7.0: junk-набор ОБЩИЙ с конфигом (S.cfg.obf) — QC-проверка идёт с тем же
+    // Jc/Jmin/Jmax, которые уйдут в конфиг; gen-i1/gen-junk — по профилю запуска
     let awgArgs = "";
     const lp = S.lastRunParams;
-    if (pr === "awg" && lp && lp.proto === "awg") {
-      if (lp.genI1) {
+    if (pr === "awg") {
+      if (lp && lp.proto === "awg" && lp.genI1) {
         awgArgs += " -gen-i1 " + lp.genI1;
         if (lp.i1Sni && lp.i1Sni.trim()) awgArgs += " -i1-sni " + safeVal(lp.i1Sni);
-      } else if (lp.genJunk) {
+      } else if (lp && lp.proto === "awg" && lp.genJunk) {
         awgArgs += " -gen-junk";
       } else {
-        if (lp.jc !== "" && lp.jc != null && +lp.jc !== 6) awgArgs += " -jc " + clampInt(lp.jc, 1, 128, 6);
-        if (lp.jmin !== "" && lp.jmin != null && +lp.jmin !== 10) awgArgs += " -jmin " + clampInt(lp.jmin, 0, 5000, 10);
-        if (lp.jmax !== "" && lp.jmax != null && +lp.jmax !== 50) awgArgs += " -jmax " + clampInt(lp.jmax, 0, 5000, 50);
+        const o = S.cfg.obf || {};
+        if (+o.jc !== 6) awgArgs += " -jc " + clampInt(o.jc, 1, 128, 6);
+        if (+o.jmin !== 10) awgArgs += " -jmin " + clampInt(o.jmin, 0, 5000, 10);
+        if (+o.jmax !== 50) awgArgs += " -jmax " + clampInt(o.jmax, 0, 5000, 50);
       }
     }
     const cmd =

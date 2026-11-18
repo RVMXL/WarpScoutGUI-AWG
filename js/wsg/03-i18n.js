@@ -102,6 +102,7 @@
     "scan.obf.06": { ru: "Случайный junk", en: "Random junk" },
     "scan.obf.07": { ru: "Случайные jc/jmin/jmax на этот запуск (перекрывает поля выше)", en: "Random jc/jmin/jmax for this run (overrides the fields above)" },
     "scan.obf.08": { ru: "Попыток на эндпоинт", en: "Attempts per endpoint" },
+    "scan.obf.09": { ru: "Jc/Jmin/Jmax — общие с генератором конфигов: правка здесь или на вкладке «Конфиг» синхронно меняет оба. «Случайный junk» рандомизирует набор только на время прогона — конфиг не трогает.", en: "Jc/Jmin/Jmax are shared with the config generator: editing here or on the 'Config' tab changes both at once. 'Random junk' randomizes the set for the run only — the config is untouched." },
     /* — scan.adv — */
     /* — скан: продвинутое — */
     "scan.adv.01": { ru: "WARP-in-WARP и продвинутое", en: "WARP-in-WARP & advanced" },
@@ -680,6 +681,16 @@
     "conf.59": { ru: "Лучшие с каждой ноды", en: "Best per node" },
     "conf.60": { ru: "Остальные", en: "Others" },
     "conf.61": { ru: "Скан с -gen-i1 генерирует I1 на лету и в отчёт не выносит — конкретный пакет даёт «Поиск параметров» → find-junk: «Применить найденное» подставит его сюда автоматически.", en: "A scan with -gen-i1 generates I1 on the fly and does not include it in the report — the concrete packet comes from 'Param finder' → find-junk: 'Apply found' inserts it here automatically." },
+    "conf.62": { ru: "Jc/Jmin/Jmax — общие с карточкой «Обфускация AmneziaWG» на вкладке «Скан»: скан проверяет эндпоинты ровно с тем набором, который уйдёт в конфиг.", en: "Jc/Jmin/Jmax are shared with the 'AmneziaWG obfuscation' card on the 'Scan' tab: the scan probes endpoints with the exact set that goes into the config." },
+    // v2.7.0: экспорт для сторонних клиентов (Clash / WireSock)
+    "conf.63": { ru: "Экспорт для других клиентов", en: "Export for other clients" },
+    "conf.64": { ru: "Тот же аккаунт и те же параметры обфускации в формате Clash.Meta/mihomo: WireGuard+AmneziaWG-прокси и MASQUE-узлы. Reserved-байты WARP возьмите из рабочего Clash/wgcf-конфига того же аккаунта — они привязаны к регистрации. Доп. ключи WireSock (Id/Ip/Ib) попадают только в WireSock-экспорт.", en: "The same account and the same obfuscation parameters in Clash.Meta/mihomo format: a WireGuard+AmneziaWG proxy and MASQUE nodes. Take the WARP reserved bytes from a working Clash/wgcf config of the same account — they are tied to the registration. The extra WireSock keys (Id/Ip/Ib) go into the WireSock export only." },
+    "conf.65": { ru: "Reserved (для Clash, опц.)", en: "Reserved (for Clash, opt.)" },
+    "conf.66": { ru: "WireSock Id (опц.)", en: "WireSock Id (opt.)" },
+    "conf.67": { ru: "WireSock Ip (опц.)", en: "WireSock Ip (opt.)" },
+    "conf.68": { ru: "WireSock Ib (опц.)", en: "WireSock Ib (opt.)" },
+    "conf.69": { ru: "🧩 Clash .yaml", en: "🧩 Clash .yaml" },
+    "conf.70": { ru: "🧦 WireSock .conf", en: "🧦 WireSock .conf" },
     /* — data — */
     /* — v2.2.0: единая папка данных — (v2.3.0: данные перенесены в папку «<имя exe>», объединение удалено) — */
     "data.01": { ru: "Папка данных", en: "Data folder" },

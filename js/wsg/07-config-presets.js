@@ -124,7 +124,8 @@
     return s.replace(/\s+/g, "");
   }
 
-  function buildConf() {
+  function buildConf(opts) {
+    const forWs = !!(opts && opts.ws); // v2.7.0: экспорт для WireSock — с доп. ключами Id/Ip/Ib
     const acc = S.account;
     const c = S.cfg;
     const ver = c.ver;
@@ -157,6 +158,14 @@
       kv("Jmax", jmax);
       kv("S1", o.s1); kv("S2", o.s2); kv("S3", o.s3); kv("S4", o.s4);
       kv("H1", o.h1); kv("H2", o.h2); kv("H3", o.h3); kv("H4", o.h4);
+      // v2.7.0: доп. ключи WireSock (Id/Ip/Ib из примера пользователя) — ТОЛЬКО
+      // в WireSock-экспорте: в стандартный .conf для AmneziaVPN/AmneziaWG они
+      // не попадают, чтобы не ломать импорт в другие клиенты
+      if (forWs) {
+        if ((S.cfg.wsId || "").trim()) kv("Id", S.cfg.wsId.trim());
+        if ((S.cfg.wsIp || "").trim()) kv("Ip", S.cfg.wsIp.trim());
+        if ((S.cfg.wsIb || "").trim()) kv("Ib", S.cfg.wsIb.trim());
+      }
       if ((o.i1 || "").trim()) kv("I1", normI1Store(o.i1)); // v2.6.7: raw-форма «<b 0x…>» — без чистки пробелов
       // v2.4.6 (F26): I2–I5 больше не теряются (нужны профилям AWG 2.0)
       if ((o.i2 || "").trim()) kv("I2", normI1Store(o.i2));
@@ -185,6 +194,143 @@
     if (c.keepalive > 0) kv("PersistentKeepalive", clampInt(c.keepalive, 0, 65535, 0)); // v2.4.6 (F27)
 
     return lines.join("\n") + "\n";
+  }
+
+  /* ── v2.7.0 (запрос пользователя): экспорт конфигов для сторонних клиентов ──
+     buildClashYaml — профиль для Clash.Meta/mihomo: WireGuard-outbound с
+     amnezia-wg-option (все параметры обфускации из вкладки «Конфиг», включая I1
+     и AWG 3.1 тайминги) + MASQUE-узлы из masque-устройства аккаунта + группа
+     выбора и правило MATCH. Структура повторяет пример пользователя.
+     buildWireSockConf — тот же .conf, что и в предпросмотре, плюс опциональные
+     доп. ключи WireSock Id/Ip/Ib (S.cfg.ws*). */
+
+  /* YAML-скаляр: plain, если безопасно; иначе в одинарных кавычках */
+  function yq(v) {
+    const s = String(v == null ? "" : v).replace(/[\r\n\t]+/g, " ").trim();
+    if (/^[A-Za-z0-9][A-Za-z0-9 .\/+=_:-]*$/.test(s)) return s;
+    return "'" + s.replace(/'/g, "''") + "'";
+  }
+
+  function clashDnsFlow() {
+    const dns = S.cfg.dns === "custom" ? S.cfg.dnsCustom : dnsLineOf(S.cfg.dns, S.cfg.dnsV6 !== false);
+    return (dns || "").split(",").map((x) => yq(x.trim())).filter((x) => x !== "''").join(", ");
+  }
+
+  function clashReservedFlow() {
+    // из каждой части вычленяем цифры («abc108» → «108») и берём максимум 3 байта, как у WARP
+    const parts = String(S.cfg.reserved || "")
+      .split(",")
+      .map((x) => x.replace(/[^0-9]/g, ""))
+      .filter(Boolean)
+      .slice(0, 3);
+    return parts.length ? "  reserved: [" + parts.join(", ") + "]" : "";
+  }
+
+  function buildClashYaml() {
+    const acc = S.account;
+    const c = S.cfg;
+    const o = c.obf;
+    const ep = splitEpPort(c.endpoint || "8.47.69.43:2408") || { ip: "8.47.69.43", port: "2408" };
+    const L = [];
+    /* якорь WireGuard/AWG-устройства */
+    L.push("warp-common: &warp-common");
+    L.push("  type: wireguard");
+    L.push("  ip: " + yq(acc ? acc.ipv4 : "172.16.0.2"));
+    if (acc && acc.ipv6) L.push("  ipv6: " + yq(acc.ipv6));
+    L.push("  private-key: " + yq(acc ? acc.private_key : ""));
+    L.push("  public-key: " + yq(acc ? acc.peer_public_key : "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo="));
+    L.push("  allowed-ips: [" + cfgAllowedIps().split(",").map((s) => yq(s.trim())).filter((s) => s !== "''").join(", ") + "]");
+    const res = clashReservedFlow();
+    if (res) L.push(res);
+    L.push("  udp: true");
+    L.push("  mtu: " + clampInt(c.mtu, 576, 1500, 1280));
+    L.push("  remote-dns-resolve: true");
+    L.push("  dns: [" + clashDnsFlow() + "]");
+    if (c.ver !== "wg") {
+      L.push("  amnezia-wg-option:");
+      L.push("    version: " + (c.ver === "awg31" ? 3 : c.ver === "awg20" ? 2 : 1));
+      L.push("    s1: " + clampInt(o.s1, 0, 65535, 0));
+      L.push("    s2: " + clampInt(o.s2, 0, 65535, 0));
+      L.push("    s3: " + clampInt(o.s3, 0, 65535, 0));
+      L.push("    s4: " + clampInt(o.s4, 0, 65535, 0));
+      L.push("    jc: " + clampInt(o.jc, 1, 128, 4));
+      L.push("    jmin: " + clampInt(o.jmin, 0, 1280, 40));
+      L.push("    jmax: " + clampInt(o.jmax, 0, 1280, 70));
+      L.push("    h1: " + yq(o.h1));
+      L.push("    h2: " + yq(o.h2));
+      L.push("    h3: " + yq(o.h3));
+      L.push("    h4: " + yq(o.h4));
+      if ((o.i1 || "").trim()) L.push("    i1: " + yq(normI1Store(o.i1)));
+      if ((o.i2 || "").trim()) L.push("    i2: " + yq(normI1Store(o.i2)));
+      if ((o.i3 || "").trim()) L.push("    i3: " + yq(normI1Store(o.i3)));
+      if ((o.i4 || "").trim()) L.push("    i4: " + yq(normI1Store(o.i4)));
+      if ((o.i5 || "").trim()) L.push("    i5: " + yq(normI1Store(o.i5)));
+      if (c.ver === "awg31") {
+        L.push("    content-padding-addition: " + yq(o.cpa));
+        L.push("    rekey-after-time: " + yq(o.rekeyAfter));
+        L.push("    rekey-timeout: " + yq(o.rekeyTo));
+        L.push("    reject-after-time: " + yq(o.rejectAfter));
+        L.push("    keepalive-timeout: " + yq(o.keepaliveTo));
+        L.push("    max-handshake-attempts: " + yq(o.maxHs));
+        L.push("    random-trailers: " + (o.trailers === "on" ? "true" : "false"));
+        L.push("    disable-cookies: " + (o.noCookies === "on" ? "true" : "false"));
+      }
+    }
+    /* якорь MASQUE-устройства (если аккаунт с masque) */
+    const mq = acc && acc.masque;
+    if (mq) {
+      L.push("");
+      L.push("warp-masque: &warp-masque");
+      L.push("  type: masque");
+      L.push("  sni: " + yq((S.scan.masqueSni || "").trim() || "consumer-masque.cloudflareclient.com"));
+      L.push("  private-key: " + yq(mq.private_key || ""));
+      L.push("  public-key: " + yq(mq.peer_public_key || ""));
+      L.push("  ip: " + yq(mq.ipv4 || (acc && acc.ipv4) || "172.16.0.2"));
+      if (mq.ipv6 || (acc && acc.ipv6)) L.push("  ipv6: " + yq(mq.ipv6 || acc.ipv6));
+      L.push("  udp: true");
+      L.push("  remote-dns-resolve: true");
+      L.push("  dns: [" + clashDnsFlow() + "]");
+    }
+    /* прокси */
+    L.push("");
+    L.push("proxies:");
+    L.push('- name: "[WARP-AWG] Default"');
+    L.push("  <<: *warp-common");
+    L.push("  server: " + yq(ep.ip));
+    L.push("  port: " + String(parseInt(ep.port, 10) || 2408));
+    if (mq) {
+      L.push('- name: "[WARP-MASQUE] QUIC"');
+      L.push("  <<: *warp-masque");
+      L.push("  server: 162.159.198.2");
+      L.push("  port: 443");
+      L.push('- name: "[WARP-MASQUE] H2"');
+      L.push("  <<: *warp-masque");
+      L.push("  server: 162.159.198.2");
+      L.push("  port: 443");
+      L.push("  network: h2");
+    }
+    /* группа выбора + правило */
+    L.push("");
+    L.push("proxy-groups:");
+    L.push("- name: Cloudflare");
+    L.push("  type: select");
+    L.push("  icon: https://www.vectorlogo.zone/logos/cloudflare/cloudflare-icon.svg");
+    L.push("  proxies:");
+    L.push('    - "[WARP-AWG] Default"');
+    if (mq) {
+      L.push('    - "[WARP-MASQUE] QUIC"');
+      L.push('    - "[WARP-MASQUE] H2"');
+    }
+    L.push("  url: 'http://speed.cloudflare.com/'");
+    L.push("  interval: 300");
+    L.push("");
+    L.push("rules:");
+    L.push("- MATCH,Cloudflare");
+    return L.join("\n") + "\n";
+  }
+
+  function buildWireSockConf() {
+    return buildConf({ ws: true });
   }
 
   function hlConf(text) {
