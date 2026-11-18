@@ -53,12 +53,19 @@ test("sanitizeScan: числовые поля зажаты; target сохран�
 });
 
 test("sanitizeScan: пустые числовые остаются пустыми, bool'ы нормализуются", () => {
-  const s = wsgui.sanitizeScan({ port: "", jc: null, jmin: undefined, full: 1, ipv6: "yes" });
+  const s = wsgui.sanitizeScan({ port: "", full: 1, ipv6: "yes" });
   assert.strictEqual(s.port, "");
-  assert.strictEqual(s.jc, "");
-  assert.strictEqual(s.jmin, "");
   assert.strictEqual(s.full, true);
   assert.strictEqual(s.ipv6, true);
+});
+
+test("v2.7.0: junk-параметры не хранятся в профиле скана (общие с S.cfg.obf)", () => {
+  // старые состояния/пресеты с scan.jc/jmin/jmax — протухшие копии отбрасываются
+  const s = wsgui.sanitizeScan({ jc: 9, jmin: 100, jmax: 200, full: 1 });
+  assert.strictEqual("jc" in s, false, "scan.jc больше не существует");
+  assert.strictEqual("jmin" in s, false, "scan.jmin больше не существует");
+  assert.strictEqual("jmax" in s, false, "scan.jmax больше не существует");
+  assert.strictEqual(wsgui.S.cfg.obf.jc, 4, "общий источник не задет санитайзером скана");
 });
 
 test("sanitizeScan: не-объект → полный дефолт (F08)", () => {

@@ -17,6 +17,11 @@
     return {
       ver: "awg31", dns: "cloudflare", dnsV6: true, dnsCustom: "", endpoint: "",
       mtu: 1280, keepalive: 0, allowed: "both", allowedCustom: "", tableOff: false,
+      // v2.7.0 (запрос пользователя): экспорт в сторонние клиенты —
+      // reserved-байты WARP для Clash (например «108, 73, 80», берутся из рабочего
+      // Clash/wgcf-конфига того же аккаунта) и доп. ключи WireSock (Id/Ip/Ib,
+      // попадают ТОЛЬКО в WireSock-экспорт)
+      reserved: "", wsId: "", wsIp: "", wsIb: "",
       obf: {
         jc: 4, jmin: 40, jmax: 70,
         s1: 0, s2: 0, s3: 0, s4: 0,
@@ -42,10 +47,12 @@
     country: "",
     genI1: "",
     i1Sni: "",
-    jc: 6,
-    jmin: 10,
-    jmax: 50,
     genJunk: false,
+    /* v2.7.0 (запрос пользователя: «объединить, это спутает»): junk-параметры
+       Jc/Jmin/Jmax больше НЕ хранятся в профиле скана — единый источник
+       S.cfg.obf (вкладка «Конфиг» ↔ карточка «Обфускация AmneziaWG» на
+       «Скан» — одни и те же значения). «Случайный junk» (-gen-junk) остался
+       скановым: CLI рандомизирует набор только на время прогона. */
     masqueSni: "",
     masqueAttempts: 3,
     through: "",

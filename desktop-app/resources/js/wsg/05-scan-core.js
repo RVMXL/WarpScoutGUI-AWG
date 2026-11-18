@@ -46,9 +46,13 @@
       }
       if (s.genJunk) a.push("-gen-junk");
       else {
-        if (s.jc !== "" && s.jc != null && +s.jc !== 6) a.push("-jc " + Math.min(255, Math.max(0, Math.round(+s.jc))));
-        if (s.jmin !== "" && s.jmin != null && +s.jmin !== 10) a.push("-jmin " + Math.min(5000, Math.max(0, Math.round(+s.jmin))));
-        if (s.jmax !== "" && s.jmax != null && +s.jmax !== 50) a.push("-jmax " + Math.min(5000, Math.max(0, Math.round(+s.jmax))));
+        // v2.7.0 (объединение параметров): junk-набор ОБЩИЙ с генератором конфигов
+        // (S.cfg.obf) — скан проверяет эндпоинт ровно с тем Jc/Jmin/Jmax, которые
+        // уйдут в конфиг; ранее это были отдельные поля только для скана (6/10/50)
+        const o = S.cfg.obf || {};
+        if (o.jc !== "" && o.jc != null && +o.jc !== 6) a.push("-jc " + Math.min(255, Math.max(0, Math.round(+o.jc))));
+        if (o.jmin !== "" && o.jmin != null && +o.jmin !== 10) a.push("-jmin " + Math.min(5000, Math.max(0, Math.round(+o.jmin))));
+        if (o.jmax !== "" && o.jmax != null && +o.jmax !== 50) a.push("-jmax " + Math.min(5000, Math.max(0, Math.round(+o.jmax))));
       }
     }
     if (isMasque) {

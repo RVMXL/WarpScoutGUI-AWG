@@ -808,16 +808,23 @@
     return true;
   }
 
-  async function saveConf() {
+  /* v2.7.0: единая точка сохранения — стандартный .conf, Clash .yaml, WireSock .conf */
+  const CONF_FORMATS = {
+    conf: () => ({ name: ($("#cfgFileName") || {}).textContent || "warp.conf", body: buildConf() }),
+    clash: () => ({ name: "warp-clash.yaml", body: buildClashYaml() }),
+    wiresock: () => ({ name: "warp-wiresock.conf", body: buildWireSockConf() }),
+  };
+
+  async function saveConf(fmt) {
     if (!confExportReady()) return; // v2.4.6 (F27)
-    const name = $("#cfgFileName").textContent;
+    const f = (CONF_FORMATS[fmt] || CONF_FORMATS.conf)();
     let path;
     try {
-      path = await os().showSaveDialog(t("conf.io.01"), { defaultPath: name });
+      path = await os().showSaveDialog(t("conf.io.01"), { defaultPath: f.name });
     } catch (e) { path = null; }
     if (!path) { if (IS_MOCK) toast(t("conf.io.02"), "err"); return; }
     try {
-      await fs().writeFile(path, buildConf());
+      await fs().writeFile(path, f.body);
       toast(tF("extra.29", { path: path }), "ok");
     } catch (e) {
       toast(tF("extra.30", { err: e && e.message ? e.message : e }), "err");

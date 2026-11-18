@@ -31,11 +31,14 @@ test("buildScanArgs: F07 — target с пробелами/метасимвола
   assert.ok(!a.join(" ").includes("&"));
 });
 
-test("buildScanArgs: клампы флагов (n/jt/t/jc/jmin/jmax/masque-attempts)", () => {
+test("buildScanArgs: клампы флагов (n/jt/t/jc/jmin/jmax/masque-attempts) — v2.7.0: junk из S.cfg.obf", () => {
   const { wsgui } = loadApp({ nlOs: "Windows" });
+  wsgui.S.cfg.obf.jc = -1;
+  wsgui.S.cfg.obf.jmin = 9000;
+  wsgui.S.cfg.obf.jmax = 1; // jmin>jmax?? CLI-правило в sanitize; build просто клампит
   const a = wsgui.buildScanArgs({
     proto: "awg", full: false, sample: 99999, jt: 200, timeout: 999,
-    genJunk: false, jc: -1, jmin: 9000, jmax: 1, // jmin>jmax?? CLI-правило в sanitize; build просто клампит
+    genJunk: false,
     masqueAttempts: 99,
   }).join(" ");
   assert.ok(a.includes("-n 256"));
@@ -57,17 +60,22 @@ test("buildScanArgs: masque подавляет node/country, поддержив�
   assert.ok(!a.includes("-masque-attempts")); // 3 — дефолт
 });
 
-test("buildScanArgs: AWG — gen-i1 whitelist, i1-sni только вместе с gen-i1, gen-junk vs jc/jmin/jmax", () => {
+test("buildScanArgs: AWG — gen-i1 whitelist, i1-sni только вместе с gen-i1, gen-junk vs jc/jmin/jmax (v2.7.0: junk из S.cfg.obf)", () => {
   const { wsgui } = loadApp({ nlOs: "Windows" });
+  wsgui.S.cfg.obf.jc = 9; // общий источник; восстановим в конце
   let a = wsgui.buildScanArgs({ proto: "awg", genI1: "quic", i1Sni: "sni.example", genJunk: true }).join(" ");
   assert.ok(a.includes("-gen-i1 quic"));
   assert.ok(a.includes("-i1-sni sni.example"));
   assert.ok(a.includes("-gen-junk"));
   assert.ok(!a.includes("-jc"));
-  a = wsgui.buildScanArgs({ proto: "awg", genI1: "eval", genJunk: false, jc: 6, jmin: 10, jmax: 50 }).join(" ");
+  wsgui.S.cfg.obf.jc = 6;
+  wsgui.S.cfg.obf.jmin = 10;
+  wsgui.S.cfg.obf.jmax = 50;
+  a = wsgui.buildScanArgs({ proto: "awg", genI1: "eval", genJunk: false }).join(" ");
   assert.ok(!a.includes("-gen-i1")); // вне whitelist → пусто
   assert.ok(!a.includes("-jc"));     // дефолтные значения не печатаются
-  a = wsgui.buildScanArgs({ proto: "awg", genI1: "", genJunk: false, jc: 9 }).join(" ");
+  wsgui.S.cfg.obf.jc = 9;
+  a = wsgui.buildScanArgs({ proto: "awg", genI1: "", genJunk: false }).join(" ");
   assert.ok(a.includes("-jc 9"));
   assert.ok(!a.includes("-i1-sni")); // без gen-i1 sni невалиден
 });

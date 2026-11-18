@@ -105,8 +105,11 @@ test("applyFoundCmd: raw-I1 в кавычках с пробелом доезжа
   // и строка конфига — та же форма целиком (раньше: чистка пробелов + обрыв)
   const conf = wsgui.buildConf();
   assert.ok(conf.includes("I1 = " + wantI1 + "\n"), "строка I1 в конфиге не совпадает целиком");
-  // найденные junk-параметры применились
-  assert.strictEqual(wsgui.S.scan.jc, 4);
+  // найденные junk-параметры применились в ОБЩИЙ источник (v2.7.0: S.cfg.obf)
+  assert.strictEqual(wsgui.S.cfg.obf.jc, 4);
+  assert.strictEqual(wsgui.S.cfg.obf.jmin, 40);
+  assert.strictEqual(wsgui.S.cfg.obf.jmax, 70);
+  assert.strictEqual(wsgui.S.scan.genJunk, false, "конкретный junk несовместим с -gen-junk");
 });
 
 /* ── v2.6.7: незакрытая кавычка (обрезанный лог) — значение берётся до конца
