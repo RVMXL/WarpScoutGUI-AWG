@@ -256,8 +256,14 @@ body {
 .form-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .field--wide { grid-column: 1 / -1; }
-.field__label { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+/* v2.7.0 (отчёт пользователя): длинные неразрывные идентификаторы AWG 3.1
+   (ContentPaddingAddition, MaxHandshakeAttempts…) в узких ячейках перелезали
+   на соседние подписи — переносим по символам там, где слов-границ нет */
+.field__label { font-size: 12px; color: var(--text-dim); font-weight: 600; overflow-wrap: anywhere; }
 .field__label code { color: var(--text-faint); font-size: 10.5px; background: var(--bg-input); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border-soft); }
+/* v2.7.0: сетка AWG 3.1 — на всю ширину карточки (в правой половине внешней
+   2-колоночной сетки ячейки получались ~90px, и 9 длинных полей не помещались) */
+#cfgAwg31Grid { grid-column: 1 / -1; }
 
 input[type="text"], input[type="number"], select, textarea {
   font: inherit;
