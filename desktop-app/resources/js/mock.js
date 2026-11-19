@@ -200,8 +200,54 @@
     ];
   }
 
+  // v2.7.1: мини-скан «I1 из сканирования» — «-conf -» печатает готовый конфиг со строкой I1
+  // (как у реального CLI). Профиль/SNI берём из команды, пакет — QUIC-подобный для профиля,
+  // дефолтный iCloud-зонд — без -gen-i1.
+  function i1Script(cmd) {
+    const ip = (cmd.match(/-target\s+(\S+)/) || [null, "188.114.98.58"])[1];
+    const port = (cmd.match(/-port\s+(\d+)/) || [null, "2408"])[1];
+    const prof = (cmd.match(/-gen-i1\s+(\S+)/) || [null, ""])[1];
+    const sni = (cmd.match(/-i1-sni\s+(\S+)/) || [null, ""])[1];
+    const endpoint = /:\d+$/.test(ip) ? ip : ip + ":" + port;
+    let sum = 0;
+    const seed = (prof || "icloud") + "|" + sni;
+    for (let i = 0; i < seed.length; i++) sum += seed.charCodeAt(i);
+    const hx = (n) => { let s = ""; for (let i = 0; i < n; i++) { sum = (sum * 1103515245 + 12345) >>> 0; s += "0123456789abcdef"[sum % 16]; } return s; };
+    const i1 = prof
+      ? "<b 0xc70000000101f1000040" + hx(22) + "><r 22><b 0x" + hx(24) + "><r 16>"
+      : "<r 2><b 0x858000010001000000000669636c6f756403636f6d0000010001c00c000100010000105a00044d583737>";
+    const conf = [
+      "",
+      "[Interface]",
+      "Address = 172.16.0.2/32",
+      "PrivateKey = EPwCPpMTQUl7V/cpPyacTsXVvzpmzHcQQI5abeLmylA=",
+      "DNS = 1.1.1.1, 1.0.0.1",
+      "Jc = 6",
+      "Jmin = 10",
+      "Jmax = 50",
+      "I1 = " + i1,
+      "",
+      "[Peer]",
+      "PublicKey = bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+      "Endpoint = " + endpoint,
+      "AllowedIPs = 0.0.0.0/0",
+      "PersistentKeepalive = 25",
+    ].join("\r\n");
+    return [
+      { delay: 250, data: "Using cached WARP account from warpscout-account.json\r\n" },
+      { delay: 300, data: "\r\nPort: " + port + " (pinned, phase 1 skipped)\r\n" },
+      { delay: 400, data: "Phase 2: verifying tunnels (proto=awg): 1...\r\n" },
+      { delay: 500, data: "  node: HK HKG (" + endpoint + ")\r\n  1/1\r\n" },
+      { delay: 300, data: "Phase 2: verifying tunnels (proto=awg): done\r\n" },
+      { delay: 250, data: conf + "\r\n" },
+      { delay: 100, type: "exit", data: "0" },
+    ];
+  }
+
   const scripts = {
     scan(cmd) {
+      // v2.7.1: «I1 из сканирования» (мини-скан с -conf -) — до проверки QC-сценария
+      if (/(^|\s)-conf\s+-/.test(cmd)) return i1Script(cmd);
       // v1.9.0: быстрая проверка одного эндпоинта (scan -target IP -port PORT) — короткий сценарий
       if (/(^|\s)-target\s+\S/.test(cmd) && /(^|\s)-port\s+\d+/.test(cmd)) return checkScript(cmd);
       const withP = /(^|\s)-P(\s|$)|tun-ping/.test(cmd);
@@ -397,7 +443,7 @@
   window.NL_CWD = window.NL_PATH;
   // единая версия демо = версия GUI (не дублировать в ветках — раньше здесь
   // остался устаревший «2.4.6», из-за чего JS-статусы демо показывали не ту версию)
-  window.NL_APPVERSION = "2.7.0";
+  window.NL_APPVERSION = "2.7.1";
   // v2.5.0: ?platform=android — предпросмотр сенсорного режима Android-версии
   // (тот же мок, но платформа Android: TOUCH_UI, бинарь из nativeLibraryDir)
   if (/(?:^|[?&])platform=android/.test(String(window.location.search))) {

@@ -247,6 +247,120 @@
     el.scrollTop = el.scrollHeight;
   }
 
+  /* ───────── «I1 из сканирования» (v2.7.1, запрос пользователя) ─────────
+     Скан с -gen-i1 генерирует init-пакет на лету (per run) и в отчёт его не
+     выносит — вытащить его из прошлого прогона невозможно. Но warpscout
+     materializes I1 в выводе scan -conf: «-conf -» печатает готовый конфиг
+     лучшего эндпоинта со СТРОКОЙ I1 = … (проверено на warpscout: и для
+     -gen-i1 quic/dns/…, и для дефолтного iCloud-зонда). Поэтому кнопка
+     запускает МИНИ-СКАН одного эндпоинта (лучшего из результатов / того,
+     что выбран в конфиге) с тем же профилем и SNI, что у последнего скана,
+     и парсит свежий I1 из вывода. Пакет пересобирается заново (байты другие),
+     но форма/профиль те же — конфиг перестаёт «не совпадать» со сканом.
+     СЮРПРИЗ-ИСТОЧНИК был: скан с -gen-i1 находит рабочие эндпоинты, а конфиг
+     без I1 (или с чужим I1) через DPI сети пользователя не проходит. */
+  function buildI1Cmd(ip, port) {
+    // профиль/SNI — строго из снимка последнего запуска (что реально шёл в скане);
+    // junk — та же логика ветвления, что у buildCheckCmd (gen-i1 → gen-junk → общий S.cfg.obf)
+    let awgArgs = "";
+    const lp = S.lastRunParams;
+    const prof = lp && lp.proto === "awg" ? String(lp.genI1 || "") : "";
+    if (prof) {
+      awgArgs += " -gen-i1 " + prof;
+      const sni = lp && lp.i1Sni ? String(lp.i1Sni).trim() : "";
+      if (sni) awgArgs += " -i1-sni " + safeVal(sni);
+    } else if (lp && lp.proto === "awg" && lp.genJunk) {
+      awgArgs += " -gen-junk";
+    } else {
+      const o = S.cfg.obf || {};
+      if (+o.jc !== 6) awgArgs += " -jc " + clampInt(o.jc, 1, 128, 6);
+      if (+o.jmin !== 10) awgArgs += " -jmin " + clampInt(o.jmin, 0, 5000, 10);
+      if (+o.jmax !== 50) awgArgs += " -jmax " + clampInt(o.jmax, 0, 5000, 50);
+    }
+    // -conf - печатает конфиг в stdout; -no-report — без файла отчёта; -P не нужен
+    const acc = S.paths.accPath ? " -a " + argPath(S.paths.accPath) : "";
+    const cmd =
+      quoteExe() + " scan -p awg" + awgArgs +
+      " -target " + ip +
+      " -port " + port +
+      " -plain -conf - -conf-type native -no-report" + acc;
+    return { cmd: cmd, prof: prof };
+  }
+
+  // Чистый парсер вывода мини-скана: последняя строка «I1 = …» из блока [Interface].
+  // «no working endpoints found» → reason "noendpoints"; строки I1 нет (или «none») → "noi1".
+  function parseI1Output(buf) {
+    const s = String(buf || "");
+    if (/no working endpoints found/i.test(s)) return { ok: false, reason: "noendpoints" };
+    const re = /^\s*I1\s*=\s*(.+?)\s*$/gm;
+    let m, last = null;
+    while ((m = re.exec(s))) last = m[1];
+    if (!last || last === "none") return { ok: false, reason: "noi1" };
+    return { ok: true, i1: last };
+  }
+
+  function finishI1(buf, prof, ep) {
+    const res = parseI1Output(buf);
+    if (!res.ok) {
+      toast(res.reason === "noendpoints" ? t("conf.75") : t("conf.78"), "err");
+      return;
+    }
+    // raw-форма «<b 0x…><r 22>…» — как есть (normI1Store снимает shell-кавычки,
+    // пробелы прочих форм чистит как раньше); в конфиг-превью и экспортах уже учтено
+    S.cfg.obf.i1 = normI1Store(res.i1);
+    syncCfgInputsFromState();
+    renderConf();
+    persist();
+    toast(tF("conf.77", { p: prof || t("conf.79"), ep: ep }), "ok");
+  }
+
+  async function i1FromScan() {
+    if (S.running.i1) { toast(t("conf.73"), "warn"); return; }
+    if (S.running.scan) { toast(t("qc.09"), "warn"); return; }
+    // последний запуск не AWG (masque/wg) — I1 к нему неприменим
+    const lp0 = S.lastRunParams;
+    if (lp0 && lp0.proto && lp0.proto !== "awg") { toast(t("conf.76"), "err"); return; }
+    // цель: эндпоинт из вкладки «Конфиг» (если живой в результатах) → лучший из последнего скана
+    const alive = (e) => S.results.some((r) => r.endpoint === e && !r.torn);
+    let ep = S.cfg.endpoint && alive(S.cfg.endpoint) ? S.cfg.endpoint : "";
+    if (!ep) {
+      const g = endpointGroups(S.results).best;
+      if (g) ep = g.endpoint;
+    }
+    if (!ep) { toast(t("conf.74"), "err"); return; }
+    const parts = splitEpPort(ep);
+    if (!parts) { toast(t("qc.10"), "err"); return; }
+    if (!S.account && !IS_MOCK) { toast(t("scan.process.17"), "err"); switchTab("account"); return; }
+    const built = buildI1Cmd(parts.ip, parts.port);
+    S.running.i1 = true;
+    const btn = $("#btnI1FromScan");
+    // v2.7.1: метку на время прогона меняем на «…» и восстанавливаем через t("conf.71") —
+    // НЕ сохранённой строкой: подмена textContent создаёт НОВЫЙ текст-узел, который
+    // статический i18n-восстановитель (i18nInitStatic собирает узлы один раз при старте)
+    // не знает — после прогона кнопка перестала бы переводиться на EN
+    if (btn) { btn.disabled = true; btn.textContent = "…"; }
+    let buf = "";
+    try {
+      const proc = await os().spawnProcess(built.cmd);
+      S.procIds.i1 = proc.id;
+      registerProc(proc.id, (d) => {
+        if (d.type === "stdout" || d.type === "stderr") {
+          buf += typeof d.data === "string" ? d.data : "";
+          if (buf.length > 100000) buf = buf.slice(-50000); // как в QC (F36)
+        } else if (d.type === "exit") {
+          unregisterProc(proc.id);
+          S.running.i1 = false;
+          if (btn) { btn.disabled = false; btn.textContent = t("conf.71"); }
+          finishI1(buf, built.prof, ep);
+        }
+      });
+    } catch (e) {
+      S.running.i1 = false;
+      if (btn) { btn.disabled = false; btn.textContent = t("conf.71"); }
+      toast(tF("qc.11", { err: e && e.message ? e.message : e }), "err");
+    }
+  }
+
   function qcVerdict(kind, text) {
     const v = $("#qcVerdict");
     if (!v) return;

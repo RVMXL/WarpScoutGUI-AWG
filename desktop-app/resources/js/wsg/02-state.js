@@ -92,7 +92,7 @@
     wsFileThere: false,  // v2.4.0: файл warpscout.exe существует (даже если версию получить не удалось)
     account: null,
     accountError: "", // v2.1.0: причина, почему файл аккаунта не принят ("parse" | "not-account")
-    running: { scan: false, register: false, fj: false, fs: false, socks: false, check: false },
+    running: { scan: false, register: false, fj: false, fs: false, socks: false, check: false, i1: false }, // v2.7.1: i1 — мини-скан «I1 из сканирования»
     procIds: {},
     demoScanned: false,
     prevEndpoints: null,  // Set эндпоинтов прошлого скана (для сравнения)
@@ -103,27 +103,38 @@
     qcBatch: null,        // v2.0.0: очередь пакетной проверки {list, idx, total, ok, torn, other, curResolve}
   };
 
+  /* v2.7.1 (запрос пользователя): пресет «fast» теперь — «тот же стандарт, но
+     3 адреса на подсеть» (быстрый прогон через полноценный AWG-скан), а старый
+     «Быстрый» (обычный WireGuard без туннель-пинга) переименован в «noobf» —
+     «Без обфускации», чтобы название не путало (wg — это отсутствие обфускации,
+     а не скорость). Хинты — идентификаторы словаря i18n (перевод через t()). */
   const PRESETS = {
     default: {
-      hint: 'По умолчанию: <code>warpscout scan -p awg -P -n 10 -exclude-node DME</code>',
+      hint: "presets.16",
       apply() {
         Object.assign(S.scan, DEFAULT_SCAN);
       },
     },
     fast: {
-      hint: "Быстрый: обычный WireGuard без проверки внутри туннеля — годится там, где WARP не фильтруется.",
+      hint: "presets.13",
+      apply() {
+        Object.assign(S.scan, DEFAULT_SCAN, { sample: 3 });
+      },
+    },
+    noobf: {
+      hint: "presets.19",
       apply() {
         Object.assign(S.scan, DEFAULT_SCAN, { proto: "wg", tunPing: false, sample: 5, full: false });
       },
     },
     hard: {
-      hint: "Жёсткая сеть: AmneziaWG + QUIC-маскировка первого пакета + проверка на разрыв. Если не найдёт — вкладка «Поиск параметров».",
+      hint: "presets.14",
       apply() {
         Object.assign(S.scan, DEFAULT_SCAN, { proto: "awg", tunPing: true, genI1: "quic", tunPingCount: 10 });
       },
     },
     full: {
-      hint: "Тщательный: все 256 адресов каждой подсети, в туннеле и замер скорости. Долго!",
+      hint: "presets.15",
       apply() {
         Object.assign(S.scan, DEFAULT_SCAN, { full: true, tunPing: true, speed: true });
       },
