@@ -58,11 +58,14 @@
     "presets.10": { ru: "Название пресета", en: "Preset name" },
     "presets.11": { ru: "Вернуть команду по умолчанию", en: "Restore the default command" },
     "presets.12": { ru: "Сохранить текущие параметры как пресет", en: "Save current parameters as a preset" },
-    "presets.13": { ru: "Быстрый: обычный WireGuard без проверки внутри туннеля — годится там, где WARP не фильтруется.", en: "Fast: plain WireGuard without in-tunnel checks — fine where WARP is not filtered." },
+    "presets.13": { ru: "Быстрый: тот же стандартный скан, но 3 адреса на подсеть вместо 10 — втрое короче прогон, когда время поджимает.", en: "Fast: the same standard scan, but 3 addresses per subnet instead of 10 — a thrice shorter run when time is short." },
     "presets.14": { ru: "Жёсткая сеть: AmneziaWG + QUIC-маскировка первого пакета + проверка на разрыв. Если не найдёт — вкладка «Поиск параметров».", en: "Hard network: AmneziaWG + QUIC disguise of the first packet + break-check. If nothing is found — see the 'Param finder' tab." },
     "presets.15": { ru: "Тщательный: все 256 адресов каждой подсети, в туннеле и замер скорости. Долго!", en: "Thorough: all 256 addresses per subnet, in-tunnel checks and speed test. Slow!" },
     "presets.16": { ru: "По умолчанию: <code>warpscout scan -p awg -P -n 10 -exclude-node DME</code>", en: "Default: <code>warpscout scan -p awg -P -n 10 -exclude-node DME</code>" },
     "presets.17": { ru: "Пресет «<b>{name}</b>» применён. Команду можно посмотреть над кнопкой скана.", en: "Preset '<b>{name}</b>' applied. The command is shown above the scan button." },
+    /* v2.7.1: пресет «Без обфускации» (бывший «Быстрый» wg-прогон) + новый смысл «Быстрого» */
+    "presets.18": { ru: "🚫 Без обфускации", en: "🚫 No obfuscation" },
+    "presets.19": { ru: "Без обфускации: обычный WireGuard без проверки внутри туннеля — годится там, где WARP не фильтруется.", en: "No obfuscation: plain WireGuard without in-tunnel checks — fine where WARP is not filtered." },
     /* — scan.proto — */
     /* — скан: протокол — */
     "scan.proto.01": { ru: "Протокол", en: "Protocol" },
@@ -680,7 +683,7 @@
     // v2.6.4: группы селекта эндпоинтов + подсказка I1
     "conf.59": { ru: "Лучшие с каждой ноды", en: "Best per node" },
     "conf.60": { ru: "Остальные", en: "Others" },
-    "conf.61": { ru: "Скан с -gen-i1 генерирует I1 на лету и в отчёт не выносит — конкретный пакет даёт «Поиск параметров» → find-junk: «Применить найденное» подставит его сюда автоматически.", en: "A scan with -gen-i1 generates I1 on the fly and does not include it in the report — the concrete packet comes from 'Param finder' → find-junk: 'Apply found' inserts it here automatically." },
+    "conf.61": { ru: "Скан с -gen-i1 генерирует I1 на лету и в отчёт его не выносит. Конкретный пакет: кнопка «I1 из сканирования» — свежий пакет того же профиля, что у последнего скана, проверенный на эндпоинте конфига; либо «Поиск параметров» → «Применить найденное».", en: "A scan with -gen-i1 generates I1 on the fly and does not include it in the report. For a concrete packet use the 'I1 from scan' button — a fresh packet with the same profile the last scan used, verified on the config endpoint; or 'Param finder' → 'Apply found'." },
     "conf.62": { ru: "Jc/Jmin/Jmax — общие с карточкой «Обфускация AmneziaWG» на вкладке «Скан»: скан проверяет эндпоинты ровно с тем набором, который уйдёт в конфиг.", en: "Jc/Jmin/Jmax are shared with the 'AmneziaWG obfuscation' card on the 'Scan' tab: the scan probes endpoints with the exact set that goes into the config." },
     // v2.7.0: экспорт для сторонних клиентов (Clash / WireSock)
     "conf.63": { ru: "Экспорт для других клиентов", en: "Export for other clients" },
@@ -691,6 +694,16 @@
     "conf.68": { ru: "WireSock Ib (опц.)", en: "WireSock Ib (opt.)" },
     "conf.69": { ru: "🧩 Clash .yaml", en: "🧩 Clash .yaml" },
     "conf.70": { ru: "🧦 WireSock .conf", en: "🧦 WireSock .conf" },
+    /* v2.7.1: кнопка «I1 из сканирования» — материализация свежего I1 профиля последнего скана */
+    "conf.71": { ru: "I1 из сканирования", en: "I1 from scan" },
+    "conf.72": { ru: "Сгенерировать свежий I1 тем же профилем, каким шёл последний скан, и подставить в конфиг", en: "Generate a fresh I1 with the same profile the last scan used and insert it into the config" },
+    "conf.73": { ru: "Получение I1 уже идёт — подождите", en: "I1 extraction is already running — please wait" },
+    "conf.74": { ru: "Нет эндпоинтов: выполните скан или выберите эндпоинт на вкладке «Конфиг»", en: "No endpoints: run a scan or pick an endpoint on the 'Config' tab" },
+    "conf.75": { ru: "Эндпоинт не ответил — I1 не получен. Попробуйте другой эндпоинт или повторите позже", en: "The endpoint did not respond — no I1 received. Try another endpoint or retry later" },
+    "conf.76": { ru: "Последний запуск шёл не через AWG — I1 применим только к сканам протокола awg", en: "The last run was not AWG — I1 only applies to awg scans" },
+    "conf.77": { ru: "Свежий I1 профиля «{p}» получен и подставлен в конфиг (проверен на {ep})", en: "Fresh I1 of profile '{p}' generated and inserted into the config (verified on {ep})" },
+    "conf.78": { ru: "warpscout не вернул I1 — попробуйте ещё раз", en: "warpscout returned no I1 — please retry" },
+    "conf.79": { ru: "icloud (по умолчанию)", en: "icloud (default)" },
     /* — data — */
     /* — v2.2.0: единая папка данных — (v2.3.0: данные перенесены в папку «<имя exe>», объединение удалено) — */
     "data.01": { ru: "Папка данных", en: "Data folder" },
@@ -942,6 +955,10 @@
     try { updateCmdPreview(); } catch (e) {}
     try { renderAccount(); } catch (e) {}
     try { highlightMatchingPreset(); } catch (e) {}
+    try {
+      const b1 = $("#btnI1FromScan"); // v2.7.1: метку ставит JS (t("conf.71")) — при смене языка обновить
+      if (b1 && !S.running.i1) b1.textContent = t("conf.71");
+    } catch (e) {}
     try { setScanRunning(S.running.scan); } catch (e) {}
     try { renderStatusWs(); } catch (e) {}
     try { renderWsHints(); } catch (e) {}
