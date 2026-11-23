@@ -135,7 +135,7 @@ test("v2.7.1: parseI1Output достаёт I1 из вывода (raw-форма,
   const icloud = QUIC_OUT.replace("I1 = " + I1_RAW, "I1 = <r 2><b 0x858000010001000000000669636c6f756403636f6d0000010001c00c000100010000105a00044d583737>");
   const r2 = wsgui.parseI1Output(icloud);
   assert.ok(r2.ok);
-  assert.ok(r2.i1.indexOf("icloud".replace("", "")) !== -1 || r2.i1.indexOf("85800001") !== -1);
+  assert.ok(r2.i1.indexOf("69636c6f7564") !== -1 || r2.i1.indexOf("85800001") !== -1, "hex «icloud» (DNS-вопрос зонда) или магия 0x8580 в raw-пакете");
 });
 
 test("v2.7.1: parseI1Output — «no working endpoints found» и отсутствие I1 распознаются", () => {
