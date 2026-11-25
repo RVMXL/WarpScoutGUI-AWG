@@ -14,6 +14,12 @@
 # v2.6.2 (аудит AND-2/INFRA-C): ядро Android-сборки (libwarpscout.so из
 # релиза vernette/warpscout) — тоже часть цепочки поставки: скачивается,
 # раскладывается в pkg/WARPScoutGUI-android/ и сверяется с deps.json.
+# v2.7.3 (issue #1, предложение 2): ядро warpscout ВСЕХ платформ — из релиза
+# vernette/warpscout по пину deps.json:warpscout.version. Раньше десктоп-ядро
+# тянулось из zips ПРОШЛОГО релиза GUI — каждое ядро замораживалось навсегда
+# (v2.7.2 всё ещё несла 0.16.0 при поддержке 0.17.0 в коде). Теперь пин в
+# deps.json — единая точка обновления: бамп пина → следующий релиз GUI несёт
+# новое ядро; build-apk.sh сверяет ту же запись.
 #
 # Использование:
 #   python3 tools/fetch-binaries.py --release v2.6.1 [--repo RVMXL/WarpScoutGUI-AWG]
@@ -24,18 +30,26 @@ import hashlib, json, os, shutil, subprocess, sys, tarfile, tempfile, zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEPS = os.path.join(ROOT, "tools", "deps.json")
 
-# архив → (внутри архива: путь, куда: путь относительно desktop-app/)
+# архив GUI-релиза → (внутри архива: путь, куда: путь относительно desktop-app/).
+# v2.7.3: warpscout-ядро здесь больше НЕ восстанавливается — только рантайм
+# Neutralino. Ядро всех платформ — из релиза vernette (WS_CORE ниже).
 EXTRACT = {
-    "win64":       [("WARPScoutGUI.exe", "pkg/WARPScoutGUI-win64/WARPScoutGUI.exe"),
-                    ("bin/warpscout.exe", "pkg/WARPScoutGUI-win64/bin/warpscout.exe")],
-    "linux64":     [("WARPScoutGUI", "pkg/WARPScoutGUI-linux64/WARPScoutGUI"),
-                    ("bin/warpscout", "pkg/WARPScoutGUI-linux64/bin/warpscout")],
-    "linux-arm64": [("WARPScoutGUI", "pkg/WARPScoutGUI-linux-arm64/WARPScoutGUI"),
-                    ("bin/warpscout", "pkg/WARPScoutGUI-linux-arm64/bin/warpscout")],
-    "mac-arm64":   [("WARPScoutGUI", "pkg/WARPScoutGUI-mac-arm64/WARPScoutGUI"),
-                    ("bin/warpscout", "pkg/WARPScoutGUI-mac-arm64/bin/warpscout")],
-    "mac-x64":     [("WARPScoutGUI", "pkg/WARPScoutGUI-mac-x64/WARPScoutGUI"),
-                    ("bin/warpscout", "pkg/WARPScoutGUI-mac-x64/bin/warpscout")],
+    "win64":       [("WARPScoutGUI.exe", "pkg/WARPScoutGUI-win64/WARPScoutGUI.exe")],
+    "linux64":     [("WARPScoutGUI", "pkg/WARPScoutGUI-linux64/WARPScoutGUI")],
+    "linux-arm64": [("WARPScoutGUI", "pkg/WARPScoutGUI-linux-arm64/WARPScoutGUI")],
+    "mac-arm64":   [("WARPScoutGUI", "pkg/WARPScoutGUI-mac-arm64/WARPScoutGUI")],
+    "mac-x64":     [("WARPScoutGUI", "pkg/WARPScoutGUI-mac-x64/WARPScoutGUI")],
+}
+
+# v2.7.3: warpscout-ядро ВСЕХ платформ — из релиза vernette/warpscout по пину
+# deps.json:warpscout.version. платформа → (имя ассета, магия, формат, имя внутри, куда)
+WS_CORE = {
+    "win64":       ("warpscout_{v}_windows_amd64.zip", b"PK", "zip", "warpscout.exe", "pkg/WARPScoutGUI-win64/bin/warpscout.exe"),
+    "linux64":     ("warpscout_{v}_linux_amd64.tar.gz", b"\x1f\x8b", "tar", "warpscout", "pkg/WARPScoutGUI-linux64/bin/warpscout"),
+    "linux-arm64": ("warpscout_{v}_linux_arm64.tar.gz", b"\x1f\x8b", "tar", "warpscout", "pkg/WARPScoutGUI-linux-arm64/bin/warpscout"),
+    "mac-arm64":   ("warpscout_{v}_darwin_arm64.tar.gz", b"\x1f\x8b", "tar", "warpscout", "pkg/WARPScoutGUI-mac-arm64/bin/warpscout"),
+    "mac-x64":     ("warpscout_{v}_darwin_amd64.tar.gz", b"\x1f\x8b", "tar", "warpscout", "pkg/WARPScoutGUI-mac-x64/bin/warpscout"),
+    "android":     ("warpscout_{v}_android_arm64.tar.gz", b"\x1f\x8b", "tar", "warpscout", "pkg/WARPScoutGUI-android/libwarpscout.so"),
 }
 
 def sha256(path):
@@ -151,29 +165,42 @@ def main():
             os.unlink(tmp.name)
         print(f"OK  {name} → распаковано, sha256 {digest[:16]}…")
 
-    # v2.6.2 (аудит AND-2/INFRA-C): android-ядро — из релиза warpscout
-    # (отдельный репозиторий), хэш пинится в deps.json и проверяется
-    # общим блоком сверки ниже (и build-apk.sh — той же записью).
+    # v2.7.3 (issue #1, предложение 2): ядро warpscout ВСЕХ платформ — из релиза
+    # vernette/warpscout (отдельный репозиторий) по пину deps.json:warpscout.version.
+    # Раньше десктоп-ядро переносилось из zips прошлого релиза GUI: каждое ядро
+    # замораживалось навсегда (v2.7.2 несла 0.16.0 при поддержке 0.17.0 в коде).
+    # Пин в deps.json — единая точка обновления: бамп пина → следующий релиз GUI
+    # несёт новое ядро на всех платформах; общий блок сверки ниже (и build-apk.sh
+    # — android-запись) сверяет SHA-256 с deps.json.
     ws_ver = (deps.get("warpscout") or {}).get("version")
-    and_dest = "pkg/WARPScoutGUI-android/libwarpscout.so"
-    if ws_ver and and_dest in deps["files"]:
-        url = (f"https://github.com/vernette/warpscout/releases/download/v{ws_ver}/"
-               f"warpscout_{ws_ver}_android_arm64.tar.gz")
-        tmp = download(url, token, f"warpscout_{ws_ver}_android_arm64.tar.gz", magic=b"\x1f\x8b")
+    if not ws_ver:
+        sys.exit("deps.json: нет пина warpscout.version — нечего ставить в пакеты")
+    for pl in sorted(WS_CORE):
+        asset_t, magic, kind, inner, dest = WS_CORE[pl]
+        asset = asset_t.format(v=ws_ver)
+        url = f"https://github.com/vernette/warpscout/releases/download/v{ws_ver}/{asset}"
+        tmp = download(url, token, asset, magic=magic)
         try:
-            with tarfile.open(tmp.name, "r:gz") as tf:
-                member = next((m for m in tf.getmembers()
-                               if m.isfile() and m.name.split("/")[-1] == "warpscout"), None)
-                if member is None:
-                    sys.exit(f"warpscout_{ws_ver}_android_arm64.tar.gz: внутри нет файла warpscout")
-                tgt = os.path.join(ROOT, and_dest)
-                os.makedirs(os.path.dirname(tgt), exist_ok=True)
-                with tf.extractfile(member) as src, open(tgt, "wb") as out:
-                    shutil.copyfileobj(src, out)
+            tgt = os.path.join(ROOT, dest)
+            os.makedirs(os.path.dirname(tgt), exist_ok=True)
+            if kind == "zip":
+                with zipfile.ZipFile(tmp.name) as zf:
+                    if inner not in zf.namelist():
+                        sys.exit(f"{asset}: внутри нет {inner}")
+                    with zf.open(inner) as src, open(tgt, "wb") as out:
+                        shutil.copyfileobj(src, out)
+            else:
+                with tarfile.open(tmp.name, "r:gz") as tf:
+                    member = next((m for m in tf.getmembers()
+                                   if m.isfile() and m.name.split("/")[-1] == inner), None)
+                    if member is None:
+                        sys.exit(f"{asset}: внутри нет {inner}")
+                    with tf.extractfile(member) as src, open(tgt, "wb") as out:
+                        shutil.copyfileobj(src, out)
         finally:
             os.unlink(tmp.name)
-        got[and_dest] = "android"
-        print(f"OK  warpscout_{ws_ver}_android_arm64.tar.gz → {and_dest}")
+        got[dest] = "warpscout"
+        print(f"OK  {asset} → {dest}")
 
     # сверка с deps.json: хэш БИНАРНИКА из deps.json должен совпасть с тем,
     # что лежит внутри релизного архива (цепочка «репо → релиз → рабочее дерево»)

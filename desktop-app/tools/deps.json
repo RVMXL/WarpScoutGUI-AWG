@@ -20,10 +20,11 @@
     "licenseFile": "desktop-app/pkg/WARPScoutGUI-win64/licenses/LICENSE-qrcode.txt"
   },
   "warpscout": {
-    "version": "0.16.0",
+    "version": "0.17.0",
     "source": "https://github.com/vernette/warpscout",
     "license": "MIT",
-    "licenseFile": "desktop-app/pkg/WARPScoutGUI-win64/licenses/LICENSE-warpscout.txt"
+    "licenseFile": "desktop-app/pkg/WARPScoutGUI-win64/licenses/LICENSE-warpscout.txt",
+    "note": "v2.7.3: ядро ВСЕХ платформ ставится в пакеты из релиза vernette по этому пину (fetch-binaries.py:WS_CORE); бамп пина = новое ядро в следующем релизе"
   },
   "files": {
     "pkg/WARPScoutGUI-win64/WARPScoutGUI.exe": {
@@ -48,23 +49,23 @@
     },
     "pkg/WARPScoutGUI-win64/bin/warpscout.exe": {
       "role": "warpscout-win64",
-      "sha256": "4ab569b49d3449f4144e65d7cb1b2441730a8e9457c9107089ca52ef4bb28539"
+      "sha256": "6fca02b77e67721348f97d779c29f4703e31c1684f40bb17536c86c9c7083689"
     },
     "pkg/WARPScoutGUI-linux64/bin/warpscout": {
       "role": "warpscout-linux64",
-      "sha256": "bbf165c338cab82427acdfc9da3312c390f38fefa524bbc34054844f28c0300d"
+      "sha256": "ee1da713ab5b170ce537bd8924e2052b732dc69647b620211a216f9105c69829"
     },
     "pkg/WARPScoutGUI-linux-arm64/bin/warpscout": {
       "role": "warpscout-linux-arm64",
-      "sha256": "eb7ae4b141b9a2d4677a67630f1f8e45105ff9396bb015442cf7d3071ef5c092"
+      "sha256": "41a2aba582da53d660dbf50b2fdba139e55f93281abc497df47a932082096d20"
     },
     "pkg/WARPScoutGUI-mac-arm64/bin/warpscout": {
       "role": "warpscout-mac-arm64",
-      "sha256": "2395030cbcfcc2eca4bb77c44eed15bfa0bac6ca8466343b4b0d172bf1f4c424"
+      "sha256": "3e7bacae0c3db1c29815d35330974534bdf74efe706941a896392ba5205ad655"
     },
     "pkg/WARPScoutGUI-mac-x64/bin/warpscout": {
       "role": "warpscout-mac-x64",
-      "sha256": "b3524632bcf5aff6a1f1c17de4558cddc5157d88ba564098c8bfaec6f2660dec"
+      "sha256": "9f3073886f64ccaae5bc4090023a1defb113038634b675e3cd0217cd6f77b3a6"
     },
     "resources/js/neutralino.js": {
       "role": "neutralino-client-js (commit 425c526c; аудит INFRA-C)",
@@ -76,7 +77,7 @@
     },
     "pkg/WARPScoutGUI-android/libwarpscout.so": {
       "role": "warpscout-android-arm64 (ядро APK; source: vernette/warpscout; аудит AND-2/INFRA-C; проверяется build-apk.sh и fetch-binaries)",
-      "sha256": "33105c5e20cc4cc49fc0ad94f515b2ee1f23a88d06b3b770e90594cd91302da8"
+      "sha256": "57e2012057a9d72ec8cf3213c66617c643c4a2a6dc1eaaf298e1876211557494"
     }
   }
 }

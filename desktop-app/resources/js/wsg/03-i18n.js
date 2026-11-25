@@ -332,6 +332,9 @@
     "settings.36": { ru: "● warpscout: не найден — укажите путь в «Настройках»", en: "● warpscout: not found — set the path in 'Settings'" },
     "settings.37": { ru: "warpscout не найден. Скачайте warpscout.exe и укажите путь.", en: "warpscout not found. Download warpscout.exe and set the path." },
     "settings.38": { ru: "● warpscout v0.17.0 — готов (демо)", en: "● warpscout v0.17.0 — ready (demo)" },
+    /* — v2.7.3: подсказка о новой версии warpscout (статус-линия сайдбара) — */
+    "upd.01": { ru: "⬆ warpscout {v} — есть обновление", en: "⬆ warpscout {v} — update available" },
+    "upd.02": { ru: "Вышла warpscout {v}, в комплекте WarpScoutGUI — {cur}. Ядро warpscout входит в состав приложения: обновите WarpScoutGUI, либо укажите свой путь к warpscout в «Настройках», если держите CLI отдельно. Релизы GUI: github.com/RVMXL/WarpScoutGUI-AWG/releases · warpscout: github.com/vernette/warpscout/releases", en: "warpscout {v} is out; WarpScoutGUI ships {cur}. The warpscout core is bundled with the app: update WarpScoutGUI, or point to your own CLI in Settings if you keep a standalone warpscout. GUI releases: github.com/RVMXL/WarpScoutGUI-AWG/releases · warpscout: github.com/vernette/warpscout/releases" },
     /* — kbd — */
     /* — горячие клавиши — */
     "kbd.01": { ru: "переключение вкладок", en: "switch tabs" },
@@ -963,6 +966,7 @@
     try { setScanRunning(S.running.scan); } catch (e) {}
     try { renderStatusWs(); } catch (e) {}
     try { renderWsHints(); } catch (e) {}
+    try { renderWsUpd(); } catch (e) {} // v2.7.3: подсказка о новой версии warpscout
     try { const cm = $("#cmpModal"); if (cm && !cm.classList.contains("hidden")) renderCmpBody(); } catch (e) {} // v1.7.0
     try { qcRenderLast(); } catch (e) {} // v1.9.0: вердикт быстрой проверки на новом языке
     try { renderDataFolder(); } catch (e) {} // v2.2.0: статус папки данных на новом языке

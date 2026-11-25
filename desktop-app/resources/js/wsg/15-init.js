@@ -114,6 +114,12 @@
     });
 
     $("#btnTheme").addEventListener("click", toggleTheme);
+    // v2.7.3: строка «⬆ warpscout … — есть обновление» открывает страницу релизов GUI
+    const stUpd = $("#stWsUpd");
+    if (stUpd) {
+      stUpd.addEventListener("click", openWsUpd);
+      stUpd.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openWsUpd(); } });
+    }
     $("#btnToConfig").addEventListener("click", () => {
       const best = S.results.find((r) => !r.torn);
       if (!best) { toast(t("toasts.10"), "err"); return; }
@@ -514,6 +520,7 @@
     if (IS_MOCK) {
       S.wsVersion = "0.17.0"; // демо: считаем warpscout найденным
       renderStatusWs();
+      checkWsUpdate(); // v2.7.3: демо-подсказка о новой версии warpscout (условные данные)
     } else {
       checkWarpscout();
     }
@@ -532,7 +539,7 @@
   else syncSidebarVer();
 
   // v2.4.6: + валидаторы/санитайзеры (аудит-тесты и диагностика)
-  window.__WSGUI = { S, syncStateFromInputs, syncInputsFromState, syncCfgFromInputs, syncCfgInputsFromState, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildScanArgs, argPath, buildCheckCmd, buildI1Cmd, parseI1Output, finishI1, i1FromScan, checkWarpscout, bindProcEvents, restoreState, computePaths, buildConf, buildClashYaml, buildWireSockConf, saveConf, parseReport, switchTab, parseConfText, applyImportedConf, applyImportedState, applyImportedPresets, applyFoundCmd, parseEndpoint, splitEpPort, safeVal, enumOf, clampInt, sanitizeScan, sanitizeCfg, sanitizeHistoryItem, sanitizeQcItem, sanitizePresets, csvSafe, isWgKey, validateAccountJson, normWinPath, isSameWinPath, isWinPathInside, migrateData, migrateAndroidLegacyData, confExportReady, defaultCfg, flushSave, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage, endpointGroups, renderNodeFilterBadge, applyScanLock, setScanParamsLocked, normI1Store, isI1RawPacket, PRESETS, wsSupports31, scanProtoOf, awg31Args };
+  window.__WSGUI = { S, syncStateFromInputs, syncInputsFromState, syncCfgFromInputs, syncCfgInputsFromState, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildScanArgs, argPath, buildCheckCmd, buildI1Cmd, parseI1Output, finishI1, i1FromScan, checkWarpscout, bindProcEvents, restoreState, computePaths, buildConf, buildClashYaml, buildWireSockConf, saveConf, parseReport, switchTab, parseConfText, applyImportedConf, applyImportedState, applyImportedPresets, applyFoundCmd, parseEndpoint, splitEpPort, safeVal, enumOf, clampInt, sanitizeScan, sanitizeCfg, sanitizeHistoryItem, sanitizeQcItem, sanitizePresets, csvSafe, isWgKey, validateAccountJson, normWinPath, isSameWinPath, isWinPathInside, migrateData, migrateAndroidLegacyData, confExportReady, defaultCfg, flushSave, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage, endpointGroups, renderNodeFilterBadge, applyScanLock, setScanParamsLocked, normI1Store, isI1RawPacket, PRESETS, wsSupports31, scanProtoOf, awg31Args, wsParseTag, wsUpdFor, checkWsUpdate, renderWsUpd };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {

@@ -327,11 +327,96 @@
     renderStatusWs();
     renderWsHints(); // v2.4.0: подсказка обновляется ВСЕГДА — раньше при неудаче висело «Проверка не выполнялась»
     updateWsFullPath(); // v2.4.1: строка «Полный путь» синхронна с результатом
+    checkWsUpdate().catch(() => {}); // v2.7.3: подсказка о новой версии warpscout (fire-and-forget, молчалива)
     if (el) {
       el.className = ok ? "statusline__row is-ok" : "statusline__row is-err";
       el.title = S.paths.wsPath;
     }
     return ok;
+  }
+
+  /* ───────── v2.7.3: подсказка о новой версии warpscout (issue #1, предложение 2) ─────────
+     Ядро warpscout входит в комплект WarpScoutGUI, поэтому «обновить warpscout» для
+     пользователя = обновить приложение. Один раз за сессию (и не чаще раза в 12 ч —
+     метка в localStorage) приложение читает последний релиз vernette/warpscout через
+     GitHub API (CSP: connect-src https://api.github.com — единственный внешний хост,
+     запрос read-only HTTPS без данных пользователя) и при более свежей версии
+     показывает строку ⬆ в статус-линии сайдбара; клик — страница релизов GUI,
+     где лежит комплект с новым ядром. Любая ошибка (нет сети, лимит API, таймаут) —
+     молча: подсказка не критична для работы. */
+  const WS_UPD_URL = "https://api.github.com/repos/vernette/warpscout/releases/latest";
+  const WS_UPD_TTL = 12 * 60 * 60 * 1000; // повтор не чаще раза в 12 ч
+
+  function wsParseTag(tag) {
+    // релизы vernette: «v0.17.0»/«v0.17»; мусор и пустота → "" (подсказка не показывается)
+    const m = String(tag == null ? "" : tag).trim().match(/^v?(\d+\.\d+(?:\.\d+)?)/);
+    return m ? m[1] : "";
+  }
+  function wsUpdFor(cur, latestTag) {
+    // версия комплекта + тег релиза → версия для подсказки ("0.17.1") или "" (тишина)
+    const lat = wsParseTag(latestTag);
+    const a = wsVersionParts(cur);
+    const b = wsVersionParts(lat);
+    if (!a || !b) return "";
+    for (let i = 0; i < 3; i++) {
+      if (a[i] !== b[i]) return b[i] > a[i] ? lat : "";
+    }
+    return ""; // тот же релиз — тишина
+  }
+  function renderWsUpd() {
+    const el = $("#stWsUpd");
+    if (!el) return;
+    if (S.wsUpdLatest && S.wsUpdCur === S.wsVersion) {
+      el.hidden = false;
+      el.textContent = tF("upd.01", { v: S.wsUpdLatest });
+      el.title = tF("upd.02", { v: S.wsUpdLatest, cur: S.wsUpdCur });
+      el.className = "statusline__row is-upd";
+      el.setAttribute("role", "button");
+      el.setAttribute("tabindex", "0");
+    } else {
+      el.hidden = true;
+      el.textContent = "";
+      el.className = "statusline__row";
+      el.removeAttribute("title");
+      el.removeAttribute("role");
+      el.removeAttribute("tabindex");
+    }
+  }
+  function openWsUpd() {
+    const url = "https://github.com/RVMXL/WarpScoutGUI-AWG/releases/latest";
+    if (IS_MOCK) { window.open(url, "_blank", "noopener"); return; }
+    try { Promise.resolve(os().open(url)).catch(() => {}); } catch (e) {}
+  }
+  async function checkWsUpdate() {
+    if (!S.wsVersion) return; // версия комплекта неизвестна — нечему подсказывать
+    if (S.wsUpdLatest && S.wsUpdCur === S.wsVersion) { renderWsUpd(); return; }
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem("wsg.wsUpd.v1") || "null"); } catch (e) { cached = null; }
+    if (cached && cached.latest && Date.now() - (cached.ts || 0) < WS_UPD_TTL) {
+      S.wsUpdCur = S.wsVersion;
+      S.wsUpdLatest = wsUpdFor(S.wsVersion, cached.latest);
+      renderWsUpd();
+      return;
+    }
+    if (IS_MOCK) { // демо: показываем вид подсказки на заведомо свежем «релизе» (данные условные)
+      S.wsUpdCur = S.wsVersion;
+      S.wsUpdLatest = wsUpdFor(S.wsVersion, "v0.17.1");
+      renderWsUpd();
+      return;
+    }
+    try {
+      const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const tm = ctl ? setTimeout(() => ctl.abort(), 10000) : null;
+      const res = await fetch(WS_UPD_URL, { headers: { "Accept": "application/vnd.github+json" }, signal: ctl ? ctl.signal : undefined });
+      if (tm) clearTimeout(tm);
+      if (!res.ok) return; // сеть/лимит API — молча, повторим при следующем запуске
+      const j = await res.json();
+      if (!j || !j.tag_name) return;
+      S.wsUpdCur = S.wsVersion;
+      S.wsUpdLatest = wsUpdFor(S.wsVersion, j.tag_name);
+      try { localStorage.setItem("wsg.wsUpd.v1", JSON.stringify({ ts: Date.now(), latest: String(j.tag_name) })); } catch (e) {}
+      renderWsUpd();
+    } catch (e) { /* нет сети / таймаут / лимит — молча */ }
   }
 
   async function browseWsPath() {
