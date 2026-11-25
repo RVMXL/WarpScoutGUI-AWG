@@ -274,7 +274,7 @@
         }
       }
       if (IS_MOCK) {
-        S.wsVersion = "0.16.0";
+        S.wsVersion = "0.17.0";
         ok = true;
       } else if (fileThere) {
         let proc = null;

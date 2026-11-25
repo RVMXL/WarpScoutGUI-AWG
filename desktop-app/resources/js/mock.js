@@ -313,7 +313,7 @@
       ];
     },
     version() {
-      return [{ delay: 150, data: "0.16.0\r\n" }, { delay: 50, type: "exit", data: "0" }];
+      return [{ delay: 150, data: "0.17.0\r\n" }, { delay: 50, type: "exit", data: "0" }];
     },
   };
 
@@ -443,7 +443,7 @@
   window.NL_CWD = window.NL_PATH;
   // единая версия демо = версия GUI (не дублировать в ветках — раньше здесь
   // остался устаревший «2.4.6», из-за чего JS-статусы демо показывали не ту версию)
-  window.NL_APPVERSION = "2.7.1";
+  window.NL_APPVERSION = "2.7.2";
   // v2.5.0: ?platform=android — предпросмотр сенсорного режима Android-версии
   // (тот же мок, но платформа Android: TOUCH_UI, бинарь из nativeLibraryDir)
   if (/(?:^|[?&])platform=android/.test(String(window.location.search))) {

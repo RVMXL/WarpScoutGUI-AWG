@@ -106,6 +106,7 @@
     "scan.obf.07": { ru: "Случайные jc/jmin/jmax на этот запуск (перекрывает поля выше)", en: "Random jc/jmin/jmax for this run (overrides the fields above)" },
     "scan.obf.08": { ru: "Попыток на эндпоинт", en: "Attempts per endpoint" },
     "scan.obf.09": { ru: "Jc/Jmin/Jmax — общие с генератором конфигов: правка здесь или на вкладке «Конфиг» синхронно меняет оба. «Случайный junk» рандомизирует набор только на время прогона — конфиг не трогает.", en: "Jc/Jmin/Jmax are shared with the config generator: editing here or on the 'Config' tab changes both at once. 'Random junk' randomizes the set for the run only — the config is untouched." },
+    "scan.obf.10": { ru: "Версия AWG берётся из «Конфиг → Версия»: при «3.1» скан, проверка и SOCKS идут с -p awg31 и таймингами 3.1 — ровно то, что уйдёт в конфиг. Нужен warpscout 0.17+, на старых версиях — обычный -p awg.", en: "The AWG version comes from Config → Version: with '3.1', scan, check and SOCKS run with -p awg31 and the 3.1 timings — exactly what goes into the config. Requires warpscout 0.17+; older versions fall back to plain -p awg." },
     /* — scan.adv — */
     /* — скан: продвинутое — */
     "scan.adv.01": { ru: "WARP-in-WARP и продвинутое", en: "WARP-in-WARP & advanced" },
@@ -330,7 +331,7 @@
     "settings.35": { ru: "⌨ Горячие клавиши", en: "⌨ Keyboard shortcuts" },
     "settings.36": { ru: "● warpscout: не найден — укажите путь в «Настройках»", en: "● warpscout: not found — set the path in 'Settings'" },
     "settings.37": { ru: "warpscout не найден. Скачайте warpscout.exe и укажите путь.", en: "warpscout not found. Download warpscout.exe and set the path." },
-    "settings.38": { ru: "● warpscout v0.16.0 — готов (демо)", en: "● warpscout v0.16.0 — ready (demo)" },
+    "settings.38": { ru: "● warpscout v0.17.0 — готов (демо)", en: "● warpscout v0.17.0 — ready (demo)" },
     /* — kbd — */
     /* — горячие клавиши — */
     "kbd.01": { ru: "переключение вкладок", en: "switch tabs" },

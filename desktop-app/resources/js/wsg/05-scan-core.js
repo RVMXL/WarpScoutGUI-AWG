@@ -11,13 +11,61 @@
     return pairs.filter(Boolean).join(" ");
   }
 
+  /* ── v2.7.2: поддержка warpscout 0.17.0 — профиль -p awg31 ──
+     Версия AWG — единый источник «Конфиг → Версия» (S.cfg.ver), как junk —
+     S.cfg.obf (v2.7.0): при «awg31» скан/проверка/SOCKS идут с -p awg31 и
+     таймингами 3.1 из S.cfg.obf — прогон проверяет ровно то, что уйдёт в
+     конфиг. Старые warpscout (<0.17) флаг awg31 не знают — тихий откат к
+     -p awg (хинт scan.obf.10). HPK warpscout сознательно не поддерживает
+     (warp.go: «HeaderProtectionKey is omitted») — ключ только в конфиге. */
+  function wsVersionParts(v) {
+    const m = String(v == null ? "" : v).match(/(\d+)\.(\d+)(?:\.(\d+))?/);
+    return m ? [+m[1], +m[2], +m[3] || 0] : null;
+  }
+  function wsSupports31() {
+    const p = wsVersionParts(S.wsVersion);
+    if (!p) return false; // версия неизвестна — безопасный обычный awg
+    const need = [0, 17, 0];
+    for (let i = 0; i < 3; i++) {
+      if (p[i] !== need[i]) return p[i] > need[i];
+    }
+    return true;
+  }
+  function scanProtoOf(pr) {
+    return pr === "awg" && String((S.cfg && S.cfg.ver) || "") === "awg31" && wsSupports31() ? "awg31" : pr;
+  }
+  // Тайминги 3.1 → флаги CLI: RANGE «N» или «MIN-MAX», один argv-токен
+  // (только цифры и дефис — мусор/пустота молча пропускаются, как junk-дефолты)
+  function awg31Args() {
+    const o = (S.cfg && S.cfg.obf) || {};
+    const a = [];
+    const rng = (flag, v) => {
+      const s = String(v == null ? "" : v).trim();
+      if (/^\d+(-\d+)?$/.test(s)) a.push("-" + flag + " " + s);
+    };
+    rng("padding", o.cpa);            // ContentPaddingAddition
+    rng("rekey-after", o.rekeyAfter); // RekeyAfterTime
+    rng("rekey-timeout", o.rekeyTo);  // RekeyTimeout
+    rng("reject-after", o.rejectAfter); // RejectAfterTime
+    rng("keepalive-timeout", o.keepaliveTo); // KeepaliveTimeout
+    rng("max-handshakes", o.maxHs);   // MaxHandshakeAttempts
+    if (o.noCookies === "on") a.push("-disable-cookies");
+    if (o.trailers === "on") a.push("-random-trailers");
+    return a;
+  }
+  function awg31ArgStr() {
+    const k = awg31Args();
+    return k.length ? " " + k.join(" ") : "";
+  }
+
   function buildScanArgs(s) {
     const a = [];
     // v2.4.6 (F01): enum-валидация на границе команды (см. SCAN_ENUMS выше)
     const proto = enumOf(s.proto, SCAN_ENUMS.proto, "awg");
     const isAwg = proto === "awg";
     const isMasque = proto === "masque" || proto === "masque-h2";
-    a.push("-p " + proto);
+    // v2.7.2: -p awg31 при cfg.ver=awg31 и warpscout 0.17+ (иначе тихий -p awg)
+    a.push("-p " + scanProtoOf(proto));
     if (s.tunPing) {
       a.push("-P");
       if (s.pingTarget && s.pingTarget.trim()) a.push("-ping-target " + safeVal(s.pingTarget));
@@ -54,6 +102,8 @@
         if (o.jmin !== "" && o.jmin != null && +o.jmin !== 10) a.push("-jmin " + Math.min(5000, Math.max(0, Math.round(+o.jmin))));
         if (o.jmax !== "" && o.jmax != null && +o.jmax !== 50) a.push("-jmax " + Math.min(5000, Math.max(0, Math.round(+o.jmax))));
       }
+      // v2.7.2: тайминги 3.1 из S.cfg.obf — скан проверяет ровно то, что уйдёт в конфиг
+      if (scanProtoOf(proto) === "awg31") a.push.apply(a, awg31Args());
     }
     if (isMasque) {
       if (s.masqueSni && s.masqueSni.trim()) a.push("-masque-sni " + safeVal(s.masqueSni));
