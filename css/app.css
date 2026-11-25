@@ -143,6 +143,9 @@ body {
 .statusline__row { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .statusline__row.is-ok { color: var(--ok); }
 .statusline__row.is-err { color: var(--err); }
+/* v2.7.3: строка «⬆ warpscout … — есть обновление» — клик открывает релизы GUI */
+.statusline__row.is-upd { color: var(--warn); cursor: pointer; }
+.statusline__row.is-upd:hover, .statusline__row.is-upd:focus-visible { text-decoration: underline; }
 
 .sidebar__ver { font-size: 10px; color: var(--text-faint); opacity: 0.75; }
 

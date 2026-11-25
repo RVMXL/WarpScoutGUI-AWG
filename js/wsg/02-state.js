@@ -87,6 +87,8 @@
     compact: false,      // компактная таблица
     paths: { dataDir: "", dataDirDefault: "", legacyDataDir: "", udfPath: "", exeName: "", appDir: "", accPath: "", reportsDir: "", wsPath: "", wsFound: false, wsTried: [] },
     wsVersion: "",
+    wsUpdLatest: "",     // v2.7.3: более свежая версия warpscout (релиз vernette), "" = подсказки нет
+    wsUpdCur: "",        // v2.7.3: версия комплекта, для которой получена wsUpdLatest
     qrPages: null,        // v2.4.4: страницы многостраничного QR (формат AmneziaVPN), null = одиночный
     qrPage: 0,            // v2.4.4: текущая страница QR в модалке
     wsFileThere: false,  // v2.4.0: файл warpscout.exe существует (даже если версию получить не удалось)
