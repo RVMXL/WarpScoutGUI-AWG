@@ -512,7 +512,7 @@
     renderDataFolder().catch(() => {}); // v2.3.0: статус «всё в одной папке»
     renderConf();
     if (IS_MOCK) {
-      S.wsVersion = "0.16.0"; // демо: считаем warpscout найденным
+      S.wsVersion = "0.17.0"; // демо: считаем warpscout найденным
       renderStatusWs();
     } else {
       checkWarpscout();
@@ -532,7 +532,7 @@
   else syncSidebarVer();
 
   // v2.4.6: + валидаторы/санитайзеры (аудит-тесты и диагностика)
-  window.__WSGUI = { S, syncStateFromInputs, syncInputsFromState, syncCfgFromInputs, syncCfgInputsFromState, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildScanArgs, argPath, buildCheckCmd, buildI1Cmd, parseI1Output, finishI1, i1FromScan, checkWarpscout, bindProcEvents, restoreState, computePaths, buildConf, buildClashYaml, buildWireSockConf, saveConf, parseReport, switchTab, parseConfText, applyImportedConf, applyImportedState, applyImportedPresets, applyFoundCmd, parseEndpoint, splitEpPort, safeVal, enumOf, clampInt, sanitizeScan, sanitizeCfg, sanitizeHistoryItem, sanitizeQcItem, sanitizePresets, csvSafe, isWgKey, validateAccountJson, normWinPath, isSameWinPath, isWinPathInside, migrateData, migrateAndroidLegacyData, confExportReady, defaultCfg, flushSave, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage, endpointGroups, renderNodeFilterBadge, applyScanLock, setScanParamsLocked, normI1Store, isI1RawPacket, PRESETS };
+  window.__WSGUI = { S, syncStateFromInputs, syncInputsFromState, syncCfgFromInputs, syncCfgInputsFromState, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildScanArgs, argPath, buildCheckCmd, buildI1Cmd, parseI1Output, finishI1, i1FromScan, checkWarpscout, bindProcEvents, restoreState, computePaths, buildConf, buildClashYaml, buildWireSockConf, saveConf, parseReport, switchTab, parseConfText, applyImportedConf, applyImportedState, applyImportedPresets, applyFoundCmd, parseEndpoint, splitEpPort, safeVal, enumOf, clampInt, sanitizeScan, sanitizeCfg, sanitizeHistoryItem, sanitizeQcItem, sanitizePresets, csvSafe, isWgKey, validateAccountJson, normWinPath, isSameWinPath, isWinPathInside, migrateData, migrateAndroidLegacyData, confExportReady, defaultCfg, flushSave, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage, endpointGroups, renderNodeFilterBadge, applyScanLock, setScanParamsLocked, normI1Store, isI1RawPacket, PRESETS, wsSupports31, scanProtoOf, awg31Args };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {

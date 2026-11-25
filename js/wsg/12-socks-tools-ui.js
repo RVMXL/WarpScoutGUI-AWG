@@ -29,6 +29,8 @@
     }
     const socksPort = clampInt($("#socksPort").value || "1080", 1, 65535, 1080);
     const proto = enumOf($("#socksProto").value, SCAN_ENUMS.proto, "awg");
+    // v2.7.2: профиль awg31 — как в скане (Конфиг → Версия + warpscout 0.17+)
+    const eff = scanProtoOf(proto);
     // v2.6.2 (аудит FE-23): путь аккаунта — через argPath (дубль FE-1)
     const acc = S.paths.accPath ? " -a " + argPath(S.paths.accPath) : "";
     // v2.4.6 (F18): генератор I1 из параметров скана — SOCKS воспроизводит проверенный туннель
@@ -37,8 +39,10 @@
     if (proto === "awg" && lp && lp.proto === "awg" && lp.genI1) {
       awgArgs = " -gen-i1 " + lp.genI1 + (lp.i1Sni && lp.i1Sni.trim() ? " -i1-sni " + safeVal(lp.i1Sni) : "");
     }
+    // v2.7.2: тайминги 3.1 из S.cfg.obf — SOCKS воспроизводит профиль конфига
+    if (eff === "awg31") awgArgs += awg31ArgStr();
     // v2.4.6 (F02): endpoint идёт через parseEndpoint — без скобок и shell-символов
-    const cmd = quoteExe() + " socks -e " + epParsed.host + ":" + epParsed.port + " -p " + proto + awgArgs + " -P " + socksPort + acc;
+    const cmd = quoteExe() + " socks -e " + epParsed.host + ":" + epParsed.port + " -p " + eff + awgArgs + " -P " + socksPort + acc;
     $("#socksLog").textContent = "";
     let proc;
     try { proc = await os().spawnProcess(cmd); } catch (e) { S.running.socks = false; socksUi(); toast(t("misc.20"), "err"); return; }
@@ -529,7 +533,7 @@
       '<div class="home-lang"><div class="lang-switch" role="group" data-i18n="off" aria-label="Язык / Language">' +
       '<button class="lang-switch__btn' + (LANG === "en" ? "" : " is-active") + '" type="button" data-lang="ru" aria-label="Русский">RU</button>' +
       '<button class="lang-switch__btn' + (LANG === "en" ? " is-active" : "") + '" type="button" data-lang="en" aria-label="English">EN</button>' +
-      '</div></div><div class="home-foot">WARPSCOUT GUI v' + (window.NL_APPVERSION || "2.5.2") + ' · warpscout v0.16.0<br>' + t("misc.08") + '</div></div>');
+      '</div></div><div class="home-foot">WARPSCOUT GUI v' + (window.NL_APPVERSION || "2.5.2") + ' · warpscout v0.17.0<br>' + t("misc.08") + '</div></div>');
     more.id = "tab-more";
     more.setAttribute("aria-label", t("misc.02"));
     main.insertBefore(home, main.firstChild);

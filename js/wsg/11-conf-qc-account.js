@@ -206,6 +206,8 @@
     const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 21) + "-" + Math.floor(Math.random() * 1000);
     const report = (S.paths.reportsDir || ".") + "/warpscout-check-" + ts + ".txt";
     const pr = enumOf(proto, SCAN_ENUMS.proto, "awg");
+    // v2.7.2: профиль awg31 повторяется так же, как junk — из S.cfg.ver + версии CLI
+    const prEff = scanProtoOf(pr);
     // v2.6.2 (аудит FE-23): путь аккаунта — через argPath (дубль FE-1)
     const acc = S.paths.accPath ? " -a " + argPath(S.paths.accPath) : "";
     // v2.4.6 (F18): воспроизводим параметры туннеля из последнего запуска (AWG)
@@ -226,8 +228,10 @@
         if (+o.jmax !== 50) awgArgs += " -jmax " + clampInt(o.jmax, 0, 5000, 50);
       }
     }
+    // v2.7.2: тайминги 3.1 — проверка идёт с тем же профилем, что уйдёт в конфиг
+    if (prEff === "awg31") awgArgs += awg31ArgStr();
     const cmd =
-      quoteExe() + " scan -p " + pr + awgArgs +
+      quoteExe() + " scan -p " + prEff + awgArgs +
       " -target " + ip +
       " -port " + port +
       " -P -plain" +
@@ -264,6 +268,8 @@
     // junk — та же логика ветвления, что у buildCheckCmd (gen-i1 → gen-junk → общий S.cfg.obf)
     let awgArgs = "";
     const lp = S.lastRunParams;
+    const awgRun = !lp || lp.proto === "awg"; // v2.7.2: профиль AWG (без lp или awg из снимка)
+    const prEff = awgRun ? scanProtoOf("awg") : "awg";
     const prof = lp && lp.proto === "awg" ? String(lp.genI1 || "") : "";
     if (prof) {
       awgArgs += " -gen-i1 " + prof;
@@ -278,9 +284,11 @@
       if (+o.jmax !== 50) awgArgs += " -jmax " + clampInt(o.jmax, 0, 5000, 50);
     }
     // -conf - печатает конфиг в stdout; -no-report — без файла отчёта; -P не нужен
+    // v2.7.2: awg31-профиль — как у последнего скана (junk + тайминги из S.cfg)
+    if (prEff === "awg31") awgArgs += awg31ArgStr();
     const acc = S.paths.accPath ? " -a " + argPath(S.paths.accPath) : "";
     const cmd =
-      quoteExe() + " scan -p awg" + awgArgs +
+      quoteExe() + " scan -p " + prEff + awgArgs +
       " -target " + ip +
       " -port " + port +
       " -plain -conf - -conf-type native -no-report" + acc;
