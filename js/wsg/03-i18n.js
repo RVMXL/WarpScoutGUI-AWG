@@ -273,6 +273,8 @@
     "socks.11": { ru: "Прокси запускается: ", en: "Starting proxy: " },
     "socks.12": { ru: "{ep}: запускаю прокси", en: "{ep}: starting proxy" },
     "socks.13": { ru: "Прокси уже запущен — сначала остановите текущий", en: "A proxy is already running — stop it first" },
+    // v2.8.0 (F8): подтверждение при закрытии окна с активным SOCKS
+    "socks.close.01": { ru: "SOCKS-прокси сейчас активен. Закрыть приложение и остановить прокси?", en: "A SOCKS proxy is running. Close the app and stop the proxy?" },
     /* — tools — */
     /* — инструменты — */
     "tools.01": { ru: "find-junk — подбор junk-параметров", en: "find-junk — junk parameter finder" },
@@ -335,6 +337,25 @@
     /* — v2.7.3: подсказка о новой версии warpscout (статус-линия сайдбара) — */
     "upd.01": { ru: "⬆ warpscout {v} — есть обновление", en: "⬆ warpscout {v} — update available" },
     "upd.02": { ru: "Вышла warpscout {v}, в комплекте WarpScoutGUI — {cur}. Ядро warpscout входит в состав приложения: обновите WarpScoutGUI, либо укажите свой путь к warpscout в «Настройках», если держите CLI отдельно. Релизы GUI: github.com/RVMXL/WarpScoutGUI-AWG/releases · warpscout: github.com/vernette/warpscout/releases", en: "warpscout {v} is out; WarpScoutGUI ships {cur}. The warpscout core is bundled with the app: update WarpScoutGUI, or point to your own CLI in Settings if you keep a standalone warpscout. GUI releases: github.com/RVMXL/WarpScoutGUI-AWG/releases · warpscout: github.com/vernette/warpscout/releases" },
+    /* ── v2.8.0: новые функции (поток, автоподбор I1, банер GUI, экспорт, история) ── */
+    "upd.03": { ru: "⬆ WarpScoutGUI {v} — есть обновление", en: "⬆ WarpScoutGUI {v} — update available" },
+    "upd.04": { ru: "Вышла WarpScoutGUI {v}, у вас {cur}. Клик открывает страницу релизов — скачайте архив вашей платформы и замените папку целиком (пререлизы этой строкой не считаются).", en: "WarpScoutGUI {v} is out, you have {cur}. Click opens the releases page — download the archive for your platform and replace the folder (pre-releases are not counted here)." },
+    "scan.autoi1.01": { ru: "Автоподбор профиля I1", en: "Auto I1 profile search" },
+    "scan.autoi1.02": { ru: "Если скан пустой — сама переберёт профили QUIC, DNS, SIP, STUN, Random и оставит сработавший в конструкторе. Только для AmneziaWG; скан может занять заметно дольше.", en: "If the scan comes back empty, profiles QUIC, DNS, SIP, STUN, Random are tried automatically and the working one stays in the constructor. AWG only; the scan may take noticeably longer." },
+    "scan.autoi1.03": { ru: "Автоподбор I1: профиль {p} ({n}/{m})", en: "Auto I1: profile {p} ({n}/{m})" },
+    "scan.autoi1.04": { ru: "Найден профиль I1: {p} — оставлен в конструкторе", en: "Found an I1 profile: {p} — kept in the constructor" },
+    "scan.autoi1.05": { ru: "Автоподбор I1: ни один профиль не дал результатов — попробуйте «Инструменты → Поиск junk»", en: "Auto I1: no profile produced results — try Tools → find-junk" },
+    "scan.stream.01": { ru: "Ядро warpscout без -stream-json (старая версия) — скан перезапущен в обычном режиме (файл отчёта)", en: "The warpscout core has no -stream-json (older version) — the scan was restarted in the regular mode (report file)" },
+    "scan.lock.02": { ru: "Дождитесь завершения текущей операции", en: "Wait for the current operation to finish" },
+    "history.31": { ru: "Повторить скан с этими параметрами (вернуть их в конструктор)", en: "Re-run the scan with these parameters (restore them to the constructor)" },
+    "history.32": { ru: "У этой записи нет снимка параметров (старая история)", en: "This entry has no parameter snapshot (old history)" },
+    "history.33": { ru: "Параметры скана из записи от {ts} возвращены в конструктор", en: "Scan parameters from the {ts} entry were restored to the constructor" },
+    "conf.82": { ru: "Сохранить те же прокси в JSON-формате mihomo (формат CLI -conf-type mihomo-json) — для клиентов, читающих JSON-профили", en: "Save the same proxies in the mihomo JSON format (the CLI -conf-type mihomo-json shape) — for clients that read JSON profiles" },
+    "conf.83": { ru: "Получить config.json для usque (MASQUE): приложение прогонит короткий мини-скан выбранного эндпоинта через ядро и сохранит готовый файл", en: "Get a usque config.json (MASQUE): the app runs a short single-endpoint scan through the core and saves the ready file" },
+    "conf.84": { ru: "Мини-скан {ep} через ядро: получаю config.json usque…", en: "Single-endpoint scan of {ep} through the core: getting the usque config.json…" },
+    "conf.85": { ru: "Ядро не вернул валидный config.json usque — проверьте аккаунт и сеть", en: "The core did not return a valid usque config.json — check the account and the network" },
+    "conf.86": { ru: "Некорректный эндпоинт: {ep}", en: "Invalid endpoint: {ep}" },
+    "conf.64": { ru: "Тот же аккаунт и те же параметры обфускации для сторонних клиентов: Clash.Meta/mihomo (.yaml или .json), WireSock, usque (config.json для MASQUE — приложение само прогонит мини-скан через ядро). Reserved-байты WARP возьмите из рабочего Clash/wgcf-конфига того же аккаунта — они привязаны к регистрации. Доп. ключи WireSock (Id/Ip/Ib) попадают только в WireSock-экспорт.", en: "The same account and the same obfuscation parameters for third-party clients: Clash.Meta/mihomo (.yaml or .json), WireSock, usque (a config.json for MASQUE — the app runs the single-endpoint scan through the core for you). Take the WARP reserved bytes from a working Clash/wgcf config of the same account — they are tied to the registration. The extra WireSock keys (Id/Ip/Ib) go into the WireSock export only." },
     /* — kbd — */
     /* — горячие клавиши — */
     "kbd.01": { ru: "переключение вкладок", en: "switch tabs" },
@@ -691,7 +712,6 @@
     "conf.62": { ru: "Jc/Jmin/Jmax — общие с карточкой «Обфускация AmneziaWG» на вкладке «Скан»: скан проверяет эндпоинты ровно с тем набором, который уйдёт в конфиг.", en: "Jc/Jmin/Jmax are shared with the 'AmneziaWG obfuscation' card on the 'Scan' tab: the scan probes endpoints with the exact set that goes into the config." },
     // v2.7.0: экспорт для сторонних клиентов (Clash / WireSock)
     "conf.63": { ru: "Экспорт для других клиентов", en: "Export for other clients" },
-    "conf.64": { ru: "Тот же аккаунт и те же параметры обфускации в формате Clash.Meta/mihomo: WireGuard+AmneziaWG-прокси и MASQUE-узлы. Reserved-байты WARP возьмите из рабочего Clash/wgcf-конфига того же аккаунта — они привязаны к регистрации. Доп. ключи WireSock (Id/Ip/Ib) попадают только в WireSock-экспорт.", en: "The same account and the same obfuscation parameters in Clash.Meta/mihomo format: a WireGuard+AmneziaWG proxy and MASQUE nodes. Take the WARP reserved bytes from a working Clash/wgcf config of the same account — they are tied to the registration. The extra WireSock keys (Id/Ip/Ib) go into the WireSock export only." },
     "conf.65": { ru: "Reserved (для Clash, опц.)", en: "Reserved (for Clash, opt.)" },
     "conf.66": { ru: "WireSock Id (опц.)", en: "WireSock Id (opt.)" },
     "conf.67": { ru: "WireSock Ip (опц.)", en: "WireSock Ip (opt.)" },
@@ -877,6 +897,7 @@
     "#accOuterState,#btnRunScanLabel,#scanPhase,#resCount,#cfgFileName,#cfgVerHint," +
     "#cfgKeysState,#socksAddr,#setWsVerHint,#foundCmdBadge,#qrBox,#cfgEndpointSel," +
     "#btnHistory,#btnTheme,#kbdTable,#presetName," +
+    "#stWsUpd,#stGuiUpd," + // v2.7.3/v2.8.0: банеры обновлений — текст ставит JS
     "#udfState,#dataRootHint,#setDataRoot,#scanLivePhase,#scanLiveElapsed,#scanLiveMeta,#scanLiveNodes,#scanLiveDot,#qrPageLabel,#homeScanRow,#homeResRow,#homeConfBox,#homePubBox"; // v2.6.2: + touch-динамика
 
   function i18nInitStatic() {
@@ -967,6 +988,7 @@
     try { renderStatusWs(); } catch (e) {}
     try { renderWsHints(); } catch (e) {}
     try { renderWsUpd(); } catch (e) {} // v2.7.3: подсказка о новой версии warpscout
+    try { renderGuiUpd(); } catch (e) {} // v2.8.0 (F2): банер новой версии GUI
     try { const cm = $("#cmpModal"); if (cm && !cm.classList.contains("hidden")) renderCmpBody(); } catch (e) {} // v1.7.0
     try { qcRenderLast(); } catch (e) {} // v1.9.0: вердикт быстрой проверки на новом языке
     try { renderDataFolder(); } catch (e) {} // v2.2.0: статус папки данных на новом языке

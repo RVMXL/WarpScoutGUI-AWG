@@ -64,7 +64,7 @@
   function sanitizeScan(src) {
     const s = Object.assign({}, DEFAULT_SCAN);
     if (!src || typeof src !== "object" || Array.isArray(src)) return s;
-    ["tunPing", "full", "genJunk", "ipv6", "speed", "bestBySpeed"].forEach((k) => { s[k] = !!src[k]; });
+    ["tunPing", "full", "genJunk", "ipv6", "speed", "bestBySpeed", "autoI1"].forEach((k) => { s[k] = !!src[k]; }); // v2.8.0: + autoI1 (F4)
     s.proto = enumOf(strField(src.proto, 20), SCAN_ENUMS.proto, "awg");
     s.innerProto = enumOf(strField(src.innerProto, 20), SCAN_ENUMS.innerProto, "");
     s.genI1 = enumOf(strField(src.genI1, 20), SCAN_ENUMS.genI1, "");

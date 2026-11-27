@@ -63,6 +63,11 @@
     ipv6: false,
     speed: false,
     bestBySpeed: false,
+    /* v2.8.0 (F4): автоподбор профиля I1 — если скан с текущим -gen-i1 (или без
+       него) не нашёл ни одного рабочего эндпоинта, приложение само перебирает
+       профили «If nothing works» (quic → dns → sip → stun → random) в той же
+       сессии, пока что-то не найдёт; сработавший профиль остаётся в конструкторе. */
+    autoI1: false,
   };
 
   const S = {
@@ -89,12 +94,14 @@
     wsVersion: "",
     wsUpdLatest: "",     // v2.7.3: более свежая версия warpscout (релиз vernette), "" = подсказки нет
     wsUpdCur: "",        // v2.7.3: версия комплекта, для которой получена wsUpdLatest
+    guiUpdLatest: "",    // v2.8.0 (F2): более свежая версия самого WarpScoutGUI, "" = банера нет
+    guiUpdCur: "",       // v2.8.0 (F2): версия GUI, для которой получена guiUpdLatest
     qrPages: null,        // v2.4.4: страницы многостраничного QR (формат AmneziaVPN), null = одиночный
     qrPage: 0,            // v2.4.4: текущая страница QR в модалке
     wsFileThere: false,  // v2.4.0: файл warpscout.exe существует (даже если версию получить не удалось)
     account: null,
     accountError: "", // v2.1.0: причина, почему файл аккаунта не принят ("parse" | "not-account")
-    running: { scan: false, register: false, fj: false, fs: false, socks: false, check: false, i1: false }, // v2.7.1: i1 — мини-скан «I1 из сканирования»
+    running: { scan: false, register: false, fj: false, fs: false, socks: false, check: false, i1: false, usq: false }, // v2.7.1: i1 — мини-скан «I1 из сканирования»; v2.8.0: usq — экспорт usque через CLI
     procIds: {},
     demoScanned: false,
     prevEndpoints: null,  // Set эндпоинтов прошлого скана (для сравнения)
@@ -103,6 +110,9 @@
     qcSelMode: false,     // v2.0.0: режим выбора эндпоинтов для пакетной проверки
     qcSel: [],            // v2.0.0: выбранные эндпоинты (порядок таблицы)
     qcBatch: null,        // v2.0.0: очередь пакетной проверки {list, idx, total, ok, torn, other, curResolve}
+    scanStream: null,     // v2.8.0 (F1): состояние потока -stream-json текущей попытки {on,lineBuf,done,doc,rows,…}
+    scanLegacyMode: false, // v2.8.0 (F1): сессия перешла в обычный режим (CLI без -stream-json)
+    autoI1Run: null,      // v2.8.0 (F4): план автоподбора I1 {candidates[], baseGenI1, attempt}
   };
 
   /* v2.7.1 (запрос пользователя): пресет «fast» теперь — «тот же стандарт, но
