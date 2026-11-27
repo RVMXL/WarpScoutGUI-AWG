@@ -13,8 +13,8 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data:; font-src 'self' file: data:; connect-src 'self' ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:* https://api.github.com; object-src 'none'; base-uri 'none'; form-action 'none'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>WARPSCOUT GUI</title>
-  <link rel="stylesheet" href="css/app.css?v=v2.7.3" />
-  <link rel="stylesheet" href="css/touch.css?v=v2.7.3" />
+  <link rel="stylesheet" href="css/app.css?v=v2.8.0" />
+  <link rel="stylesheet" href="css/touch.css?v=v2.8.0" />
   <link rel="icon" href="icons/favicon.png" />
 </head>
 <body>
@@ -61,11 +61,12 @@
         <div class="statusline" id="statusline">
           <div class="statusline__row" id="stWs" title="">● warpscout: проверка…</div>
           <div class="statusline__row" id="stWsUpd" hidden></div>
+          <div class="statusline__row" id="stGuiUpd" hidden></div>
           <div class="statusline__row" id="stAcc">● аккаунт: проверка…</div>
         </div>
         <button class="sidebar__kbd" id="btnTheme" type="button" title="Переключить светлую/тёмную тему" aria-label="Переключить тему">☀ Светлая тема</button>
         <button class="sidebar__kbd" id="btnKbd" type="button" title="Горячие клавиши (?)" aria-label="Горячие клавиши">⌨ подсказки</button>
-        <div class="sidebar__ver">WARPSCOUT GUI v2.7.3 · warpscout v0.17.0</div>
+        <div class="sidebar__ver">WARPSCOUT GUI v2.8.0 · warpscout v0.17.0</div>
       </div>
     </aside>
 
@@ -227,6 +228,13 @@
                   <div class="hint">Случайные jc/jmin/jmax на этот запуск (перекрывает поля выше)</div>
                 </div>
                 <span class="switch"><input type="checkbox" id="fGenJunk" /><i></i></span>
+              </label>
+              <label class="switch-row" for="fAutoI1">
+                <div>
+                  <div class="switch-row__title">Автоподбор профиля I1</div>
+                  <div class="hint">Если скан пустой — сама переберёт профили QUIC, DNS, SIP, STUN, Random и оставит сработавший в конструкторе. Только для AmneziaWG; скан может занять заметно дольше.</div>
+                </div>
+                <span class="switch"><input type="checkbox" id="fAutoI1" /><i></i></span>
               </label>
             </div>
 
@@ -514,7 +522,7 @@
 
             <div class="card" id="cardExport">
               <div class="card__head"><h2>Экспорт для других клиентов</h2></div>
-              <p class="hint">Тот же аккаунт и те же параметры обфускации в формате Clash.Meta/mihomo: WireGuard+AmneziaWG-прокси и MASQUE-узлы. Reserved-байты WARP возьмите из рабочего Clash/wgcf-конфига того же аккаунта — они привязаны к регистрации. Доп. ключи WireSock (Id/Ip/Ib) попадают только в WireSock-экспорт.</p>
+              <p class="hint">Тот же аккаунт и те же параметры обфускации для сторонних клиентов: Clash.Meta/mihomo (.yaml или .json), WireSock, usque (config.json для MASQUE — приложение само прогонит мини-скан через ядро). Reserved-байты WARP возьмите из рабочего Clash/wgcf-конфига того же аккаунта — они привязаны к регистрации. Доп. ключи WireSock (Id/Ip/Ib) попадают только в WireSock-экспорт.</p>
               <div class="form-grid form-grid--2">
                 <label class="field"><span class="field__label">Reserved (для Clash, опц.)</span><input type="text" id="cfgReserved" placeholder="108, 73, 80" /></label>
                 <label class="field"><span class="field__label">WireSock Id (опц.)</span><input type="text" id="cfgWsId" placeholder="psbank.ru" /></label>
@@ -523,7 +531,9 @@
               </div>
               <div class="row-buttons">
                 <button class="btn btn--ghost btn--sm" id="btnExportClash" type="button">🧩 Clash .yaml</button>
+                <button class="btn btn--ghost btn--sm" id="btnExportClashJson" type="button" title="Сохранить те же прокси в JSON-формате mihomo (формат CLI -conf-type mihomo-json) — для клиентов, читающих JSON-профили">🧩 mihomo .json</button>
                 <button class="btn btn--ghost btn--sm" id="btnExportWs" type="button">🧦 WireSock .conf</button>
+                <button class="btn btn--ghost btn--sm" id="btnExportUsque" type="button" title="Получить config.json для usque (MASQUE): приложение прогонит короткий мини-скан выбранного эндпоинта через ядро и сохранит готовый файл">🪶 usque config.json</button>
               </div>
             </div>
           </div>
@@ -865,23 +875,23 @@
   </datalist>
 
   <script src="js/neutralino.js"></script>
-  <script src="js/mock.js?v=v2.7.3"></script>
-  <script src="js/qrcode.js?v=v2.7.3"></script>
+  <script src="js/mock.js?v=v2.8.0"></script>
+  <script src="js/qrcode.js?v=v2.8.0"></script>
   <!-- ARCH-1 (v2.6.0): монолит app.js нарезан на модули — порядок загрузки строго по номеру -->
-  <script src="js/wsg/01-platform.js?v=v2.7.3"></script>
-  <script src="js/wsg/02-state.js?v=v2.7.3"></script>
-  <script src="js/wsg/03-i18n.js?v=v2.7.3"></script>
-  <script src="js/wsg/04-bridge.js?v=v2.7.3"></script>
-  <script src="js/wsg/05-scan-core.js?v=v2.7.3"></script>
-  <script src="js/wsg/06-results-scan.js?v=v2.7.3"></script>
-  <script src="js/wsg/07-config-presets.js?v=v2.7.3"></script>
-  <script src="js/wsg/08-live-qr.js?v=v2.7.3"></script>
-  <script src="js/wsg/09-state-io.js?v=v2.7.3"></script>
-  <script src="js/wsg/10-ui-panels.js?v=v2.7.3"></script>
-  <script src="js/wsg/11-conf-qc-account.js?v=v2.7.3"></script>
-  <script src="js/wsg/12-socks-tools-ui.js?v=v2.7.3"></script>
-  <script src="js/wsg/13-form-paths.js?v=v2.7.3"></script>
-  <script src="js/wsg/14-data-migrations.js?v=v2.7.3"></script>
-  <script src="js/wsg/15-init.js?v=v2.7.3"></script>
+  <script src="js/wsg/01-platform.js?v=v2.8.0"></script>
+  <script src="js/wsg/02-state.js?v=v2.8.0"></script>
+  <script src="js/wsg/03-i18n.js?v=v2.8.0"></script>
+  <script src="js/wsg/04-bridge.js?v=v2.8.0"></script>
+  <script src="js/wsg/05-scan-core.js?v=v2.8.0"></script>
+  <script src="js/wsg/06-results-scan.js?v=v2.8.0"></script>
+  <script src="js/wsg/07-config-presets.js?v=v2.8.0"></script>
+  <script src="js/wsg/08-live-qr.js?v=v2.8.0"></script>
+  <script src="js/wsg/09-state-io.js?v=v2.8.0"></script>
+  <script src="js/wsg/10-ui-panels.js?v=v2.8.0"></script>
+  <script src="js/wsg/11-conf-qc-account.js?v=v2.8.0"></script>
+  <script src="js/wsg/12-socks-tools-ui.js?v=v2.8.0"></script>
+  <script src="js/wsg/13-form-paths.js?v=v2.8.0"></script>
+  <script src="js/wsg/14-data-migrations.js?v=v2.8.0"></script>
+  <script src="js/wsg/15-init.js?v=v2.8.0"></script>
 </body>
 </html>

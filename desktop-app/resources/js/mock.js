@@ -156,6 +156,70 @@
     return lines.join("\n");
   }
 
+  /* ── v2.8.0: NDJSON-события -stream-json для демо (схема warpscout-v1).
+     Строки — те же данные, что в MOCK_REPORT (варьируются так же), но в виде
+     progress/endpoint/done. Демо автоподбора I1: если в интерфейсе включён
+     тумблер (NeutralinoMock.autoI1Armed) и профиль не задан, первый скан
+     возвращается пустым — следующий (уже с -gen-i1) находит рабочие адреса. ── */
+  function mockStreamRows() {
+    const rows = [
+      { endpoint: "188.114.98.58:2408", ip: "188.114.98.58", port: 2408, seen_as: "HK", node: "HKG", node_city: "Hong Kong", node_country: "HK", ping_ms: 41, tun_ping_ms: 5, loss_pct: 0, speed_mbps: null, measured: true, torn: false },
+      { endpoint: "162.159.192.1:1701", ip: "162.159.192.1", port: 1701, seen_as: "HK", node: "HKG", node_city: "Hong Kong", node_country: "HK", ping_ms: 44, tun_ping_ms: 6, loss_pct: 0, speed_mbps: null, measured: true, torn: false },
+      { endpoint: "188.114.97.177:2408", ip: "188.114.97.177", port: 2408, seen_as: "SE", node: "ARN", node_city: "Stockholm", node_country: "SE", ping_ms: 52, tun_ping_ms: 9, loss_pct: 0, speed_mbps: null, measured: true, torn: false },
+      { endpoint: "188.114.99.218:2408", ip: "188.114.99.218", port: 2408, seen_as: "DE", node: "FRA", node_city: "Frankfurt-am-Main", node_country: "DE", ping_ms: 55, tun_ping_ms: 11, loss_pct: 0, speed_mbps: null, measured: true, torn: false },
+      { endpoint: "162.159.198.1:4500", ip: "162.159.198.1", port: 4500, seen_as: "NL", node: "AMS", node_city: "Amsterdam", node_country: "NL", ping_ms: null, tun_ping_ms: 14, loss_pct: 2, speed_mbps: null, measured: true, torn: false },
+      { endpoint: "162.159.193.10:500", ip: "162.159.193.10", port: 500, seen_as: "PL", node: "WAW", node_city: "Warsaw", node_country: "PL", ping_ms: null, tun_ping_ms: 18, loss_pct: 0, speed_mbps: null, measured: true, torn: false },
+    ];
+    const torn = [
+      { endpoint: "188.114.98.1:2408", ip: "188.114.98.1", port: 2408, seen_as: "RU", node: "DME", node_city: "Moscow", node_country: "RU", ping_ms: null, tun_ping_ms: 7, loss_pct: 100, speed_mbps: null, measured: true, torn: true },
+      { endpoint: "188.114.99.1:2408", ip: "188.114.99.1", port: 2408, seen_as: "RU", node: "DME", node_city: "Moscow", node_country: "RU", ping_ms: null, tun_ping_ms: 8, loss_pct: 88, speed_mbps: null, measured: true, torn: true },
+    ];
+    if (scanRuns % 2 === 0) {
+      rows.pop(); // WAW пропадает (как в varyReport)
+      rows.splice(1, 0, { endpoint: "188.114.96.7:878", ip: "188.114.96.7", port: 878, seen_as: "FR", node: "CDG", node_city: "Paris", node_country: "FR", ping_ms: 61, tun_ping_ms: 4, loss_pct: 3, speed_mbps: null, measured: true, torn: false });
+    }
+    return { working: rows, torn: torn };
+  }
+
+  function mockBest(rows) {
+    const byNode = {};
+    for (const r of rows) if (!byNode[r.node] || r.tun_ping_ms < byNode[r.node].tun_ping_ms) byNode[r.node] = r;
+    return Object.values(byNode).sort((a, b) => a.tun_ping_ms - b.tun_ping_ms);
+  }
+
+  function streamScanScript(cmd) {
+    const emptyDemo = window.NeutralinoMock.autoI1Armed && !/(^|\s)-gen-i1(\s|$)/.test(cmd) && !/(^|\s)-target(\s|$)/.test(cmd);
+    const chunks = [];
+    let t = 200;
+    const push = (delay, obj) => { t += delay; chunks.push({ delay, data: JSON.stringify(obj) + "\r\n" }); };
+    if (emptyDemo) {
+      push(300, { event: "progress", phase: "ports", done: 6, total: 12 });
+      push(500, { event: "progress", phase: "ports", done: 12, total: 12 });
+      push(700, { event: "progress", phase: "tunnels", done: 4, total: 8 });
+      push(700, { event: "progress", phase: "tunnels", done: 8, total: 8 });
+      push(300, { event: "done", result: { $schema: "https://raw.githubusercontent.com/vernette/warpscout/master/schema/warpscout-v1.schema.json", version: 1, proto: "awg", total: 8, working_count: 0, best: null, picks: [], working: [], torn: [] } });
+      chunks.push({ delay: 120, type: "exit", data: "0" });
+      return chunks;
+    }
+    const { working, torn } = mockStreamRows();
+    const all = working.concat(torn);
+    const proto = (cmd.match(/-p\s+(\S+)/) || [null, "awg"])[1];
+    push(250, { event: "progress", phase: "ports", done: 4, total: 12 });
+    push(450, { event: "progress", phase: "ports", done: 8, total: 12 });
+    push(350, { event: "progress", phase: "ports", done: 12, total: 12 });
+    const thirds = [2, 5, all.length];
+    let idx = 0;
+    thirds.forEach((n, i) => {
+      const prev = i ? thirds[i - 1] : 0;
+      push(500, { event: "progress", phase: "tunnels", done: n, total: all.length });
+      for (; idx < n; idx++) push(260, { event: "endpoint", endpoint: all[idx] });
+    });
+    const picks = mockBest(working);
+    push(300, { event: "done", result: { $schema: "https://raw.githubusercontent.com/vernette/warpscout/master/schema/warpscout-v1.schema.json", version: 1, proto: proto, total: all.length, working_count: working.length, best: working.length ? working[0].endpoint : null, picks: picks, working: working, torn: torn } });
+    chunks.push({ delay: 120, type: "exit", data: "0" });
+    return chunks;
+  }
+
   // v1.9.0: быстрая проверка одного эндпоинта — отчёт из одной строки (формат report.go).
   // Вердикт детерминирован по адресу: сумма кодов символов % 4 === 0 → «разорван»,
   // иначе рабочий с TUN PING 6ms / 0%. Это демо-сценарий, реальный app парсит настоящий отчёт.
@@ -244,8 +308,42 @@
     ];
   }
 
+  // v2.8.0 (F3): usque config.json — «scan -p masque … -conf - -conf-type native»
+  // печатает готовый config.json (формат Diniboy1123/usque).
+  function usqueScript(cmd) {
+    const ip = (cmd.match(/-target\s+(\S+)/) || [null, "162.159.198.2"])[1];
+    const port = (cmd.match(/-port\s+(\d+)/) || [null, "443"])[1];
+    const conf = {
+      private_key: "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQDemo",
+      endpoint_v4: ip,
+      endpoint_v6: "2606:4700:103::",
+      endpoint_h2_v4: "162.159.198.2",
+      endpoint_h2_v6: "",
+      endpoint_pub_key: "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEIaU7MToJm9NKp8YfGxR6r+/h4mcG\n7SxI8tsW8OR1A5tv/zCzVbCRRh2t87/kxnP6lAy0lkr7qYwu+ox+k3dr6w==\n-----END PUBLIC KEY-----\n",
+      license: "",
+      id: "m0ckmasque00000000000000000000000",
+      access_token: "demo-masque-token",
+      ipv4: "172.16.0.2",
+      ipv6: "2606:4700:110:8679:ee89:902a:ff5a:9571",
+    };
+    const body = JSON.stringify(conf, null, 2) + "\r\n";
+    return [
+      { delay: 250, data: "Using cached WARP account from warpscout-account.json\r\n" },
+      { delay: 300, data: "\r\nPort: " + port + " (pinned, phase 1 skipped)\r\n" },
+      { delay: 500, data: "Phase 2: verifying tunnels (proto=masque): 1...\r\n" },
+      { delay: 500, data: "  node: HK HKG (" + ip + ":" + port + ")\r\n  1/1\r\n" },
+      { delay: 300, data: "Phase 2: verifying tunnels (proto=masque): done\r\n" },
+      { delay: 250, data: body },
+      { delay: 100, type: "exit", data: "0" },
+    ];
+  }
+
   const scripts = {
     scan(cmd) {
+      // v2.8.0: usque config.json (MASQUE) — мини-скан с -conf - печатает готовый config.json
+      if (/(^|\s)-p\s+masque(\s|$)/.test(cmd) && /(^|\s)-conf\s+-/.test(cmd)) return usqueScript(cmd);
+      // v2.8.0: потоковый скан (-stream-json) — NDJSON-события вместо текстового вывода
+      if (/(^|\s)-stream-json(\s|$)/.test(cmd)) return streamScanScript(cmd);
       // v2.7.1: «I1 из сканирования» (мини-скан с -conf -) — до проверки QC-сценария
       if (/(^|\s)-conf\s+-/.test(cmd)) return i1Script(cmd);
       // v1.9.0: быстрая проверка одного эндпоинта (scan -target IP -port PORT) — короткий сценарий
@@ -443,7 +541,7 @@
   window.NL_CWD = window.NL_PATH;
   // единая версия демо = версия GUI (не дублировать в ветках — раньше здесь
   // остался устаревший «2.4.6», из-за чего JS-статусы демо показывали не ту версию)
-  window.NL_APPVERSION = "2.7.3";
+  window.NL_APPVERSION = "2.8.0";
   // v2.5.0: ?platform=android — предпросмотр сенсорного режима Android-версии
   // (тот же мок, но платформа Android: TOUCH_UI, бинарь из nativeLibraryDir)
   if (/(?:^|[?&])platform=android/.test(String(window.location.search))) {
