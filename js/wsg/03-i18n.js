@@ -59,7 +59,7 @@
     "presets.11": { ru: "Вернуть команду по умолчанию", en: "Restore the default command" },
     "presets.12": { ru: "Сохранить текущие параметры как пресет", en: "Save current parameters as a preset" },
     "presets.13": { ru: "Быстрый: тот же стандартный скан, но 3 адреса на подсеть вместо 10 — втрое короче прогон, когда время поджимает.", en: "Fast: the same standard scan, but 3 addresses per subnet instead of 10 — a thrice shorter run when time is short." },
-    "presets.14": { ru: "Жёсткая сеть: AmneziaWG + QUIC-маскировка первого пакета + проверка на разрыв. Если не найдёт — вкладка «Поиск параметров».", en: "Hard network: AmneziaWG + QUIC disguise of the first packet + break-check. If nothing is found — see the 'Param finder' tab." },
+    "presets.14": { ru: "Жёсткая сеть: автоподбор профиля I1 — если маскировка не прошла, сессия сама перебирает quic → dns → sip → stun → random, пока не найдёт; таймаут зонда 4 с вместо 2. Если и это не помогло — вкладка «Поиск параметров».", en: "Hard network: auto-picks the I1 profile — if the disguise fails, the session iterates quic → dns → sip → stun → random until something works; probe timeout 4 s instead of 2. If that fails too — see the 'Param finder' tab." },
     /* v2.8.2: presets.15 (Тщательный) удалён вместе с пресетом — дубль тумблера -f */
     "presets.16": { ru: "По умолчанию: <code>warpscout scan -p awg31 -P -gen-i1 quic -n 10 -exclude-node DME</code>", en: "Default: <code>warpscout scan -p awg31 -P -gen-i1 quic -n 10 -exclude-node DME</code>" },
     "presets.17": { ru: "Пресет «<b>{name}</b>» применён. Команду можно посмотреть над кнопкой скана.", en: "Preset '<b>{name}</b>' applied. The command is shown above the scan button." },

@@ -148,10 +148,17 @@
         Object.assign(S.scan, DEFAULT_SCAN, { proto: "wg", tunPing: false, sample: 5, full: false });
       },
     },
+    /* v2.8.3 (запрос пользователя): после смены дефолта I1 на QUIC пресет
+       «Жёсткая сеть» совпал с «По умолчанию» — его историческое отличие было
+       ровно в genI1:"quic". Смысл названия вернули через автоподбор профиля
+       I1 (если маскировка не прошла — сессия сама перебирает quic → dns →
+       sip → stun → random, ровно «If nothing works» из README ядра) и более
+       терпеливый таймаут зонда (-t 4): на жёсткой сети ответы приходят
+       медленнее дефолтных 2 с, и часть живых эндпоинтов раньше отсекалась. */
     hard: {
       hint: "presets.14",
       apply() {
-        Object.assign(S.scan, DEFAULT_SCAN, { proto: "awg", tunPing: true, genI1: "quic", tunPingCount: 10 });
+        Object.assign(S.scan, DEFAULT_SCAN, { autoI1: true, timeout: 4 });
       },
     },
     /* v2.8.2 (запрос пользователя): пресет «Тщательный» удалён — дубль тумблера
