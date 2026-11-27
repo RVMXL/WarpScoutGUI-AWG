@@ -51,7 +51,7 @@
     "presets.03": { ru: "⭐ По умолчанию", en: "⭐ Default" },
     "presets.04": { ru: "⚡ Быстрый", en: "⚡ Fast" },
     "presets.05": { ru: "🧱 Жёсткая сеть", en: "🧱 Hard network" },
-    "presets.06": { ru: "🔬 Тщательный", en: "🔬 Thorough" },
+    /* v2.8.2: presets.06 (🔬 Тщательный) удалён вместе с пресетом — дубль тумблера -f */
     "presets.07": { ru: "＋ Свой", en: "＋ Custom" },
     "presets.08": { ru: "Сохранить", en: "Save" },
     "presets.09": { ru: "Отмена", en: "Cancel" },
@@ -60,8 +60,8 @@
     "presets.12": { ru: "Сохранить текущие параметры как пресет", en: "Save current parameters as a preset" },
     "presets.13": { ru: "Быстрый: тот же стандартный скан, но 3 адреса на подсеть вместо 10 — втрое короче прогон, когда время поджимает.", en: "Fast: the same standard scan, but 3 addresses per subnet instead of 10 — a thrice shorter run when time is short." },
     "presets.14": { ru: "Жёсткая сеть: AmneziaWG + QUIC-маскировка первого пакета + проверка на разрыв. Если не найдёт — вкладка «Поиск параметров».", en: "Hard network: AmneziaWG + QUIC disguise of the first packet + break-check. If nothing is found — see the 'Param finder' tab." },
-    "presets.15": { ru: "Тщательный: все 256 адресов каждой подсети, в туннеле и замер скорости. Долго!", en: "Thorough: all 256 addresses per subnet, in-tunnel checks and speed test. Slow!" },
-    "presets.16": { ru: "По умолчанию: <code>warpscout scan -p awg -P -n 10 -exclude-node DME</code>", en: "Default: <code>warpscout scan -p awg -P -n 10 -exclude-node DME</code>" },
+    /* v2.8.2: presets.15 (Тщательный) удалён вместе с пресетом — дубль тумблера -f */
+    "presets.16": { ru: "По умолчанию: <code>warpscout scan -p awg31 -P -gen-i1 quic -n 10 -exclude-node DME</code>", en: "Default: <code>warpscout scan -p awg31 -P -gen-i1 quic -n 10 -exclude-node DME</code>" },
     "presets.17": { ru: "Пресет «<b>{name}</b>» применён. Команду можно посмотреть над кнопкой скана.", en: "Preset '<b>{name}</b>' applied. The command is shown above the scan button." },
     /* v2.7.1: пресет «Без обфускации» (бывший «Быстрый» wg-прогон) + новый смысл «Быстрого» */
     "presets.18": { ru: "🚫 Без обфускации", en: "🚫 No obfuscation" },
@@ -109,7 +109,25 @@
     "scan.obf.07": { ru: "Случайные jc/jmin/jmax на этот запуск (перекрывает поля выше)", en: "Random jc/jmin/jmax for this run (overrides the fields above)" },
     "scan.obf.08": { ru: "Попыток на эндпоинт", en: "Attempts per endpoint" },
     "scan.obf.09": { ru: "Jc/Jmin/Jmax — общие с генератором конфигов: правка здесь или на вкладке «Конфиг» синхронно меняет оба. «Случайный junk» рандомизирует набор только на время прогона — конфиг не трогает.", en: "Jc/Jmin/Jmax are shared with the config generator: editing here or on the 'Config' tab changes both at once. 'Random junk' randomizes the set for the run only — the config is untouched." },
-    "scan.obf.10": { ru: "Версия AWG берётся из «Конфиг → Версия»: при «3.1» скан, проверка и SOCKS идут с -p awg31 и таймингами 3.1 — ровно то, что уйдёт в конфиг. Нужен warpscout 0.17+, на старых версиях — обычный -p awg.", en: "The AWG version comes from Config → Version: with '3.1', scan, check and SOCKS run with -p awg31 and the 3.1 timings — exactly what goes into the config. Requires warpscout 0.17+; older versions fall back to plain -p awg." },
+    "scan.obf.10": { ru: "Тумблер и тайминги ниже — общие с «Конфиг → Версия»: при «3.1» скан, проверка и SOCKS идут с -p awg31 и таймингами 3.1 — ровно то, что уйдёт в конфиг. Нужен warpscout 0.17+, на старых версиях — обычный -p awg.", en: "The toggle and timings below are shared with Config → Version: with '3.1', scan, check and SOCKS run with -p awg31 and the 3.1 timings — exactly what goes into the config. Requires warpscout 0.17+; older versions fall back to plain -p awg." },
+    // v2.8.2 (запрос пользователя): AWG 3.1 — вкл/выкл и тайминги прямо на «Скан» (общие с «Конфиг»)
+    "scan.obf.11": { ru: "Тайминги AWG 3.1", en: "AWG 3.1 timings" },
+    "scan.obf.12": { ru: "Общий с «Конфиг → Версия»: выключение возвращает скан и конфиг к AWG 2.0", en: "Shared with Config → Version: turning it off brings the scan and the config back to AWG 2.0" },
+    "scan.obf.13": { ru: "Тайминги 3.1 (общие с «Конфиг»)", en: "3.1 timings (shared with Config)" },
+    "scan.obf.14": { ru: "Случайные байты в хэндшейках и нули внутри data-пакетов", en: "Random bytes in handshakes and zeroes inside data packets" },
+    "scan.obf.15": { ru: "Не отвечать cookie-реплеями — это фингерпринт под активным зондированием", en: "Never send cookie replies — a fingerprint under active probing" },
+    /* — scan.extra — */
+    /* v2.8.2 (вариант 1): ручной ввод флагов warpscout в консоль-стиле */
+    "scan.extra.01": { ru: "Свои флаги CLI", en: "Custom CLI flags" },
+    "scan.extra.02": { ru: "Свои флаги warpscout", en: "Custom warpscout flags" },
+    "scan.extra.03": { ru: "Флаги, которых нет в форме, — как в консоли: -sweep-ports 2408,500, -mtu 1280, -dns 1.1.1.1, -table-off, -emoji, -conf out.conf -conf-type mihomo. Что форма расставляет сама (протокол, -P, -gen-i1, тайминги…), сюда писать не нужно — валидация не пропустит.", en: "Flags missing from the form — console style: -sweep-ports 2408,500, -mtu 1280, -dns 1.1.1.1, -table-off, -emoji, -conf out.conf -conf-type mihomo. Flags the form adds itself (protocol, -P, -gen-i1, timings…) do not belong here — validation rejects them." },
+    "scan.extra.err.unknown": { ru: "Неизвестный флаг {f} — смотрите warpscout help", en: "Unknown flag {f} — see warpscout help" },
+    "scan.extra.err.dup": { ru: "Флаг {f} форма ставит сама — снимите его отсюда", en: "Flag {f} is added by the form itself — remove it here" },
+    "scan.extra.err.val": { ru: "Флагу {f} нужно значение", en: "Flag {f} needs a value" },
+    "scan.extra.err.badval": { ru: "В значении {f} недопустимые символы (пробелы и \" ' & | ^ % ! < > ( ) * ? ~ ; ` $ \\ # нельзя)", en: "Value of {f} has forbidden characters (spaces and \" ' & | ^ % ! < > ( ) * ? ~ ; ` $ \\ # are not allowed)" },
+    "scan.extra.err.pos": { ru: "{f} — не флаг (аргументы начинаются с дефиса)", en: "{f} is not a flag (arguments start with a dash)" },
+    "scan.extra.err.more": { ru: "ещё {n}", en: "{n} more" },
+    "scan.extra.ok": { ru: "Свои флаги приняты: {n} шт. — добавлены в команду", en: "Custom flags accepted: {n} — added to the command" },
     /* — scan.adv — */
     /* — скан: продвинутое — */
     "scan.adv.01": { ru: "WARP-in-WARP и продвинутое", en: "WARP-in-WARP & advanced" },
@@ -901,7 +919,7 @@
     "#accOuterState,#btnRunScanLabel,#scanPhase,#resCount,#cfgFileName,#cfgVerHint," +
     "#cfgKeysState,#socksAddr,#setWsVerHint,#foundCmdBadge,#qrBox,#cfgEndpointSel," +
     "#btnHistory,#btnTheme,#kbdTable,#presetName," +
-    "#stWsUpd,#stGuiUpd," + // v2.7.3/v2.8.0: банеры обновлений — текст ставит JS
+    "#stWsUpd,#stGuiUpd,#extraArgsMsg," + // v2.8.2: строка валидации «Своих флагов» — текст ставит JS
     "#udfState,#dataRootHint,#setDataRoot,#scanLivePhase,#scanLiveElapsed,#scanLiveMeta,#scanLiveNodes,#scanLiveDot,#qrPageLabel,#homeScanRow,#homeResRow,#homeConfBox,#homePubBox"; // v2.6.2: + touch-динамика
 
   function i18nInitStatic() {

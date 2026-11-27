@@ -415,7 +415,20 @@
         };
         if (st.settings.theme === "dark" || st.settings.theme === "light") patch.theme = st.settings.theme;
         if (st.settings.lang === "ru" || st.settings.lang === "en") patch.lang = st.settings.lang;
+        /* v2.8.2: одноразовая миграция профиля I1 — дефолт скана стал QUIC.
+          Старьё с genI1:"" (icloud) поднимается до quic РОВНО ОДИН РАЗ
+          (флаг i1QuicMigrated в settings); после него выбор пользователя
+          (в т.ч. явный icloud) живёт как выставлен. */
+        if (st.settings.i1QuicMigrated !== true) {
+          if (!S.scan.genI1) S.scan.genI1 = DEFAULT_SCAN.genI1;
+          patch.i1QuicMigrated = true;
+        }
         S.settings = Object.assign({}, S.settings, patch);
+      } else {
+        // v2.8.2: settings-объекта нет (совсем старое состояние) — миграцию
+        // делаем сразу, флаг запишется при первом persist
+        if (S.scan && !S.scan.genI1) S.scan.genI1 = DEFAULT_SCAN.genI1;
+        S.settings.i1QuicMigrated = true;
       }
       if (Array.isArray(st.customPresets)) S.customPresets = sanitizePresets(st.customPresets);
       S.compact = !!st.compact;

@@ -159,8 +159,9 @@
   /* ── v2.8.0: NDJSON-события -stream-json для демо (схема warpscout-v1).
      Строки — те же данные, что в MOCK_REPORT (варьируются так же), но в виде
      progress/endpoint/done. Демо автоподбора I1: если в интерфейсе включён
-     тумблер (NeutralinoMock.autoI1Armed) и профиль не задан, первый скан
-     возвращается пустым — следующий (уже с -gen-i1) находит рабочие адреса. ── */
+     тумблер (NeutralinoMock.autoI1Armed), первый скан С ДЕФОЛТНЫМ профилем
+     quic возвращается пустым — следующий (dns/sip/…) находит рабочие адреса.
+     (v2.8.2: дефолт скана стал quic — раньше демо ждало скан без -gen-i1.) ── */
   function mockStreamRows() {
     const rows = [
       { endpoint: "188.114.98.58:2408", ip: "188.114.98.58", port: 2408, seen_as: "HK", node: "HKG", node_city: "Hong Kong", node_country: "HK", ping_ms: 41, tun_ping_ms: 5, loss_pct: 0, speed_mbps: null, measured: true, torn: false },
@@ -188,7 +189,7 @@
   }
 
   function streamScanScript(cmd) {
-    const emptyDemo = window.NeutralinoMock.autoI1Armed && !/(^|\s)-gen-i1(\s|$)/.test(cmd) && !/(^|\s)-target(\s|$)/.test(cmd);
+    const emptyDemo = window.NeutralinoMock.autoI1Armed && /(^|\s)-gen-i1\s+quic(\s|$)/.test(cmd) && !/(^|\s)-target(\s|$)/.test(cmd);
     const chunks = [];
     let t = 200;
     const push = (delay, obj) => { t += delay; chunks.push({ delay, data: JSON.stringify(obj) + "\r\n" }); };

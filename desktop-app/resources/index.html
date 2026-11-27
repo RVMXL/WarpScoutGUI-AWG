@@ -90,7 +90,7 @@
                 <button class="chip" data-preset="fast" type="button">⚡ Быстрый</button>
                 <button class="chip" data-preset="noobf" type="button">🚫 Без обфускации</button>
                 <button class="chip" data-preset="hard" type="button">🧱 Жёсткая сеть</button>
-                <button class="chip" data-preset="full" type="button">🔬 Тщательный</button>
+                <!-- v2.8.2: пресет «Тщательный» удалён — дубль тумблера -f выше -->
                 <span id="customPresetChips" class="chips__custom"></span>
                 <button class="chip chip--add" id="btnPresetSave" type="button" title="Сохранить текущие параметры как пресет">＋ Свой</button>
               </div>
@@ -99,7 +99,7 @@
                 <button class="btn btn--primary btn--sm" id="btnPresetSaveOk" type="button">Сохранить</button>
                 <button class="btn btn--ghost btn--sm" id="btnPresetSaveCancel" type="button">Отмена</button>
               </div>
-              <p class="hint" id="presetHint">По умолчанию: <code>warpscout scan -p awg -P -n 10 -exclude-node DME</code></p>
+              <p class="hint" id="presetHint">По умолчанию: <code>warpscout scan -p awg31 -P -gen-i1 quic -n 10 -exclude-node DME</code></p>
             </div>
 
             <div class="card">
@@ -209,12 +209,14 @@
             <div class="card" id="cardAwg">
               <div class="card__head"><h2>Обфускация AmneziaWG</h2></div>
               <p class="hint">Jc/Jmin/Jmax — общие с генератором конфигов: правка здесь или на вкладке «Конфиг» синхронно меняет оба. «Случайный junk» рандомизирует набор только на время прогона — конфиг не трогает.</p>
-              <p class="hint">Версия AWG берётся из «Конфиг → Версия»: при «3.1» скан, проверка и SOCKS идут с -p awg31 и таймингами 3.1 — ровно то, что уйдёт в конфиг. Нужен warpscout 0.17+, на старых версиях — обычный -p awg.</p>
+              <p class="hint">Тумблер и тайминги ниже — общие с «Конфиг → Версия»: при «3.1» скан, проверка и SOCKS идут с -p awg31 и таймингами 3.1 — ровно то, что уйдёт в конфиг. Нужен warpscout 0.17+, на старых версиях — обычный -p awg.</p>
               <div class="field">
                 <span class="field__label">Поддельный первый пакет <code>-gen-i1</code></span>
                 <div class="seg seg--wrap" id="i1Seg" role="radiogroup" aria-label="Генерация I1">
-                  <button class="seg__btn is-active" data-i1="" type="button">iCloud (базовый)</button>
-                  <button class="seg__btn" data-i1="quic" type="button">QUIC</button>
+                  <!-- v2.8.2: дефолтный профиль — QUIC (как в других warpscout GUI);
+                       icloud-зонд остался опцией «iCloud (базовый)» -->
+                  <button class="seg__btn" data-i1="" type="button">iCloud (базовый)</button>
+                  <button class="seg__btn is-active" data-i1="quic" type="button">QUIC</button>
                   <button class="seg__btn" data-i1="dns" type="button">DNS</button>
                   <button class="seg__btn" data-i1="sip" type="button">SIP</button>
                   <button class="seg__btn" data-i1="stun" type="button">STUN</button>
@@ -246,6 +248,41 @@
                 </div>
                 <span class="switch"><input type="checkbox" id="fGenJunk" /><i></i></span>
               </label>
+              <!-- v2.8.2 (запрос пользователя): AWG 3.1 — вкл/выкл и тайминги прямо
+                   на «Скан»; значения общие с «Конфиг → Версия» (единый источник,
+                   как junk-поля выше) -->
+              <label class="switch-row" for="fUse31">
+                <div>
+                  <div class="switch-row__title">Тайминги AWG 3.1 <code>-p awg31</code></div>
+                  <div class="hint">Общий с «Конфиг → Версия»: выключение возвращает скан и конфиг к AWG 2.0</div>
+                </div>
+                <span class="switch"><input type="checkbox" id="fUse31" checked /><i></i></span>
+              </label>
+              <details class="cfg-advanced" id="scan31Details">
+                <summary>Тайминги 3.1 (общие с «Конфиг»)</summary>
+                <div class="form-grid form-grid--2">
+                  <label class="field"><span class="field__label">ContentPaddingAddition</span><input type="text" id="fCpa" value="27-97" /></label>
+                  <label class="field"><span class="field__label">RekeyAfterTime</span><input type="text" id="fRekeyAfter" value="116-131" /></label>
+                  <label class="field"><span class="field__label">RekeyTimeout</span><input type="text" id="fRekeyTo" value="6-9" /></label>
+                  <label class="field"><span class="field__label">RejectAfterTime</span><input type="text" id="fRejectAfter" value="171-196" /></label>
+                  <label class="field"><span class="field__label">KeepaliveTimeout</span><input type="text" id="fKeepaliveTo" value="9-16" /></label>
+                  <label class="field"><span class="field__label">MaxHandshakeAttempts</span><input type="text" id="fMaxHs" value="18-26" /></label>
+                </div>
+                <label class="switch-row" for="fTrailers">
+                  <div>
+                    <div class="switch-row__title">RandomTrailers</div>
+                    <div class="hint">Случайные байты в хэндшейках и нули внутри data-пакетов</div>
+                  </div>
+                  <span class="switch"><input type="checkbox" id="fTrailers" checked /><i></i></span>
+                </label>
+                <label class="switch-row" for="fNoCookies">
+                  <div>
+                    <div class="switch-row__title">DisableCookies</div>
+                    <div class="hint">Не отвечать cookie-реплеями — это фингерпринт под активным зондированием</div>
+                  </div>
+                  <span class="switch"><input type="checkbox" id="fNoCookies" checked /><i></i></span>
+                </label>
+              </details>
               <label class="switch-row" for="fAutoI1">
                 <div>
                   <div class="switch-row__title">Автоподбор профиля I1</div>
@@ -300,12 +337,25 @@
                 </label>
               </div>
             </details>
+
+            <!-- v2.8.2 (вариант 1, запрос пользователя): ручной ввод флагов
+                 warpscout в консоль-стиле — всё, чего нет в форме; валидация
+                 по белому списку (parseExtraArgs, 05-scan-core) -->
+            <div class="card" id="cardExtra">
+              <div class="card__head"><h2>Свои флаги CLI</h2></div>
+              <label class="field">
+                <span class="field__label">Свои флаги warpscout</span>
+                <input type="text" id="fExtraArgs" class="mono-input" placeholder="-sweep-ports 2408,500 -emoji" spellcheck="false" autocomplete="off" />
+              </label>
+              <p class="hint">Флаги, которых нет в форме, — как в консоли: -sweep-ports 2408,500, -mtu 1280, -dns 1.1.1.1, -table-off, -emoji, -conf out.conf -conf-type mihomo. Что форма расставляет сама (протокол, -P, -gen-i1, тайминги…), сюда писать не нужно — валидация не пропустит.</p>
+              <div class="hint extra-args__msg" id="extraArgsMsg" hidden></div>
+            </div>
           </div>
 
           <div class="scan-exec">
             <div class="cmd-bar" id="cmdBar" title="Точная команда, которая будет запущена">
               <span class="cmd-bar__label">команда</span>
-              <code class="cmd-bar__cmd" id="cmdPreview">warpscout scan -p awg -P -n 10 -exclude-node DME</code>
+              <code class="cmd-bar__cmd" id="cmdPreview">warpscout scan -p awg31 -P -gen-i1 quic -n 10 -exclude-node DME</code>
               <button class="btn btn--ghost btn--sm" id="btnCopyCmd" type="button" title="Скопировать команду">⧉</button>
             </div>
             <div class="run-row">
@@ -766,7 +816,7 @@
               WARPSCOUT GUI — графическая оболочка для консольной утилиты
               <a href="https://github.com/vernette/warpscout" data-ext>warpscout</a> (v0.17.0, MIT).
               Ищет живые эндпоинты Cloudflare WARP из вашей сети, показывает узел и регион выхода и генерирует готовые конфиги WireGuard / AmneziaWG.<br/><br/>
-              Дефолтная команда: <code>warpscout scan -p awg -P -n 10 -exclude-node DME</code><br/><br/>
+              Дефолтная команда: <code>warpscout scan -p awg31 -P -gen-i1 quic -n 10 -exclude-node DME</code><br/><br/>
               Скан запускается локально, без серверов-посредников: туннели поднимаются с вашей машины.
             </p>
           </div>

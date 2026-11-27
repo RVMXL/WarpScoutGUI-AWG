@@ -1798,3 +1798,8 @@ html[data-theme="light"] .batch-bar__go { color: #fff6ee; }
   body:not(.touch-ui) .config-preview > #cardExport { flex: 0 0 auto; }
   body:not(.touch-ui) .card--preview { height: auto; flex: 1 1 auto; min-height: 280px; }
 }
+
+/* ── v2.8.2 (вариант 1): «Свои флаги CLI» — mono-поле и строка живой валидации ── */
+.mono-input { font-family: var(--mono); font-size: 12.5px; }
+.extra-args__msg.is-ok { color: var(--ok); }
+.extra-args__msg.is-err { color: var(--err, #ff6b6b); font-weight: 600; }
