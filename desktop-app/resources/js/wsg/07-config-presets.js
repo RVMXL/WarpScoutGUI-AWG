@@ -333,6 +333,88 @@
     return buildConf({ ws: true });
   }
 
+  /* ── v2.8.0 (F3): mihomo-JSON — те же прокси, что и в buildClashYaml, но как
+     JSON-массив (формат CLI `-conf-type mihomo-json`). Ключи совпадают с YAML:
+     mihomo читает JSON-конфиг с теми же именами полей. Атомарные поля собираем
+     в объекты — клиенты (Clash Verge Rev и др.) импортируют массив напрямую. ── */
+  function buildMihomoJson() {
+    const acc = S.account;
+    const c = S.cfg;
+    const o = c.obf;
+    const ep = splitEpPort(c.endpoint || "8.47.69.43:2408") || { ip: "8.47.69.43", port: "2408" };
+    const arr = [];
+    const wg = {
+      name: "[WARP-AWG] Default",
+      type: "wireguard",
+      server: String(ep.ip || ""),
+      port: parseInt(ep.port, 10) || 2408,
+      ip: acc ? acc.ipv4 : "172.16.0.2",
+      "private-key": acc ? acc.private_key : "",
+      "public-key": acc ? acc.peer_public_key : "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+      "allowed-ips": cfgAllowedIps().split(",").map((s) => s.trim()).filter(Boolean),
+      udp: true,
+      mtu: clampInt(c.mtu, 576, 1500, 1280),
+      "remote-dns-resolve": true,
+      dns: (dnsLineOf(c.dns === "custom" ? "" : c.dns, c.dnsV6 !== false) || "")
+        .split(",")
+        .concat(c.dns === "custom" ? String(c.dnsCustom || "").split(",") : [])
+        .map((x) => x.trim())
+        .filter(Boolean),
+    };
+    if (acc && acc.ipv6) wg.ipv6 = acc.ipv6;
+    // reserved — те же цифры, что и в YAML-экспорте (S.cfg.reserved, максимум 3 байта)
+    const resParts = String(c.reserved || "").split(",").map((x) => parseInt(x.replace(/[^0-9]/g, ""), 10)).filter((n) => isFinite(n)).slice(0, 3);
+    if (resParts.length) wg.reserved = resParts;
+    if (c.ver !== "wg") {
+      wg["amnezia-wg-option"] = {
+        version: c.ver === "awg31" ? 3 : c.ver === "awg20" ? 2 : 1,
+        s1: clampInt(o.s1, 0, 65535, 0),
+        s2: clampInt(o.s2, 0, 65535, 0),
+        s3: clampInt(o.s3, 0, 65535, 0),
+        s4: clampInt(o.s4, 0, 65535, 0),
+        jc: clampInt(o.jc, 1, 128, 4),
+        jmin: clampInt(o.jmin, 0, 1280, 40),
+        jmax: clampInt(o.jmax, 0, 1280, 70),
+        h1: String(o.h1),
+        h2: String(o.h2),
+        h3: String(o.h3),
+        h4: String(o.h4),
+      };
+      if ((o.i1 || "").trim()) wg["amnezia-wg-option"].i1 = normI1Store(o.i1);
+      if ((o.i2 || "").trim()) wg["amnezia-wg-option"].i2 = normI1Store(o.i2);
+      if ((o.i3 || "").trim()) wg["amnezia-wg-option"].i3 = normI1Store(o.i3);
+      if ((o.i4 || "").trim()) wg["amnezia-wg-option"].i4 = normI1Store(o.i4);
+      if ((o.i5 || "").trim()) wg["amnezia-wg-option"].i5 = normI1Store(o.i5);
+      if (c.ver === "awg31") {
+        wg["amnezia-wg-option"]["content-padding-addition"] = String(o.cpa);
+        wg["amnezia-wg-option"]["rekey-after-time"] = String(o.rekeyAfter);
+        wg["amnezia-wg-option"]["rekey-timeout"] = String(o.rekeyTo);
+        wg["amnezia-wg-option"]["reject-after-time"] = String(o.rejectAfter);
+        wg["amnezia-wg-option"]["keepalive-timeout"] = String(o.keepaliveTo);
+        wg["amnezia-wg-option"]["max-handshake-attempts"] = String(o.maxHs);
+        wg["amnezia-wg-option"]["random-trailers"] = o.trailers === "on";
+        wg["amnezia-wg-option"]["disable-cookies"] = o.noCookies === "on";
+      }
+    }
+    arr.push(wg);
+    const mq = acc && acc.masque;
+    if (mq) {
+      const mqCommon = {
+        sni: String((S.scan.masqueSni || "").trim() || "consumer-masque.cloudflareclient.com"),
+        "private-key": mq.private_key || "",
+        "public-key": mq.peer_public_key || "",
+        ip: mq.ipv4 || (acc && acc.ipv4) || "172.16.0.2",
+        udp: true,
+        "remote-dns-resolve": true,
+        dns: wg.dns,
+      };
+      if (mq.ipv6 || (acc && acc.ipv6)) mqCommon.ipv6 = mq.ipv6 || acc.ipv6;
+      arr.push(Object.assign({ name: "[WARP-MASQUE] QUIC", type: "masque", server: "162.159.198.2", port: 443 }, mqCommon));
+      arr.push(Object.assign({ name: "[WARP-MASQUE] H2", type: "masque", server: "162.159.198.2", port: 443, network: "h2" }, mqCommon));
+    }
+    return JSON.stringify(arr, null, 2) + "\n";
+  }
+
   function hlConf(text) {
     return esc(text)
       .replace(/^\[(.+)\]/gm, '<span class="c-sec">[$1]</span>')

@@ -110,6 +110,8 @@
                   "</span>" +
                   '<span class="history__cmp-btn" role="button" tabindex="0" data-cmp="' + i +
                   '" title="' + t("history.10") + '">Δ</span>' +
+                  '<span class="history__cmp-btn" role="button" tabindex="0" data-retry="' + i +
+                  '" title="' + t("history.31") + '">⟳</span>' +
                 "</button>"
             )
             .join("")
@@ -130,10 +132,19 @@
     if (bClr) bClr.addEventListener("click", clearHistory);
     $$(".history__item", panel).forEach((b) =>
       b.addEventListener("click", (e) => {
-        if (e.target.closest("[data-cmp]")) return;
+        if (e.target.closest("[data-cmp]") || e.target.closest("[data-retry]")) return;
         loadHistory(+b.getAttribute("data-hi"));
       })
     );
+    $$("[data-retry]", panel).forEach((c) => {
+      const go = (e) => {
+        e.stopPropagation();
+        retryHistory(+c.getAttribute("data-retry"));
+      };
+      c.addEventListener("click", go);
+      // v2.4.6 (F48): клавиатурный доступ как у Δ
+      c.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(e); } });
+    });
     $$("[data-cmp]", panel).forEach((c) => {
       c.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -756,6 +767,23 @@
     toast(tF("history.19", { ts: fmtTime(h.ts), n: h.working }), "ok");
   }
 
+  /* ── v2.8.0 (F7): повтор скана с параметрами из истории.
+     В записи истории уже хранится снимок параметров (params, v2.4.6 F18/F30) —
+     была недоступна кнопка. ⟳ возвращает их в конструктор (не запуская скан
+     сам — запуск по Ctrl+Enter/кнопке остаётся за пользователем). ── */
+  function retryHistory(i) {
+    const h = S.history[i];
+    if (!h || !h.params) { toast(t("history.32"), "err"); return; }
+    if (S.running.scan) { toast(t("scan.lock.02"), "warn"); return; }
+    Object.assign(S.scan, DEFAULT_SCAN, sanitizeScan(h.params));
+    syncInputsFromState();
+    updateCmdPreview();
+    highlightMatchingPreset();
+    toggleHistory(false);
+    switchTab("scan");
+    toast(tF("history.33", { ts: fmtTime(h.ts) }), "ok");
+  }
+
   function exportCsv() {
     if (!S.results.length) { toast(t("extra.24"), "err"); return; }
     const { withP, withSpeed } = S.viewMeta;
@@ -808,10 +836,12 @@
     return true;
   }
 
-  /* v2.7.0: единая точка сохранения — стандартный .conf, Clash .yaml, WireSock .conf */
+  /* v2.7.0: единая точка сохранения — стандартный .conf, Clash .yaml, WireSock .conf
+     v2.8.0 (F3): + mihomo-JSON (клиенты на базе mihomo читают и JSON-профили) */
   const CONF_FORMATS = {
     conf: () => ({ name: ($("#cfgFileName") || {}).textContent || "warp.conf", body: buildConf() }),
     clash: () => ({ name: "warp-clash.yaml", body: buildClashYaml() }),
+    clashjson: () => ({ name: "warp-mihomo.json", body: buildMihomoJson() }),
     wiresock: () => ({ name: "warp-wiresock.conf", body: buildWireSockConf() }),
   };
 
@@ -855,6 +885,56 @@
       }
     } catch (e) {
       toast(t("conf.io.09"), "err");
+    }
+  }
+
+  /* ── v2.8.0 (F3): usque config.json (MASQUE) через CLI.
+     Формат usque — ECDSA-ключи и license, которых нет в WG/AWG-части аккаунта;
+     честный источник формата — само ядро: `scan -p masque -target <ep> -conf -
+     -conf-type native` печатает готовый config.json usque для выбранного
+     эндпоинта (как «I1 из сканирования»: короткий мини-скан одного адреса).
+     Результат — диалог сохранения. Отказ (нет аккаунта, пустой вывод,
+     не-JSON) — тост, ничего не пишется. ── */
+  async function runUsqueExport() {
+    if (!confExportReady()) return;
+    if (S.running.usq) { toast(t("scan.lock.02"), "warn"); return; }
+    // эндпоинт: выбранный в конфиге → лучший MASQUE-результат → дефолт QUIC-пула
+    let ep = (S.cfg.endpoint || "").trim();
+    if (!ep || !parseEndpoint(ep)) {
+      const mq = (S.results || []).find((r) => !r.torn && (S.viewProto === "masque" || S.viewProto === "masque-h2"));
+      ep = mq ? mq.endpoint : "162.159.198.2:443";
+    }
+    const p = parseEndpoint(ep);
+    if (!p) { toast(tF("conf.86", { ep: ep }), "err"); return; }
+    S.running.usq = true;
+    const btn = $("#btnExportUsque");
+    if (btn) btn.disabled = true;
+    toast(tF("conf.84", { ep: ep }), "info");
+    const exe = quoteExe();
+    const acc = S.paths.accPath ? " -a " + argPath(S.paths.accPath) : "";
+    const cmd = exe + " scan -p masque -target " + safeVal(p.host) + " -port " + String(p.port) +
+      " -n 1 -conf - -conf-type native" + acc;
+    try {
+      const out = await os().execCommand(cmd);
+      const text = out && typeof out.stdOut === "string" ? out.stdOut : String(out || "");
+      let json = null;
+      try { json = JSON.parse(text.trim()); } catch (e) { json = null; }
+      if (!json || typeof json !== "object" || !json.private_key) {
+        toast(t("conf.85"), "err");
+        return;
+      }
+      const body = JSON.stringify(json, null, 2) + "\n";
+      let path = null;
+      try { path = await os().showSaveDialog(t("conf.io.01"), { defaultPath: "usque-config.json" }); } catch (e) { path = null; }
+      if (!path) { if (IS_MOCK) toast(t("conf.io.02"), "err"); return; }
+      await fs().writeFile(path, body);
+      toast(tF("extra.29", { path: path }), "ok");
+    } catch (e) {
+      toast(tF("extra.30", { err: e && e.message ? e.message : e }), "err");
+    } finally {
+      S.running.usq = false;
+      const btn2 = $("#btnExportUsque");
+      if (btn2) btn2.disabled = false;
     }
   }
 

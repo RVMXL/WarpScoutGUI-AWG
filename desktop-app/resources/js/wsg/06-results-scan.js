@@ -29,15 +29,22 @@
     } // иначе — порядок отчёта warpscout: потери → пинг
 
     // лучший рабочий эндпоинт (мин. TUN PING, иначе PING) — считаем по ПОЛНОЙ выборке,
-    // чтобы звезда не «прыгала» при фильтрации
+    // чтобы звезда не «прыгала» при фильтрации;
+    // v2.8.0 (F6): при «Лучший по скорости» последнего прогона — максимальный SPEED
     let bestEp = "";
     const workingAll = S.results.filter((r) => !r.torn);
     if (workingAll.length) {
-      let bestV = Infinity;
-      workingAll.forEach((r) => {
-        const v = pingMs(r.tunPing || r.ping);
-        if (v < bestV) { bestV = v; bestEp = r.endpoint; }
-      });
+      if (S.viewMeta.withSpeed && S.lastRunParams && S.lastRunParams.bestBySpeed) {
+        const b = bestBySpeedOf(workingAll);
+        if (b) bestEp = b.endpoint;
+      }
+      if (!bestEp) {
+        let bestV = Infinity;
+        workingAll.forEach((r) => {
+          const v = pingMs(r.tunPing || r.ping);
+          if (v < bestV) { bestV = v; bestEp = r.endpoint; }
+        });
+      }
     }
 
     // фильтр результатов (v1.3.0)
@@ -358,7 +365,6 @@
 
   /* ───────── прогон скана ───────── */
   let scanSeq = 0; // v2.4.6 (F31): счётчик запусков — id сессии
-
   /* ── v2.6.6 (запрос пользователя): блокировка параметров скана на время прогона ──
      Случайные нажатия по полям вкладки «Скан» во время скана выглядели как
      «что-то сломалось». Все контролы .scan-form гасятся (disabled + .is-locked);
@@ -418,8 +424,8 @@
     el.scrollTop = el.scrollHeight;
   }
 
-  async function runScan() {
-    if (S.running.scan) return;
+  async function runScan(isAuto) {
+    if (S.running.scan && !isAuto) return; // v2.8.0: isAuto — повтор из цепочки автоподбора I1
     S.running.scan = true;
     setScanRunning(true);
     const s = S.scan;
@@ -454,28 +460,62 @@
     // и SOCKS используют ЕГО, а не текущие поля формы (протокол уже не «уедет»)
     const runParams = sanitizeScan(s);
     S.lastRunParams = runParams;
-    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + "-" + String(runId);
+    // v2.8.0 (F4): план автоподбора I1 — только для AWG и только на старте цепочки
+    // (повтор из autoI1Next план не пересоздаёт). Кандидаты — «If nothing works»
+    // из README ядра: quic → dns → sip → stun → random, минус текущий профиль.
+    if (!isAuto) {
+      S.autoI1Run = s.autoI1 && runParams.proto === "awg"
+        ? { candidates: autoI1Candidates(runParams.genI1), baseGenI1: runParams.genI1 || "", attempt: 0 }
+        : null;
+    }
+    startScanAttempt(runId, runParams, withP, withSpeed, false);
+  }
+
+  /* ── v2.8.0: подготовка и запуск ОДНОЙ попытки скана в рамках сессии.
+     runScan вызывает её для старта; autoI1Next — для следующих профилей
+     (та же сессия runId, чтобы Stop/старые колбэки работали как раньше). ── */
+  async function startScanAttempt(runId, runParams, withP, withSpeed, isAutoCont) {
+    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + "-" + String(runId) +
+      (isAutoCont && S.autoI1Run ? "-i1" + String(S.autoI1Run.attempt) : "");
     S.paths.reportPath = S.paths.reportsDir + "/warpscout-report-" + ts + ".txt";
     await ensureDir(S.paths.reportsDir);
-
-    const cmd = buildScanCmd(runParams);
+    // v2.8.0 (F1): поток включен по умолчанию; S.scanLegacyMode — постоянный фолбэк
+    // сессии после «flag provided but not defined» (старый CLI у пользователя).
+    const useStream = !S.scanLegacyMode && wsSupportsStream();
+    S.scanStream = { on: useStream, lineBuf: "", done: false, doc: null, rows: [], throttled: 0, pending: false, withP: withP, withSpeed: withSpeed, proto: runParams.proto };
+    const cmd = buildScanCmd(runParams, { stream: useStream });
     resetFilterSilently();
     $("#scanLog").textContent = "";
     switchSubtab("log");
-    setPhase(t("scan.process.01"), 2);
+    if (!isAutoCont) setPhase(t("scan.process.01"), 2); // для autocont фазу ставит autoI1Next
     startScanLive();
-    // запоминаем эндпоинты прошлого скана для сравнения (diff)
-    S.prevEndpoints = S.results.length ? new Set(S.results.map((r) => r.endpoint)) : null;
+    // запоминаем эндпоинты прошлого скана для сравнения (diff) — в цепочке
+    // автоподбора сравнение хранится от ДО-цепочного скана, попытки его не сбрасывают
+    if (!isAutoCont) S.prevEndpoints = S.results.length ? new Set(S.results.map((r) => r.endpoint)) : null;
     S.results = [];
+    S.viewMeta = { withP: withP, withSpeed: withSpeed };
+    S.viewProto = runParams.proto;
     renderResults();
     updateCmdPreview();
     S.scanStopped = false;
     try {
-      // v2.4.2 FIX: у os.execCommand в Neutralino 6.10 НЕТ стриминга (опции stream
-      // не существует, событий spawnedProcess он не шлёт, поля id в ответе нет) —
-      // ответ приходит одним куском ПОСЛЕ завершения. spawnProcess даёт живой
-      // стриминг, реальный id для Stop-кнопок и настоящий exit-код.
-      const proc = await os().spawnProcess(cmd);
+      // v2.4.2 FIX: у os.execCommand в Neutralino 6.10 НЕТ стриминга —
+      // spawnProcess даёт живой стриминг, реальный id для Stop-кнопок и exit-код.
+      await launchScanProc(runId, cmd, runParams, withP, withSpeed);
+    } catch (e) {
+      S.running.scan = false;
+      setScanRunning(false);
+      stopScanLive();
+      toast(tF("extra.05", { err: e && e.message ? e.message : e }), "err");
+      switchSubtab("results");
+    }
+  }
+
+  /* ── v2.8.0: запуск процесса скана + подписка на его события.
+     Отделён от runScan, чтобы перезапуск (фолбэк legacy / следующий профиль
+     автоподбора) шёл в рамках той же сессии runId. ── */
+  function launchScanProc(runId, cmd, runParams, withP, withSpeed) {
+    return os().spawnProcess(cmd).then(async (proc) => {
       // v2.4.6 (F32): Stop успели нажать ДО возврата spawn — убиваем немедленно
       if (S.scanCancelRequested || S.scanSession !== runId) {
         try { await os().killProcess(proc.id); } catch (e) {}
@@ -490,52 +530,112 @@
       registerProc(proc.id, (d) => {
         if (d.type === "stdout" || d.type === "stderr") {
           const data = typeof d.data === "string" ? d.data : "";
-          appendLog($("#scanLog"), data);
-          scanLiveFeed(data);
-          buf += data;
-          if (buf.length > 300000) buf = buf.slice(-150000); // v2.4.6 (F36): внутренний буфер ограничен — квадратичный рост исключён
-          // прогресс
-          const mPhase1 = /Phase 1: probing reachable WARP ports: (\d+)\.\.\./.exec(buf);
-          const mPhase2 = /Phase 2: verifying tunnels \(proto=(\w+)\): (\d+)\.\.\./.exec(buf);
-          const mSpeed = /Speedtest|speed test|Measuring speed/i.test(buf);
-          const mStep = /(\d+)\/(\d+)\s*$/.exec(buf.trim());
-          if (mPhase1) setPhase(t("scan.process.02"), null);
-          if (mPhase2) setPhase(t("scan.process.03"), null);
-          if (mSpeed && !mStep) setPhase(t("scan.process.04"), null);
-          if (mStep) {
-            const frac = (+mStep[1] / Math.max(1, +mStep[2])) * 100;
-            setPhase(mPhase2 ? t("scan.process.03") : t("scan.process.02"), frac);
+          if (S.scanStream && S.scanStream.on) {
+            scanStreamFeed(data); // v2.8.0: NDJSON — вехи/таблицу пишет scanStreamFeed
+          } else {
+            appendLog($("#scanLog"), data);
+            scanLiveFeed(data);
+            buf += data;
+            if (buf.length > 300000) buf = buf.slice(-150000); // v2.4.6 (F36)
+            // прогресс
+            const mPhase1 = /Phase 1: probing reachable WARP ports: (\d+)\.\.\./.exec(buf);
+            const mPhase2 = /Phase 2: verifying tunnels \(proto=(\w+)\): (\d+)\.\.\./.exec(buf);
+            const mSpeed = /Speedtest|speed test|Measuring speed/i.test(buf);
+            const mStep = /(\d+)\/(\d+)\s*$/.exec(buf.trim());
+            if (mPhase1) setPhase(t("scan.process.02"), null);
+            if (mPhase2) setPhase(t("scan.process.03"), null);
+            if (mSpeed && !mStep) setPhase(t("scan.process.04"), null);
+            if (mStep) {
+              const frac = (+mStep[1] / Math.max(1, +mStep[2])) * 100;
+              setPhase(mPhase2 ? t("scan.process.03") : t("scan.process.02"), frac);
+            }
+          }
+          // v2.8.0: старое ядро не знает -stream-json — CLI падает с
+          // «flag provided but not defined: -stream-json» до всяких результатов.
+          // Один тихий перезапуск БЕЗ потока (обычный файл отчёта).
+          if (S.scanStream && S.scanStream.on && /flag provided but not defined/.test(data)) {
+            S.scanStream.on = false;
+            S.scanLegacyMode = true;
+            appendLog($("#scanLog"), "\n[GUI] " + t("scan.stream.01") + "\n");
           }
         } else if (d.type === "exit") {
           unregisterProc(proc.id);
           // v2.4.6 (F31): устаревшая сессия не трогает UI
           if (S.scanSession !== runId) return;
-          setPhase(S.scanStopped ? t("scan.process.05") : t("scan.process.06"), 100);
-          if (!S.scanStopped) {
-            // v2.4.6 (F31): running.scan держится true, ПОКА не дочитан отчёт —
-            // новый скан не сможет вклиниться в финализацию старого
-            finishScan(withP, withSpeed, exitCodeOf(d.data), runParams)
-              .catch(() => {})
-              .then(() => {
-                if (S.scanSession === runId) {
-                  S.running.scan = false;
-                  setScanRunning(false);
-                }
-              });
-          } else {
-            S.running.scan = false;
-            setScanRunning(false);
-            toast(t("scan.process.07"), "ok");
-          }
+          handleScanExit(runId, exitCodeOf(d.data), runParams, withP, withSpeed, buf);
         }
       });
-    } catch (e) {
+    });
+  }
+
+  /* ── v2.8.0: выход процесса скана — фолбэк legacy, финализация, автоподбор I1 ── */
+  function handleScanExit(runId, exitCode, runParams, withP, withSpeed, logBuf) {
+    setPhase(S.scanStopped ? t("scan.process.05") : t("scan.process.06"), 100);
+    if (S.scanStopped) {
       S.running.scan = false;
       setScanRunning(false);
-      stopScanLive();
-      toast(tF("extra.05", { err: e && e.message ? e.message : e }), "err");
-      switchSubtab("results");
+      toast(t("scan.process.07"), "ok");
+      return;
     }
+    // v2.8.0 (F1): CLI упал с «flag provided…» и потока не было — тихий
+    // перезапуск этой же сессии в обычном режиме (файл отчёта)
+    if (
+      S.scanStream && S.scanStream.on && !S.scanStream.done && exitCode !== 0 &&
+      /flag provided but not defined/.test(String(logBuf || ""))
+    ) {
+      S.scanStream.on = false;
+      S.scanLegacyMode = true;
+      appendLog($("#scanLog"), "\n[GUI] " + t("scan.stream.01") + "\n");
+      const cmd = buildScanCmd(runParams, { stream: false });
+      launchScanProc(runId, cmd, runParams, withP, withSpeed).catch(() => {});
+      return;
+    }
+    // v2.4.6 (F31): running.scan держится true, ПОКА не дочитан отчёт —
+    // новый скан не сможет вклиниться в финализацию старого
+    const fin = S.scanStream && S.scanStream.on
+      ? finishScanStream(S.scanStream, exitCode, runParams)
+      : finishScan(withP, withSpeed, exitCode, runParams);
+    fin
+      .catch(() => {})
+      .then((res) => {
+        if (S.scanSession !== runId) return;
+        // v2.8.0 (F4): автоподбор I1 — скан пустой, остались профили
+        if (autoI1Next(runParams, res || { working: 0, torn: 0 })) return;
+        S.running.scan = false;
+        setScanRunning(false);
+      });
+  }
+
+  /* ── v2.8.0 (F4): продолжение автоподбора профиля I1.
+     Возвращает true, если следующая попытка запущена (UI остаётся в
+     состоянии «скан идёт»); false — цепочка кончилась. ── */
+  function autoI1Next(runParams, res) {
+    const plan = S.autoI1Run;
+    if (!plan || S.scanStopped || S.scanCancelRequested || S.scanSession !== scanSeq) return false;
+    if (res && res.working > 0) {
+      // нашлась связка — если профиль меняли, сообщаем и оставляем его в конструкторе
+      if ((plan.baseGenI1 || "") !== (S.scan.genI1 || "")) {
+        toast(tF("scan.autoi1.04", { p: S.scan.genI1 }), "ok");
+      }
+      S.autoI1Run = null;
+      return false;
+    }
+    if (!plan.candidates.length) {
+      toast(t("scan.autoi1.05"), "err");
+      S.autoI1Run = null;
+      return false;
+    }
+    const next = plan.candidates.shift();
+    plan.attempt += 1;
+    S.scan.genI1 = next;
+    syncInputsFromState();
+    updateCmdPreview();
+    const done = plan.attempt + 1; // попытка, которая сейчас начнётся
+    const total = plan.attempt + 1 + plan.candidates.length;
+    setPhase(tF("scan.autoi1.03", { p: next, n: done, m: total }), 2);
+    toast(tF("scan.autoi1.03", { p: next, n: done, m: total }), "info");
+    startScanAttempt(S.scanSession, runParams, !!runParams.tunPing, !!(runParams.speed || runParams.bestBySpeed), true);
+    return true;
   }
 
   async function finishScan(withP, withSpeed, exitCode, runParams) {
@@ -556,11 +656,27 @@
         toast(t("scan.process.10"), "err");
         switchSubtab("results");
       }
-      return;
+      return { working: 0, torn: 0 };
     }
-    S.results = parseReport(text, withP, withSpeed);
-    S.viewMeta = { withP, withSpeed };
-    S.viewProto = (runParams && runParams.proto) || S.scan.proto; // v2.4.6 (F30): протокол ИМЕННО этого запуска
+    const rows = parseReport(text, withP, withSpeed);
+    return finalizeScanResults(
+      rows,
+      { withP: withP, withSpeed: withSpeed, proto: (runParams && runParams.proto) || S.scan.proto, reportPath: S.paths.reportPath },
+      exitCode,
+      runParams
+    );
+  }
+
+  /* ───────── v2.8.0: единая финализация скана ─────────
+     Раньше это был хвост finishScan (файл отчёта). Теперь финализация общая
+     для обоих источников строк: файл отчёта (legacy/старое ядро) и поток
+     -stream-json (done-документ). Лучший эндпоинт — с учётом «Лучший по
+     скорости» (F6); в цепочке автоподбора I1 промежуточные пустые попытки
+     историю не засоряют. */
+  function finalizeScanResults(rows, meta, exitCode, runParams) {
+    S.results = rows;
+    S.viewMeta = { withP: meta.withP, withSpeed: meta.withSpeed };
+    S.viewProto = meta.proto; // v2.4.6 (F30): протокол ИМЕННО этого запуска
     // diff с прошлым сканом
     if (S.prevEndpoints) {
       const curSet = new Set(S.results.map((r) => r.endpoint));
@@ -571,13 +687,18 @@
       S.diff = null;
     }
     S.selected = S.results.find((r) => !r.torn) ? S.results.find((r) => !r.torn).endpoint : "";
-    pushHistory(S.viewProto);
+    // v2.8.0 (F4): промежуточная пустая попытка автоподбора (есть ещё
+    // кандидаты) не пишет историю — финальная попытка запишет итог цепочки
+    const plan = S.autoI1Run;
+    const chainContinues = !!(plan && !S.results.some((r) => !r.torn) && plan.candidates.length);
+    if (!chainContinues) pushHistory(S.viewProto);
     S.staggerNext = true; // v1.7.0: строки таблицы появятся каскадом
     stopScanLive(); // v1.8.0: прячем живую панель
     renderResults();
     // v2.6.4 (запрос пользователя): после скана сразу ставим лучший эндпоинт —
-    // чтобы «В конфиг»/генерация работали с ним без лишних кликов
-    const gBest = endpointGroups(S.results).best;
+    // чтобы «В конфиг»/генерация работали с ним без лишних кликов;
+    // v2.8.0 (F6): «Лучший по скорости» — если гонка была с -best-by speed
+    const gBest = pickRunBest(S.results, runParams);
     if (gBest) {
       S.cfg.endpoint = gBest.endpoint;
       const inp = $("#cfgEndpoint");
@@ -586,9 +707,11 @@
     }
     fillEndpointSelect();
     switchSubtab("results");
-    // v2.5.2 (Android): копия отчёта в общую папку Download/WARPScoutGUI —
-    // иначе отчёт лежит в приватном каталоге, недоступном без root
-    if (IS_ANDROID) mirrorPublic(S.paths.reportPath).then((pub) => { if (pub) toast(tF("conf.56", { p: pub }), "info"); });
+    if (meta.reportPath) {
+      // v2.5.2 (Android): копия отчёта в общую папку Download/WARPScoutGUI —
+      // иначе отчёт лежит в приватном каталоге, недоступном без root
+      if (IS_ANDROID) mirrorPublic(meta.reportPath).then((pub) => { if (pub) toast(tF("conf.56", { p: pub }), "info"); });
+    }
     const working = S.results.filter((r) => !r.torn).length;
     const torn = S.results.length - working;
     // v2.4.6 (F35): отчёт есть, но exit ненулевой — честно показываем фактический код
@@ -601,6 +724,86 @@
     } else {
       toast(torn ? tF("scan.process.16", { t: torn }) : t("scan.process.13"), "err");
     }
+    return { working: working, torn: torn };
+  }
+
+  // v2.8.0 (F6): лучший эндпоинт прогона — с учётом «Лучший по скорости»
+  function pickRunBest(results, runParams) {
+    if (runParams && runParams.bestBySpeed) {
+      const b = bestBySpeedOf(results);
+      if (b) return b;
+    }
+    return endpointGroups(results).best;
+  }
+
+  /* ── v2.8.0 (F1): финализация потокового прогона. done-документ —
+     авторитетные данные (working/torn/picks); если done не пришёл
+     (обрыв, гонка) — фолбэк на файл отчёта, он всё равно пишется (-o). ── */
+  async function finishScanStream(st, exitCode, runParams) {
+    if (st && st.done && st.doc) {
+      const conv = streamDoneToResults(st.doc);
+      return finalizeScanResults(
+        conv.results,
+        { withP: st.withP, withSpeed: st.withSpeed, proto: (runParams && runParams.proto) || S.scan.proto, reportPath: S.paths.reportPath },
+        exitCode,
+        runParams
+      );
+    }
+    return finishScan(st ? st.withP : true, st ? st.withSpeed : false, exitCode, runParams);
+  }
+
+  /* ───────── v2.8.0 (F1): поток -stream-json ───────── */
+  // Склейка чанков stdout в строки NDJSON → события. В лог пишем только вехи
+  // (фазы и ошибки CLI) — сырой JSON в журнале — шум; живая таблица растёт
+  // из endpoint-событий с троттлингом рендера.
+  function scanStreamFeed(data) {
+    const st = S.scanStream;
+    if (!st) return;
+    st.lineBuf += String(data == null ? "" : data);
+    let idx;
+    while ((idx = st.lineBuf.indexOf("\n")) !== -1) {
+      const line = st.lineBuf.slice(0, idx);
+      st.lineBuf = st.lineBuf.slice(idx + 1);
+      handleStreamEvent(streamParseLine(line));
+    }
+  }
+
+  function handleStreamEvent(ev) {
+    const st = S.scanStream;
+    if (!st || !ev) return;
+    if (ev.event === "progress") {
+      const ph = ev.phase === "ports" ? t("scan.process.02") : ev.phase === "tunnels" ? t("scan.process.03") : t("scan.process.04");
+      const total = +ev.total > 0 ? +ev.total : 0;
+      const frac = total ? Math.max(2, Math.min(100, (+ev.done / total) * 100)) : null;
+      setPhase(ph, frac);
+      appendLog($("#scanLog"), "[GUI] " + ph + " " + (+ev.done || 0) + "/" + total + "\n");
+      scanLiveProgress(+ev.done || 0, total); // график живой панели
+    } else if (ev.event === "endpoint") {
+      const row = streamEpToRow(ev.endpoint);
+      if (row) {
+        st.rows.push(row);
+        scanLiveEndpoint(row); // чип узла + счётчики
+        renderStreamTable(); // троттлингованная перерисовка живой таблицы
+      }
+    } else if (ev.event === "error") {
+      appendLog($("#scanLog"), "[CLI] " + String(ev.error || "") + "\n");
+    } else if (ev.event === "done") {
+      st.done = true;
+      st.doc = ev.result || null;
+    }
+  }
+
+  // Живая таблица из потока: перерисовка не чаще раза в 800 мс — на полном
+  // -f скане endpoint-событий сотни, полный рендер на каждый — дорого.
+  function renderStreamTable() {
+    const st = S.scanStream;
+    if (!st) return;
+    const now = Date.now();
+    if (st.throttled && now - st.throttled < 800) { st.pending = true; return; }
+    st.throttled = now;
+    st.pending = false;
+    S.results = st.rows.slice();
+    renderResults();
   }
 
   async function stopScan() {

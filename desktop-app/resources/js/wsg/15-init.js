@@ -120,6 +120,12 @@
       stUpd.addEventListener("click", openWsUpd);
       stUpd.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openWsUpd(); } });
     }
+    // v2.8.0 (F2): строка «⬆ WarpScoutGUI … — есть обновление» — страница релизов GUI
+    const stGui = $("#stGuiUpd");
+    if (stGui) {
+      stGui.addEventListener("click", openGuiUpd);
+      stGui.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openGuiUpd(); } });
+    }
     $("#btnToConfig").addEventListener("click", () => {
       const best = S.results.find((r) => !r.torn);
       if (!best) { toast(t("toasts.10"), "err"); return; }
@@ -203,6 +209,11 @@
     // v2.7.0: экспорт для сторонних клиентов (Clash / WireSock)
     $("#btnExportClash").addEventListener("click", () => saveConf("clash"));
     $("#btnExportWs").addEventListener("click", () => saveConf("wiresock"));
+    // v2.8.0 (F3): mihomo-JSON и usque config.json
+    const bMj = document.getElementById("btnExportClashJson");
+    if (bMj) bMj.addEventListener("click", () => saveConf("clashjson"));
+    const bUq = document.getElementById("btnExportUsque");
+    if (bUq) bUq.addEventListener("click", runUsqueExport);
 
     // аккаунт
     $("#btnRegister").addEventListener("click", () => runRegister(false));
@@ -249,8 +260,9 @@
     // socks
     $("#btnSocksRun").addEventListener("click", socksToggle);
     $("#btnSocksStop").addEventListener("click", socksToggle);
+    // v2.8.0 (F6): «★ Лучший» — с учётом «Лучший по скорости» последнего прогона
     $("#btnSocksBest").addEventListener("click", () => {
-      const best = S.results.find((r) => !r.torn);
+      const best = pickRunBest(S.results, S.lastRunParams) || S.results.find((r) => !r.torn);
       if (!best) { toast(t("misc.35"), "err"); return; }
       $("#socksEndpoint").value = best.endpoint;
       $("#socksProto").value = S.scan.proto;
@@ -521,10 +533,32 @@
       S.wsVersion = "0.17.0"; // демо: считаем warpscout найденным
       renderStatusWs();
       checkWsUpdate(); // v2.7.3: демо-подсказка о новой версии warpscout (условные данные)
+      checkGuiUpdate(); // v2.8.0 (F2): демо-банер новой версии GUI (условные данные)
     } else {
       checkWarpscout();
+      checkGuiUpdate().catch(() => {}); // v2.8.0 (F2): банер новой версии GUI (fire-and-forget, молчалив)
     }
     renderAccountStatusline();
+
+    // v2.8.0 (F8): предупреждение при закрытии окна с активным SOCKS-прокси.
+    // windowClose зарегистрирован → рантайм НЕ завершает процесс сам, мы обязаны
+    // вызвать app.exit() во всех ветках. Десктоп-режим: в демо окна нет,
+    // на Android событие не приходит (обратная кнопка закрывает Activity).
+    if (HAS_NL && !IS_MOCK && !IS_ANDROID && window.Neutralino.events && window.Neutralino.app && window.Neutralino.app.exit) {
+      try {
+        window.Neutralino.events.on("windowClose", async () => {
+          try {
+            if (S.running.socks) {
+              if (!confirm(t("socks.close.01"))) return; // остаёмся открытыми
+              await killProc(S.procIds.socks); // SOCKS убиваем вместе с окном
+              S.procIds.socks = null;
+            }
+            try { await flushSave(); } catch (e) {} // состояние — на диск перед выходом
+          } catch (e) { /*anything*/ }
+          try { await window.Neutralino.app.exit(); } catch (e) {}
+        });
+      } catch (e) { /* рантайм без события — закроется штатно */ }
+    }
   }
 
   // отладочный хук (безвредно): помогает диагностике через консоль
@@ -539,7 +573,10 @@
   else syncSidebarVer();
 
   // v2.4.6: + валидаторы/санитайзеры (аудит-тесты и диагностика)
-  window.__WSGUI = { S, syncStateFromInputs, syncInputsFromState, syncCfgFromInputs, syncCfgInputsFromState, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildScanArgs, argPath, buildCheckCmd, buildI1Cmd, parseI1Output, finishI1, i1FromScan, checkWarpscout, bindProcEvents, restoreState, computePaths, buildConf, buildClashYaml, buildWireSockConf, saveConf, parseReport, switchTab, parseConfText, applyImportedConf, applyImportedState, applyImportedPresets, applyFoundCmd, parseEndpoint, splitEpPort, safeVal, enumOf, clampInt, sanitizeScan, sanitizeCfg, sanitizeHistoryItem, sanitizeQcItem, sanitizePresets, csvSafe, isWgKey, validateAccountJson, normWinPath, isSameWinPath, isWinPathInside, migrateData, migrateAndroidLegacyData, confExportReady, defaultCfg, flushSave, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage, endpointGroups, renderNodeFilterBadge, applyScanLock, setScanParamsLocked, normI1Store, isI1RawPacket, PRESETS, wsSupports31, scanProtoOf, awg31Args, wsParseTag, wsUpdFor, checkWsUpdate, renderWsUpd };
+  // v2.8.0: + поток/автоподбор/банер GUI/mihomo-json (streamParseLine, streamEpToRow,
+  //   streamDoneToResults, autoI1Candidates, bestBySpeedOf, pickRunBest, wsSupports,
+  //   wsSupportsStream, guiParseTag, guiUpdFor, buildMihomoJson, finalizeScanResults)
+  window.__WSGUI = { S, syncStateFromInputs, syncInputsFromState, syncCfgFromInputs, syncCfgInputsFromState, runScan: () => runScan().catch((e) => console.error("runScan:", e)), buildScanCmd, buildScanArgs, argPath, buildCheckCmd, buildI1Cmd, parseI1Output, finishI1, i1FromScan, checkWarpscout, bindProcEvents, restoreState, computePaths, buildConf, buildClashYaml, buildMihomoJson, buildWireSockConf, saveConf, parseReport, switchTab, parseConfText, applyImportedConf, applyImportedState, applyImportedPresets, applyFoundCmd, parseEndpoint, splitEpPort, safeVal, enumOf, clampInt, sanitizeScan, sanitizeCfg, sanitizeHistoryItem, sanitizeQcItem, sanitizePresets, csvSafe, isWgKey, validateAccountJson, normWinPath, isSameWinPath, isWinPathInside, migrateData, migrateAndroidLegacyData, confExportReady, defaultCfg, flushSave, histBestPing, openCompare, renderCmpBody, toggleCmp, fillCmpSelectors, exportTrendCsv, importAccount, registerHintFor, renderDataFolder, detectUdfJunction, repairUdfJunction, migrateLegacyData, applyDataRoot, exeDirName, exeFileName, resolveWarpscoutPath, wsCandidates, wsFileExists, wsDiagText, openWsFolder, updateWsFullPath, qrPagesFor, qrB64url, showConfQr, renderQrPage, endpointGroups, renderNodeFilterBadge, applyScanLock, setScanParamsLocked, normI1Store, isI1RawPacket, PRESETS, wsSupports31, scanProtoOf, awg31Args, wsParseTag, wsUpdFor, checkWsUpdate, renderWsUpd, wsSupports, wsSupportsStream, streamParseLine, streamEpToRow, streamDoneToResults, streamNum, autoI1Candidates, bestBySpeedOf, pickRunBest, finalizeScanResults, finishScanStream, guiParseTag, guiUpdFor, checkGuiUpdate, renderGuiUpd, loadHistory, retryHistory };
 
   if (HAS_NL) {
     window.addEventListener("load", () => {

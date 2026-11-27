@@ -22,14 +22,26 @@
     const m = String(v == null ? "" : v).match(/(\d+)\.(\d+)(?:\.(\d+))?/);
     return m ? [+m[1], +m[2], +m[3] || 0] : null;
   }
-  function wsSupports31() {
+  // v2.8.0: обобщённый гейт версии ядра (wsSupports31 — частный случай 0.17.0).
+  // Версия неизвестна → false (безопасный режим без нового флага).
+  function wsSupports(major, minor, patch) {
     const p = wsVersionParts(S.wsVersion);
-    if (!p) return false; // версия неизвестна — безопасный обычный awg
-    const need = [0, 17, 0];
+    if (!p) return false;
+    const need = [major, minor, patch || 0];
     for (let i = 0; i < 3; i++) {
       if (p[i] !== need[i]) return p[i] > need[i];
     }
     return true;
+  }
+  function wsSupports31() {
+    return wsSupports(0, 17, 0);
+  }
+  // v2.8.0: -stream-json появился в warpscout 0.17.0 (vernette release notes:
+  // «scan -json and -stream-json …, described by schema/warpscout-v1.schema.json»).
+  // Тот же гейт, что и для awg31: комплект несёт 0.17.0, свой старый CLI — тихий
+  // откат к обычному режиму (файл отчёта), без «flag provided but not defined».
+  function wsSupportsStream() {
+    return wsSupports(0, 17, 0);
   }
   function scanProtoOf(pr) {
     return pr === "awg" && String((S.cfg && S.cfg.ver) || "") === "awg31" && wsSupports31() ? "awg31" : pr;
@@ -115,9 +127,15 @@
     return a;
   }
 
-  function buildScanCmd(s) {
+  // v2.8.0: opts.stream — добавить -stream-json (живой NDJSON-поток событий для
+  // GUI: progress/endpoint/error/done, схема warpscout-v1). Флаг добавляется
+  // ТОЛЬКО если ядро 0.17+ (wsSupportsStream) — старый CLI не знал флага.
+  // -o не убираем: CLI подавляет отчёт при -stream-json, но явный -o возвращает
+  // его обратно — файл отчёта по-прежнему нужен (Android-зеркало, fallback).
+  function buildScanCmd(s, opts) {
     const exe = quoteExe();
     const args = buildScanArgs(s);
+    if (opts && opts.stream && wsSupportsStream()) args.push("-stream-json");
     // v2.6.2 (аудит FE-1): пути отчёта/аккаунта — через argPath (раньше —
     // голые двойные кавычки в обход psQuote/cmdWinPath)
     const report = S.paths.reportPath || "warpscout-report.txt";
@@ -199,6 +217,7 @@
   }
 
   // Единый разбор «endpoint» (host:port). Возвращает { host, port } или null.
+  // (используется и потоком: endpoint-строки событий схемы совпадают с отчётом)
   // host — IPv4/IPv6/имя БЕЗ скобок (скобки снимаем), port — 1..65535.
   // Пробелы и shell-символы не проходят по определению символьного класса —
   // поэтому импортированная история не может протащить «1.1.1.1 & echo …» в -target.
@@ -229,13 +248,99 @@
   }
 
   function updateCmdPreview() {
-    const cmd = buildScanCmd(S.scan);
+    const cmd = buildScanCmd(S.scan, { stream: !S.scanLegacyMode });
     // в демо/до инициализации путей показываем читаемую команду без абсолютных путей
     const show = IS_MOCK
       ? cmd.replace(/^"[^"]*"/, "warpscout").replace(/ -o "[^"]*"/, "").replace(/ -a "[^"]*"/, "")
       : cmd;
     $("#cmdPreview").textContent = show;
     renderNodeFilterBadge(); // v2.6.4: живой индикатор фильтров узлов (реагирует на те же события)
+  }
+
+  /* ───────── v2.8.0: разбор NDJSON-потока (-stream-json) ─────────
+     Схема warpscout-v1.schema.json. Строка stdout = один JSON-событие:
+     {event:"progress", phase:"ports"|"tunnels"|"speed", done, total},
+     {event:"endpoint", endpoint:{…}}, {event:"error", error},
+     {event:"done", result:{…}}. Мусор/незавершённые строки (stdout идёт
+     чанками) возвращают null — чанк-буфер склеивается до строки. */
+  function streamParseLine(line) {
+    const s = String(line == null ? "" : line).trim();
+    if (!s || s.charAt(0) !== "{") return null;
+    let o;
+    try { o = JSON.parse(s); } catch (e) { return null; }
+    if (!o || typeof o !== "object" || typeof o.event !== "string") return null;
+    return o;
+  }
+
+  // Число/null → строка колонки отчёта: 41 → «41ms», 0% → «0%», скорость как есть.
+  // Пустота (null/undefined/NaN) → "" — рендер уже умеет показывать «?»/«—».
+  function streamNum(v, unit, digits) {
+    if (v == null || !isFinite(+v)) return "";
+    const n = +v;
+    if (digits == null) return String(Math.round(n)) + unit;
+    return String(Math.round(n * Math.pow(10, digits)) / Math.pow(10, digits)) + unit;
+  }
+
+  // endpoint-объект схемы → строка таблицы GUI (форма строки parseReport):
+  // {endpoint, ping, tunPing, loss, speed, seenAs, node, loc, torn}
+  function streamEpToRow(ep) {
+    if (!ep || typeof ep !== "object" || !ep.endpoint || !/:\d+$/.test(String(ep.endpoint))) return null;
+    const loc = [ep.node_city, ep.node_country]
+      .filter((x) => x != null && String(x).trim())
+      .map((x) => String(x).trim())
+      .join(", ");
+    return {
+      endpoint: String(ep.endpoint),
+      ping: streamNum(ep.ping_ms, "ms"),
+      tunPing: streamNum(ep.tun_ping_ms, "ms"),
+      loss: streamNum(ep.loss_pct, "%"),
+      speed: streamNum(ep.speed_mbps, "", 1),
+      seenAs: ep.seen_as == null ? "" : String(ep.seen_as),
+      node: ep.node == null ? "" : String(ep.node),
+      loc: loc,
+      torn: !!ep.torn,
+    };
+  }
+
+  // done-документ (result) → массив строк для таблицы: working[] + torn[],
+  // порядок CLI («best first») сохраняется — это порядок отчёта.
+  function streamDoneToResults(doc) {
+    const r = doc && typeof doc === "object" ? doc : {};
+    const rows = [];
+    const add = (list, tornForce) => {
+      if (!Array.isArray(list)) return;
+      for (const ep of list) {
+        const row = streamEpToRow(ep);
+        if (row) { row.torn = row.torn || !!tornForce; rows.push(row); }
+      }
+    };
+    add(r.working, false);
+    add(r.torn, true);
+    return { results: rows, best: r.best || "", picks: Array.isArray(r.picks) ? r.picks : [], total: r.total || 0, workingCount: r.working_count || 0 };
+  }
+
+  /* ───────── v2.8.0: автоподбор профиля I1 (F4) ─────────
+     Порядок из «If nothing works» CLI-README: quic → dns → sip → stun → random.
+     Кандидаты = все профили минус текущий. Чистая функция — покрыта тестами. */
+  const I1_AUTO_ORDER = ["quic", "dns", "sip", "stun", "random"];
+  function autoI1Candidates(currentGenI1) {
+    const cur = String(currentGenI1 == null ? "" : currentGenI1);
+    return I1_AUTO_ORDER.filter((p) => p !== cur);
+  }
+
+  // v2.8.0 (F6): лучший по СКОРОСТИ (max speed_mbps) среди рабочих с замером.
+  // Пустой/без -speed → null. Пинг-лучший остаётся в endpointGroups.
+  function bestBySpeedOf(results) {
+    let best = null;
+    let bestV = -1;
+    for (const r of results || []) {
+      if (!r || r.torn || !r.endpoint) continue;
+      const v = parseFloat(r.speed);
+      if (!isFinite(v) || v <= bestV) continue;
+      bestV = v;
+      best = r;
+    }
+    return best;
   }
 
   /* ───────── парсер отчёта ───────── */

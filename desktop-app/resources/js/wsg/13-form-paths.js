@@ -75,6 +75,10 @@
     s.ipv6 = $("#fIpv6").checked;
     s.speed = $("#fSpeed").checked;
     s.bestBySpeed = $("#fBestBySpeed").checked;
+    // v2.8.0 (F4): автоподбор I1 (guard: в тестовом окружении поля может не быть)
+    const aI1 = document.getElementById("fAutoI1");
+    if (aI1) s.autoI1 = aI1.checked;
+    if (IS_MOCK && window.NeutralinoMock) window.NeutralinoMock.autoI1Armed = !!s.autoI1; // демо-сценарий пустого скана
   }
 
   function syncInputsFromState() {
@@ -106,6 +110,8 @@
     $("#fIpv6").checked = s.ipv6;
     $("#fSpeed").checked = s.speed;
     $("#fBestBySpeed").checked = s.bestBySpeed;
+    const aI1b = document.getElementById("fAutoI1");
+    if (aI1b) aI1b.checked = !!s.autoI1; // v2.8.0 (F4)
     $$("#protoSeg .seg__btn").forEach((b) => b.classList.toggle("is-active", b.getAttribute("data-proto") === s.proto));
     $$("#i1Seg .seg__btn").forEach((b) => b.classList.toggle("is-active", (b.getAttribute("data-i1") || "") === (s.genI1 || "")));
     $("#cardAwg").classList.toggle("hidden", s.proto !== "awg");
@@ -416,6 +422,93 @@
       S.wsUpdLatest = wsUpdFor(S.wsVersion, j.tag_name);
       try { localStorage.setItem("wsg.wsUpd.v1", JSON.stringify({ ts: Date.now(), latest: String(j.tag_name) })); } catch (e) {}
       renderWsUpd();
+    } catch (e) { /* нет сети / таймаут / лимит — молча */ }
+  }
+
+  /* ───────── v2.8.0: подсказка о новой версии самого WarpScoutGUI (F2) ─────────
+     Симметрично подсказке warpscout (v2.7.3): раз за сессию (и не чаще раза в
+     12 ч — своя метка в localStorage) читаем последний релиз СВОЕГО репозитория
+     (RVMXL/WarpScoutGUI-AWG через releases/latest — пререлизы и черновики GitHub
+     в этот эндпоинт не отдаёт, значит банер появляется только когда версия
+     переведена в полноценный релиз) и при более свежей версии показываем строку
+     ⬆ в статус-линии. Тот же внешний хост api.github.com из CSP, read-only,
+     без данных пользователя; любая ошибка — молча. */
+  const GUI_UPD_URL = "https://api.github.com/repos/RVMXL/WarpScoutGUI-AWG/releases/latest";
+  const GUI_UPD_TTL = 12 * 60 * 60 * 1000; // повтор не чаще раза в 12 ч
+
+  function guiAppVersion() {
+    // единый источник версии GUI — neutralino.config.json через NL_APPVERSION
+    return String(window.NL_APPVERSION || "").trim();
+  }
+  function guiParseTag(tag) {
+    // теги этого репо: «v2.8.0»; мусор/пустота → "" (банер не показывается)
+    const m = String(tag == null ? "" : tag).trim().match(/^v?(\d+\.\d+(?:\.\d+)?)/);
+    return m ? m[1] : "";
+  }
+  function guiUpdFor(cur, latestTag) {
+    const lat = guiParseTag(latestTag);
+    const a = wsVersionParts(cur);
+    const b = wsVersionParts(lat);
+    if (!a || !b) return "";
+    for (let i = 0; i < 3; i++) {
+      if (a[i] !== b[i]) return b[i] > a[i] ? lat : "";
+    }
+    return ""; // та же версия — тишина
+  }
+  function renderGuiUpd() {
+    const el = $("#stGuiUpd");
+    if (!el) return;
+    if (S.guiUpdLatest && S.guiUpdCur === guiAppVersion()) {
+      el.hidden = false;
+      el.textContent = tF("upd.03", { v: S.guiUpdLatest });
+      el.title = tF("upd.04", { v: S.guiUpdLatest, cur: S.guiUpdCur });
+      el.className = "statusline__row is-upd";
+      el.setAttribute("role", "button");
+      el.setAttribute("tabindex", "0");
+    } else {
+      el.hidden = true;
+      el.textContent = "";
+      el.className = "statusline__row";
+      el.removeAttribute("title");
+      el.removeAttribute("role");
+      el.removeAttribute("tabindex");
+    }
+  }
+  function openGuiUpd() {
+    const url = "https://github.com/RVMXL/WarpScoutGUI-AWG/releases";
+    if (IS_MOCK) { window.open(url, "_blank", "noopener"); return; }
+    try { Promise.resolve(os().open(url)).catch(() => {}); } catch (e) {}
+  }
+  async function checkGuiUpdate() {
+    const cur = guiAppVersion();
+    if (!cur) return; // версия GUI неизвестна — нечему подсказывать
+    if (S.guiUpdLatest && S.guiUpdCur === cur) { renderGuiUpd(); return; }
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem("wsg.guiUpd.v1") || "null"); } catch (e) { cached = null; }
+    if (cached && cached.latest && Date.now() - (cached.ts || 0) < GUI_UPD_TTL) {
+      S.guiUpdCur = cur;
+      S.guiUpdLatest = guiUpdFor(cur, cached.latest);
+      renderGuiUpd();
+      return;
+    }
+    if (IS_MOCK) { // демо: вид банера на заведомо свежей «версии» (данные условные)
+      S.guiUpdCur = cur;
+      S.guiUpdLatest = guiUpdFor(cur, "v2.9.0");
+      renderGuiUpd();
+      return;
+    }
+    try {
+      const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const tm = ctl ? setTimeout(() => ctl.abort(), 10000) : null;
+      const res = await fetch(GUI_UPD_URL, { headers: { "Accept": "application/vnd.github+json" }, signal: ctl ? ctl.signal : undefined });
+      if (tm) clearTimeout(tm);
+      if (!res.ok) return; // сеть/лимит API — молча, повторим при следующем запуске
+      const j = await res.json();
+      if (!j || !j.tag_name) return;
+      S.guiUpdCur = cur;
+      S.guiUpdLatest = guiUpdFor(cur, j.tag_name);
+      try { localStorage.setItem("wsg.guiUpd.v1", JSON.stringify({ ts: Date.now(), latest: String(j.tag_name) })); } catch (e) {}
+      renderGuiUpd();
     } catch (e) { /* нет сети / таймаут / лимит — молча */ }
   }
 

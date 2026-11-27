@@ -74,6 +74,45 @@
     try { homeScanTick(); } catch (e) {} // v2.5.4: шаги/узлы на главной
   }
 
+  /* ── v2.8.0 (F1): события потока -stream-json → живая панель.
+     progress(done,total) — тик графика; endpoint-строка — чип узла и счётчики.
+     Данные уже структурированы (схема warpscout-v1), regex не нужен. ── */
+  function scanLiveProgress(done, total) {
+    if (!live.on) return;
+    if (!total) return;
+    live.steps.push({ t: Date.now() - live.t0, done: done, total: total });
+    if (live.steps.length > 600) live.steps = live.steps.slice(-400);
+    drawScanLive();
+    const meta = $("#scanLiveMeta");
+    if (meta && live.steps.length) {
+      const last = live.steps[live.steps.length - 1];
+      meta.textContent = t("live.14") + " " + last.done + "/" + last.total + " · " + t("live.15") + " " + live.nodes.length;
+    }
+    try { homeScanTick(); } catch (e) {}
+  }
+
+  function scanLiveEndpoint(row) {
+    if (!live.on || !row || !row.node) return;
+    const key = (row.seenAs || "??") + " " + row.node;
+    if (!live.nodes.some((n) => n.key === key)) {
+      live.nodes.push({ key: key, ep: row.endpoint });
+      const box = $("#scanLiveNodes");
+      if (box) {
+        const chip = document.createElement("span");
+        chip.className = "scan-live__node is-entering";
+        chip.textContent = "🛰 " + key + " · " + row.endpoint;
+        chip.title = (row.seenAs || "") + " / " + row.node + (row.loc ? " (" + row.loc + ")" : "") + " → " + row.endpoint;
+        chip.addEventListener("animationend", () => chip.classList.remove("is-entering"), { once: true });
+        box.appendChild(chip);
+      }
+      const meta = $("#scanLiveMeta");
+      if (meta && live.steps.length) {
+        const last = live.steps[live.steps.length - 1];
+        meta.textContent = t("live.14") + " " + last.done + "/" + last.total + " · " + t("live.15") + " " + live.nodes.length;
+      }
+    }
+  }
+
   function drawScanLive() {
     const cv = $("#scanLiveCanvas");
     if (!cv || !cv.getContext) return;
