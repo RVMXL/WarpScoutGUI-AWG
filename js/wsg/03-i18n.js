@@ -84,6 +84,9 @@
     "scan.check.07": { ru: "Туннелей одновременно", en: "Parallel tunnels" },
     "scan.check.08": { ru: "Таймаут, сек", en: "Timeout, sec" },
     "scan.check.09": { ru: "Эхо-пакетов", en: "Echo packets" },
+    // v2.8.1: замер скорости/-best-by подняты в основную группу флагов — их подсказки
+    "scan.check.10": { ru: "SPEED-колонка в таблице; дольше скан", en: "SPEED column in the table; scan takes longer" },
+    "scan.check.11": { ru: "Звезда и автоподстановка в конфиг — по максимальному SPEED, а не пингу; включает замер", en: "Star and the post-scan config pick go by maximum SPEED, not ping; enables the measurement" },
     /* — scan.filters — */
     /* — скан: фильтры — */
     "scan.filters.01": { ru: "Фильтры узлов", en: "Node filters" },
@@ -407,7 +410,8 @@
     "stats.01": { ru: "📡 всего", en: "📡 total" },
     "stats.02": { ru: "✅ рабочих", en: "✅ working" },
     "stats.03": { ru: "✂ разорвано", en: "✂ torn" },
-    "stats.04": { ru: "⚡ лучший", en: "⚡ best" },
+    // v2.8.1: «лучший» теперь про (потери, пинг) — звезда; чип показывает именно минимальный пинг
+    "stats.04": { ru: "⚡ мин. пинг", en: "⚡ min ping" },
     "stats.05": { ru: "⚖ медиана", en: "⚖ median" },
     "stats.06": { ru: "📈 профиль", en: "📈 profile" },
     "stats.07": { ru: "🌍 узлов", en: "🌍 nodes" },

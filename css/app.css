@@ -1775,3 +1775,26 @@ html[data-theme="light"] .batch-bar__go { color: #fff6ee; }
 #dataRootHint { margin-top: 8px; display: block; }
 #setDataRoot { font-family: var(--mono); font-size: 12px; }
 .form-grid .field > div { flex-wrap: wrap; }
+
+/* ══════════ v2.8.1 (запрос пользователя): «Скан»/«Конфиг» без скролла страницы ══════════
+   Было: два независимых скролла — страница (.main) и колонка параметров
+   (внутренний). Прокрутка страницы уводила колонку настроек за верхний край
+   («поле настроек прячется, остаётся виден хвост у нижней части экрана»),
+   правая колонка тянула высоту документа за собой. Стало: в двухколоночном
+   десктоп-виде страница не скроллится вовсе — сетка строкой minmax(0,1fr)
+   прижимает ОБЕ колонки к высоте вьюпорта, каждая скроллится только внутри
+   себя: слева параметры, справа — командная строка+таблица (пл. пред-
+   просмотр+экспорт). Порог 1081px — ровно над существующим переходом в
+   одноколоночный вид (≤1080px); touch-режим (Android/демо ?touch=1) ведёт
+   себя как мобильный даже на широких экранах — body:not(.touch-ui). */
+@media (min-width: 1081px) {
+  body:not(.touch-ui) .scan-grid, body:not(.touch-ui) .config-grid { grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+  body:not(.touch-ui) .scan-form, body:not(.touch-ui) .config-form { max-height: 100%; min-height: 0; }
+  body:not(.touch-ui) .scan-exec { min-height: 0; overflow-y: auto; }
+  body:not(.touch-ui) .table-wrap { flex: 1 1 auto; min-height: 120px; max-height: none; }
+  body:not(.touch-ui) .log-wrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  body:not(.touch-ui) .log-wrap .log { flex: 1 1 auto; min-height: 0; max-height: none; }
+  body:not(.touch-ui) .config-preview { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; }
+  body:not(.touch-ui) .config-preview > #cardExport { flex: 0 0 auto; }
+  body:not(.touch-ui) .card--preview { height: auto; flex: 1 1 auto; min-height: 280px; }
+}
