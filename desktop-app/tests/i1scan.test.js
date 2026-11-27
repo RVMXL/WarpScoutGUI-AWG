@@ -80,6 +80,32 @@ test("v2.7.1: хинты пресетов — идентификаторы сл�
   }
 });
 
+test("v2.8.3: пресет «Жёсткая сеть» — автоподбор I1 + таймаут 4 с, отличается от дефолта (после QUIC-дефолта 2.8.2 совпадал)", () => {
+  const { wsgui } = loadApp({ nlOs: "Windows" });
+  wsgui.PRESETS.hard.apply();
+  assert.strictEqual(wsgui.S.scan.autoI1, true, "жёсткая сеть = автоподбор профиля I1 (quic → dns → sip → stun → random)");
+  assert.strictEqual(wsgui.S.scan.timeout, 4, "терпеливый таймаут зонда (-t 4)");
+  assert.strictEqual(wsgui.S.scan.proto, "awg", "протокол AWG как в стандарте");
+  assert.strictEqual(wsgui.S.scan.genI1, "quic", "стартовый профиль — как в дефолте (отличие не в нём)");
+  assert.strictEqual(wsgui.S.scan.tunPing, true);
+  assert.strictEqual(wsgui.S.scan.full, false);
+  // командная строка несёт таймаут; -gen-i1 quic — из дефолта
+  const cmd = wsgui.buildScanCmd(wsgui.S.scan, {});
+  assert.ok(cmd.indexOf("-t 4") !== -1, "-t 4 в команде: " + cmd);
+  assert.ok(cmd.indexOf("-gen-i1 quic") !== -1, cmd);
+  // ровно два отличия от «По умолчанию» — больше ничего
+  const hardSnap = JSON.stringify(wsgui.S.scan);
+  wsgui.PRESETS.default.apply();
+  const defSnap = JSON.stringify(wsgui.S.scan);
+  assert.strictEqual(wsgui.S.scan.autoI1, false);
+  assert.strictEqual(wsgui.S.scan.timeout, 2);
+  assert.notStrictEqual(defSnap, hardSnap, "hard и default не должны совпадать");
+  const def = JSON.parse(defSnap);
+  const cur = JSON.parse(hardSnap);
+  const diffKeys = Object.keys(cur).filter((k) => JSON.stringify(cur[k]) !== JSON.stringify(def[k]));
+  assert.deepStrictEqual(diffKeys, ["timeout", "autoI1"], "отличия hard от default: timeout, autoI1");
+});
+
 /* ── buildI1Cmd ── */
 
 test("v2.7.1: buildI1Cmd повторяет профиль последнего скана (-gen-i1 + -i1-sni), junk-флагов нет", () => {
