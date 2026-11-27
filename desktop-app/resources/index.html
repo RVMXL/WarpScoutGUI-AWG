@@ -130,6 +130,23 @@
                   </div>
                   <span class="switch"><input type="checkbox" id="fFull" /><i></i></span>
                 </label>
+                <!-- v2.8.1 (запрос пользователя): замер скорости и «Лучший по скорости»
+                     подняты из «WARP-in-WARP и продвинутое» в основную группу флагов —
+                     рядом с -P, без вскрытия «опционально» -->
+                <label class="switch-row" for="fSpeed">
+                  <div>
+                    <div class="switch-row__title">Замер скорости <code>-speed</code></div>
+                    <div class="hint">SPEED-колонка в таблице; дольше скан</div>
+                  </div>
+                  <span class="switch"><input type="checkbox" id="fSpeed" /><i></i></span>
+                </label>
+                <label class="switch-row" for="fBestBySpeed">
+                  <div>
+                    <div class="switch-row__title">Лучший по скорости <code>-best-by speed</code></div>
+                    <div class="hint">Звезда и автоподстановка в конфиг — по максимальному SPEED, а не пингу; включает замер</div>
+                  </div>
+                  <span class="switch"><input type="checkbox" id="fBestBySpeed" /><i></i></span>
+                </label>
                 <label class="field">
                   <span class="field__label">Адресов на подсеть <code>-n</code></span>
                   <input type="number" id="fSample" min="1" max="256" value="10" />
@@ -280,14 +297,6 @@
                 <label class="switch-row" for="fIpv6">
                   <div class="switch-row__title">IPv6-пулы <code>-6</code></div>
                   <span class="switch"><input type="checkbox" id="fIpv6" /><i></i></span>
-                </label>
-                <label class="switch-row" for="fSpeed">
-                  <div class="switch-row__title">Замер скорости <code>-speed</code></div>
-                  <span class="switch"><input type="checkbox" id="fSpeed" /><i></i></span>
-                </label>
-                <label class="switch-row" for="fBestBySpeed">
-                  <div class="switch-row__title">Лучший по скорости <code>-best-by speed</code></div>
-                  <span class="switch"><input type="checkbox" id="fBestBySpeed" /><i></i></span>
                 </label>
               </div>
             </details>

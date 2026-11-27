@@ -45,6 +45,42 @@ test("endpointGroups: tunPing приоритетнее ping, torn исключе
   assert.strictEqual(g.rest[0].endpoint, "1.1.1.1:443");
 });
 
+/* ── v2.8.1 (запрос пользователя): потери важнее пинга —
+      звезда не достаётся lossy с меньшим пингом ── */
+test("endpointGroups: без потерь впереди lossy с меньшим пингом; среди lossy — меньше потерь", () => {
+  const rows = [
+    { endpoint: "1.1.1.1:443", node: "DME", ping: "15ms", tunPing: "15ms", loss: "12%", torn: false },
+    { endpoint: "1.2.2.2:443", node: "DME", ping: "180ms", tunPing: "180ms", loss: "0%", torn: false },
+    { endpoint: "2.2.2.2:443", node: "FRA", ping: "20ms", tunPing: "20ms", loss: "3%", torn: false },
+    { endpoint: "2.3.3.3:443", node: "FRA", ping: "10ms", tunPing: "10ms", loss: "30%", torn: false },
+  ];
+  const g = wsgui.endpointGroups(rows);
+  // у DME лучший — без потерь (180ms), а не lossy с 15ms; общий лучший тоже он:
+  // 0% потерь важнее любых пингов (звезда уходит с lossy-строк)
+  assert.strictEqual(g.best.endpoint, "1.2.2.2:443");
+  assert.deepStrictEqual([...g.nodeBest.map((r) => r.endpoint)], ["1.2.2.2:443", "2.2.2.2:443"]);
+  // «остальные» (lossy) — тоже по (потери, пинг): 12% (15ms) впереди 30% (10ms)
+  assert.deepStrictEqual([...g.rest.map((r) => r.endpoint)], ["1.1.1.1:443", "2.3.3.3:443"]);
+});
+
+test("betterEpRow: порядок (потери, пинг); нет колонки LOSS — вырождается в пинг", () => {
+  const br = wsgui.betterEpRow;
+  // 0% потерь впереди любых потерь, даже с в 20 раз большим пингом
+  assert.ok(br({ loss: "0%", tunPing: "200ms" }, { loss: "1%", tunPing: "10ms" }) < 0);
+  // среди lossy — меньше потерь
+  assert.ok(br({ loss: "3%", tunPing: "20ms" }, { loss: "12%", tunPing: "5ms" }) < 0);
+  // равные потери — меньший пинг
+  assert.ok(br({ loss: "0%", tunPing: "50ms" }, { loss: "0%", tunPing: "30ms" }) > 0);
+  // loss пуст (скан без -P) → 0, сравнение по пингу
+  assert.ok(br({ loss: "", ping: "40ms" }, { loss: "", ping: "30ms" }) > 0);
+  // пустой loss и «0%» эквивалентны
+  assert.strictEqual(br({ loss: "", ping: "30ms" }, { loss: "0%", ping: "30ms" }), 0);
+  // мусор в loss → 0 (rowLossVal)
+  assert.strictEqual(wsgui.rowLossVal({ loss: "abc" }), 0);
+  assert.strictEqual(wsgui.rowLossVal(null), 0);
+  assert.strictEqual(wsgui.rowLossVal({ loss: "2.5%" }), 2.5);
+});
+
 /* ── пустые/невалидные входы ── */
 test("endpointGroups: пусто и null — best null, группы пустые", () => {
   assert.strictEqual(wsgui.endpointGroups([]).best, null);

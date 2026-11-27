@@ -28,9 +28,10 @@
       if (cmp) rows.sort((a, b) => (a.torn - b.torn) || sortDir * cmp(a, b));
     } // иначе — порядок отчёта warpscout: потери → пинг
 
-    // лучший рабочий эндпоинт (мин. TUN PING, иначе PING) — считаем по ПОЛНОЙ выборке,
+    // лучший рабочий эндпоинт — считаем по ПОЛНОЙ выборке,
     // чтобы звезда не «прыгала» при фильтрации;
     // v2.8.0 (F6): при «Лучший по скорости» последнего прогона — максимальный SPEED
+    // v2.8.1: пинговый лучший — по (потери, пинг): без потерь важнее меньшего пинга
     let bestEp = "";
     const workingAll = S.results.filter((r) => !r.torn);
     if (workingAll.length) {
@@ -39,11 +40,9 @@
         if (b) bestEp = b.endpoint;
       }
       if (!bestEp) {
-        let bestV = Infinity;
-        workingAll.forEach((r) => {
-          const v = pingMs(r.tunPing || r.ping);
-          if (v < bestV) { bestV = v; bestEp = r.endpoint; }
-        });
+        let bestRow = null;
+        workingAll.forEach((r) => { if (!bestRow || betterEpRow(r, bestRow) < 0) bestRow = r; });
+        if (bestRow) bestEp = bestRow.endpoint;
       }
     }
 

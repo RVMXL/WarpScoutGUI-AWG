@@ -328,19 +328,47 @@
     return I1_AUTO_ORDER.filter((p) => p !== cur);
   }
 
+  /* ── v2.8.1 (запрос пользователя): потери важнее пинга ──
+     Звезда «лучшего» шла за минимальным TUN PING и могла достаться эндпоинту
+     с потерями — при том что потери рвут передачу, а разница в десятки мс
+     пинга на практике незаметна. Качество строки теперь сравнивается
+     лексикографично (LOSS, PING) — ровно как сортирует сам warpscout в
+     отчёте («порядок отчёта: потери → пинг»): сначала БЕЗ потерь (и среди
+     lossy — меньше потерь), только затем меньший пинг. Нет колонки LOSS
+     (скан без -P, старый отчёт) → потеря считается нулевой, сравнение
+     вырождается в прежнее «минимальный пинг». Чистые функции — покрыты
+     тестами; потребители: endpointGroups (звезда таблицы/селекта,
+     автоподстановка в конфиг), bestBySpeedOf (★ Лучший), exportScanHtml. */
+  function rowLossVal(r) {
+    const v = parseFloat(r && r.loss);
+    return isFinite(v) ? v : 0;
+  }
+  function betterEpRow(a, b) {
+    const d = rowLossVal(a) - rowLossVal(b);
+    return d !== 0 ? d : pingMs(a.tunPing || a.ping) - pingMs(b.tunPing || b.ping);
+  }
+
   // v2.8.0 (F6): лучший по СКОРОСТИ (max speed_mbps) среди рабочих с замером.
   // Пустой/без -speed → null. Пинг-лучший остаётся в endpointGroups.
+  // v2.8.1: и здесь потери важнее скорости — максимум SPEED ищется сначала
+  // среди строк БЕЗ потерь; таких нет (или у них нет замера) — среди остальных.
   function bestBySpeedOf(results) {
     let best = null;
     let bestV = -1;
+    let lossy = null;
+    let lossyV = -1;
     for (const r of results || []) {
       if (!r || r.torn || !r.endpoint) continue;
       const v = parseFloat(r.speed);
-      if (!isFinite(v) || v <= bestV) continue;
-      bestV = v;
-      best = r;
+      if (!isFinite(v)) continue;
+      if (rowLossVal(r) > 0) {
+        if (v > lossyV) { lossyV = v; lossy = r; }
+      } else if (v > bestV) {
+        bestV = v;
+        best = r;
+      }
     }
-    return best;
+    return best || lossy;
   }
 
   /* ───────── парсер отчёта ───────── */
@@ -402,19 +430,20 @@
   /* ───────── v2.6.4: группировка эндпоинтов для селекта конфига ─────────
      Запрос пользователя: «в выпадающем списке конфига неочевидно, что верхний
      эндпоинт самый быстрый». Группируем: лучший эндпоинт КАЖДОЙ ноды (по
-     tunPing||ping, отсортирован по пингу; первый — общий лучший, ему рисуем
-     ★), затем все остальные живые строки. Чистая функция — покрыта тестами. */
+     (потери, пинг) — v2.8.1, отсортирован так же; первый — общий лучший, ему
+     рисуем ★), затем все остальные живые строки. Чистая функция — покрыта
+     тестами. */
   function endpointGroups(results) {
     const ok = (results || []).filter((r) => r && r.endpoint && !r.torn);
     const byNode = new Map();
     for (const r of ok) {
       const k = r.node || "?";
       const prev = byNode.get(k);
-      if (!prev || pingMs(r.tunPing || r.ping) < pingMs(prev.tunPing || prev.ping)) byNode.set(k, r);
+      if (!prev || betterEpRow(r, prev) < 0) byNode.set(k, r);
     }
-    const nodeBest = Array.from(byNode.values()).sort((a, b) => pingMs(a.tunPing || a.ping) - pingMs(b.tunPing || b.ping));
+    const nodeBest = Array.from(byNode.values()).sort((a, b) => betterEpRow(a, b));
     const bestSet = new Set(nodeBest.map((r) => r.endpoint));
-    const rest = ok.filter((r) => !bestSet.has(r.endpoint)).sort((a, b) => pingMs(a.tunPing || a.ping) - pingMs(b.tunPing || b.ping));
+    const rest = ok.filter((r) => !bestSet.has(r.endpoint)).sort((a, b) => betterEpRow(a, b));
     return { best: nodeBest[0] || null, nodeBest, rest };
   }
 

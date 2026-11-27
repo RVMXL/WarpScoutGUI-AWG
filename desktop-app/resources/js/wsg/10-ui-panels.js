@@ -539,8 +539,11 @@
     const median = pings.length ? pings[Math.floor(pings.length / 2)] : 0;
     let bestEp = "";
     if (working.length) {
-      let bv = Infinity;
-      working.forEach((r) => { const v = pingMs(r.tunPing || r.ping); if (v < bv) { bv = v; bestEp = r.endpoint; } });
+      // v2.8.1: тот же порядок (потери, пинг), что и в таблице приложения —
+      // звезда в автономном отчёте не противоречит звезде в GUI
+      let bestRow = null;
+      working.forEach((r) => { if (!bestRow || betterEpRow(r, bestRow) < 0) bestRow = r; });
+      if (bestRow) bestEp = bestRow.endpoint;
     }
     const withP = S.viewMeta.withP;
     const withSpeed = S.viewMeta.withSpeed;

@@ -197,6 +197,41 @@ test("v2.8.0: pickRunBest — bestBySpeed отдаёт быстрый эндпо
   assert.ok(fallback, "даже с флагом всегда есть ответ при наличии рабочих");
 });
 
+/* ── v2.8.1: потери важнее скорости/пинга в выборе лучшего ── */
+
+test("v2.8.1: bestBySpeedOf — максимум SPEED среди без потерь; фолбэк на lossy", () => {
+  const { wsgui } = loadApp({ nlOs: "Windows" });
+  const b = wsgui.bestBySpeedOf;
+  // lossy быстрее — всё равно мимо: без потерь важнее скорости
+  const rows = [
+    { endpoint: "fastloss:1", torn: false, speed: "99", loss: "30%" },
+    { endpoint: "slowclean:2", torn: false, speed: "8", loss: "0%" },
+    { endpoint: "midloss:3", torn: false, speed: "45", loss: "2%" },
+  ];
+  assert.strictEqual(b(rows).endpoint, "slowclean:2");
+  // безпотерьных нет (или у них нет замера) — лучший среди lossy по скорости
+  const lossyOnly = [
+    { endpoint: "a:1", torn: false, speed: "10", loss: "5%" },
+    { endpoint: "b:2", torn: false, speed: "22", loss: "40%" },
+  ];
+  assert.strictEqual(b(lossyOnly).endpoint, "b:2");
+  // loss-колонки нет вовсе (старый отчёт/скан без -P) — прежняя семантика max speed
+  const noLossCol = [
+    { endpoint: "c:1", torn: false, speed: "3" },
+    { endpoint: "d:2", torn: false, speed: "9" },
+  ];
+  assert.strictEqual(b(noLossCol).endpoint, "d:2");
+});
+
+test("v2.8.1: pickRunBest — без потерь важнее меньшего пинга", () => {
+  const { wsgui } = loadApp({ nlOs: "Windows" });
+  const rows = [
+    { endpoint: "lossy:1", torn: false, tunPing: "9ms", ping: "9ms", loss: "25%" },
+    { endpoint: "clean:2", torn: false, tunPing: "150ms", ping: "150ms", loss: "0%" },
+  ];
+  assert.strictEqual(wsgui.pickRunBest(rows, {}).endpoint, "clean:2");
+});
+
 /* ── sanitizeScan: autoI1 проходит границу состояния ── */
 
 test("v2.8.0: sanitizeScan — autoI1 boolean (truthy/falsy), дефолт false — как остальные флаги скана", () => {
