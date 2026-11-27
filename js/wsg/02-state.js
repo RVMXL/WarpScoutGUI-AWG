@@ -45,7 +45,10 @@
     exclCountry: "",
     node: "",
     country: "",
-    genI1: "",
+    /* v2.8.2 (запрос пользователя): дефолтный профиль I1 скана — QUIC, как в
+       других warpscout GUI (icloud-зонд остался опцией «iCloud (базовый)»).
+       Для старых установок — одноразовая миграция в restoreState (14-data-migrations). */
+    genI1: "quic",
     i1Sni: "",
     genJunk: false,
     /* v2.7.0 (запрос пользователя: «объединить, это спутает»): junk-параметры
@@ -68,6 +71,12 @@
        профили «If nothing works» (quic → dns → sip → stun → random) в той же
        сессии, пока что-то не найдёт; сработавший профиль остаётся в конструкторе. */
     autoI1: false,
+    /* v2.8.2 (вариант 1, запрос пользователя): «Свои флаги CLI» — ручной ввод
+       флагов warpscout в консоль-стиле для всего, чего нет в форме
+       (-sweep-ports, -mtu, -dns, -conf/-conf-type, -table-off, -emoji…).
+       Валидация по белому списку в parseExtraArgs (05-scan-core); дубли флагов,
+       которые GUI расставляет сам, не проходят. */
+    extraArgs: "",
   };
 
   const S = {
@@ -145,11 +154,8 @@
         Object.assign(S.scan, DEFAULT_SCAN, { proto: "awg", tunPing: true, genI1: "quic", tunPingCount: 10 });
       },
     },
-    full: {
-      hint: "presets.15",
-      apply() {
-        Object.assign(S.scan, DEFAULT_SCAN, { full: true, tunPing: true, speed: true });
-      },
-    },
+    /* v2.8.2 (запрос пользователя): пресет «Тщательный» удалён — дубль тумблера
+       «Все 256 адресов подсети -f» (полный скан = -f, плюс там же тумблер
+       «Замер скорости»); два пути к одному и тому же только путали. */
   };
 

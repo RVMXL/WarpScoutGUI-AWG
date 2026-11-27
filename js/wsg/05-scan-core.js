@@ -123,6 +123,10 @@
     }
     if (s.speed) a.push("-speed");
     if (s.bestBySpeed) a.push("-best-by speed");
+    // v2.8.2 (вариант 1): «Свои флаги CLI» — в конец, до -plain (GUI-флаги идут
+    // раньше; дубли и мусор parseExtraArgs не пропускает, а запуск при ошибках
+    // отвергается в runScan)
+    if (s.extraArgs && String(s.extraArgs).trim()) a.push.apply(a, parseExtraArgs(s.extraArgs).args);
     a.push("-plain");
     return a;
   }
@@ -153,7 +157,12 @@
     if (v == null) return "";
     return String(v)
       .replace(/\s+/g, "")                 // «1.1.1.1 -f -n 256» -> «1.1.1.1-f-n256» (мусор, но один токен)
-      .replace(/["'&|^%!<>()*?~;`,]/g, "") // опасные для cmd/argv символы
+      .replace(/["'&|^%!<>()*?~;`$\\#]/g, "") // опасные для cmd/argv символы. v2.8.2: запятая
+      // возвращена в значения — мультизначные фильтры CLI сплитит по ней
+      // (splitList в flags.go ядра: -exclude-node DME,FRA, -target ip,cidr);
+      // спавн через CreateProcess (не cmd.exe), запятая argv не режет.
+      // $ \ # вырезаются всегда: на POSIX спавн идёт через /bin/sh -c
+      // (подстановка переменных, экранирование, комментарий в хвост)
       .trim();
   }
 
@@ -166,6 +175,78 @@
     innerProto: ["", "wg", "awg"], // CLI: «-inner-proto wg|awg» (flags.go:104)
     genI1: ["", "quic", "dns", "sip", "stun", "random"], // flags.go:118
   };
+
+  /* ── v2.8.2 (вариант 1, запрос пользователя): «Свои флаги CLI» ──
+     Ручной ввод флагов warpscout в консоль-стиле — для всего, чего нет в форме
+     (scan-флаги ядра 0.17: -sweep-ports, -mtu, -dns, -no-dns, -conf/-conf-type,
+     -table-off, -best, -emoji, -I/-interface). Тот же принцип, что у enum'ов
+     выше: проверка на ГРАНИЦЕ команды — свободный ввод не может ни задублировать
+     флаг, который GUI расставляет сам, ни протащить чужой/опциональный токен.
+     Белые списки ниже = scan-флаги setupScanFlags (flags.go ядра 0.17.0) минус
+     всё, что форма ставит сама. Флаги вывода/отчёта (-o/-a/-json/-stream-json/
+     -plain/-no-report) заблокированы: их выбирает GUI, иначе ломается разбор. */
+  // Map'ы без прототипа: имена флагов приходят из свободного ввода — ключ вида
+  // «constructor» не должен находить Object.prototype (тот же guard, что у санитайзеров)
+  const EXTRA_ARGS_VALUE = Object.assign(Object.create(null), {
+    "sweep-ports": true, // «all» или «2408,500» — перебор портов вместо фиксированного -port
+    conf: true,          // конфиг прямо из скана (как в экспортах GUI)
+    "conf-type": true,   // native|mihomo|mihomo-json|usque (v2.8.0 F3)
+    mtu: true,           // MTU туннеля для проверок
+    dns: true,           // свой DNS для туннель-пинга
+    interface: true,     // сетевой интерфейс (-I)
+    I: true,
+  });
+  const EXTRA_ARGS_BOOL = ["best", "table-off", "no-dns", "emoji"];
+  /* Заблокированные = всё, что форма ставит сама. Значение — arity: 1 = value-флаг
+     (его аргумент СЪЕДАЕТСЯ, чтобы «-p awg» не рождал вторую ошибку «awg — не флаг»),
+     0 = булев. Вывод/отчёт (-o/-a/-json/-stream-json/-plain/-no-report) — тут же:
+     их выбирает GUI, иначе ломается разбор результатов. */
+  const EXTRA_ARGS_BLOCK = Object.assign(Object.create(null), {
+    p: 1, proto: 1, target: 1, node: 1, country: 1, "exclude-node": 1, "exclude-country": 1,
+    through: 1, "inner-proto": 1, "gen-i1": 1, "i1-sni": 1, i1: 1, jc: 1, jmin: 1, jmax: 1,
+    "masque-sni": 1, "masque-attempts": 1, "best-by": 1, "ping-target": 1, "tun-ping-count": 1,
+    port: 1, n: 1, sample: 1, jt: 1, "tunnel-jobs": 1, t: 1, timeout: 1,
+    padding: 1, "rekey-after": 1, "rekey-timeout": 1, "reject-after": 1, "keepalive-timeout": 1,
+    "max-handshakes": 1, hpk: 1, o: 1, output: 1, a: 1, account: 1,
+    P: 0, "tun-ping": 0, f: 0, full: 0, "6": 0, ipv6: 0, "gen-junk": 0, speed: 0,
+    plain: 0, json: 0, "stream-json": 0, "no-report": 0, "disable-cookies": 0, "random-trailers": 0,
+  });
+  // Токены значений: всё, что shells/argv считают служебным (Windows —
+  // CreateProcess, разбор по CommandLineToArgvW; POSIX — /bin/sh -c, там же
+  // подстановка $, экранирование \ и комментарий # в хвосте; запятая/точка/
+  // слэш — легитимные части значений). Один argv-токен.
+  const EXTRA_ARGS_BAD_VAL = /[\s"'&|^%!<>()*?~;`$\\#]/;
+
+  // Чистая функция — покрыта тестами. Возвращает { args: ["-flag val", …], errors: [{f, id}] }.
+  // Незакрытая ошибка НЕ роняет сборку: buildScanArgs добавляет только валидные
+  // части, а запуск (runScan) при ошибках отвергается целиком — пользователь видит
+  // конкретный токен и причину и в строке под полем, и в тосте.
+  function parseExtraArgs(str) {
+    const args = [];
+    const errors = [];
+    const toks = String(str == null ? "" : str).trim().split(/\s+/).filter(Boolean);
+    for (let i = 0; i < toks.length; i++) {
+      const m = /^-{1,2}([A-Za-z0-9][\w-]*)$/.exec(toks[i]);
+      if (!m) { errors.push({ f: toks[i], id: "scan.extra.err.pos" }); continue; }
+      const name = m[1];
+      if (name in EXTRA_ARGS_BLOCK) {
+        if (EXTRA_ARGS_BLOCK[name] && i + 1 < toks.length) i++; // arity 1: значение дубля не рождает лишнюю ошибку
+        errors.push({ f: "-" + name, id: "scan.extra.err.dup" });
+        continue;
+      }
+      if (name in EXTRA_ARGS_VALUE) {
+        if (i + 1 >= toks.length) { errors.push({ f: "-" + name, id: "scan.extra.err.val" }); continue; }
+        const val = toks[++i];
+        if (EXTRA_ARGS_BAD_VAL.test(val)) { errors.push({ f: "-" + name, id: "scan.extra.err.badval" }); continue; }
+        args.push("-" + name + " " + val);
+      } else if (EXTRA_ARGS_BOOL.indexOf(name) !== -1) {
+        args.push("-" + name);
+      } else {
+        errors.push({ f: "-" + name, id: "scan.extra.err.unknown" });
+      }
+    }
+    return { args: args, errors: errors };
+  }
 
   function enumOf(v, allowed, fallback) {
     return allowed.indexOf(v) !== -1 ? v : fallback;
@@ -254,7 +335,28 @@
       ? cmd.replace(/^"[^"]*"/, "warpscout").replace(/ -o "[^"]*"/, "").replace(/ -a "[^"]*"/, "")
       : cmd;
     $("#cmdPreview").textContent = show;
+    renderExtraArgsStatus(); // v2.8.2: живая валидация «Своих флагов CLI»
     renderNodeFilterBadge(); // v2.6.4: живой индикатор фильтров узлов (реагирует на те же события)
+  }
+
+  /* ── v2.8.2: строка-статус под полем «Свои флаги CLI»: зелёная — сколько
+     флагов принято, красная — первый токен с ошибкой (все — в тосте при запуске).
+     Элемента может не быть в тестовом окружении — тихий выход. ── */
+  function renderExtraArgsStatus() {
+    const el = document.getElementById("extraArgsMsg");
+    if (!el) return;
+    const raw = String((S.scan && S.scan.extraArgs) || "").trim();
+    if (!raw) { el.hidden = true; el.textContent = ""; el.className = "hint extra-args__msg"; return; }
+    const pa = parseExtraArgs(raw);
+    if (pa.errors.length) {
+      el.hidden = false;
+      el.className = "hint extra-args__msg is-err";
+      el.textContent = tF(pa.errors[0].id, { f: pa.errors[0].f }) + (pa.errors.length > 1 ? " (" + tF("scan.extra.err.more", { n: pa.errors.length - 1 }) + ")" : "");
+    } else {
+      el.hidden = false;
+      el.className = "hint extra-args__msg is-ok";
+      el.textContent = tF("scan.extra.ok", { n: pa.args.length });
+    }
   }
 
   /* ───────── v2.8.0: разбор NDJSON-потока (-stream-json) ─────────

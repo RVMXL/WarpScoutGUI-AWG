@@ -67,7 +67,11 @@
     ["tunPing", "full", "genJunk", "ipv6", "speed", "bestBySpeed", "autoI1"].forEach((k) => { s[k] = !!src[k]; }); // v2.8.0: + autoI1 (F4)
     s.proto = enumOf(strField(src.proto, 20), SCAN_ENUMS.proto, "awg");
     s.innerProto = enumOf(strField(src.innerProto, 20), SCAN_ENUMS.innerProto, "");
-    s.genI1 = enumOf(strField(src.genI1, 20), SCAN_ENUMS.genI1, "");
+    // v2.8.2: отсутствующее поле (старый бэкап/пресет) → НОВЫЙ дефолт quic;
+    // явное пустое значение (icloud-зонд) — валидно и сохраняется как есть
+    s.genI1 = src.genI1 == null
+      ? DEFAULT_SCAN.genI1
+      : enumOf(strField(src.genI1, 20), SCAN_ENUMS.genI1, "");
     s.sample = clampInt(src.sample, 1, 256, 10);
     s.jt = clampInt(src.jt, 1, 100, 10);
     s.timeout = clampInt(src.timeout, 1, 30, 2);
@@ -80,6 +84,10 @@
     ["exclNode", "exclCountry", "node", "country", "i1Sni", "masqueSni", "through", "target", "pingTarget"].forEach((k) => {
       s[k] = strField(src[k], 300);
     });
+    // v2.8.2 (вариант 1): «Свои флаги CLI» — одна строка (переводы строк/табы —
+    // в пробелы), контрольные символы вырезаны; структурная валидация — при
+    // построении команды (parseExtraArgs) и при запуске (runScan)
+    s.extraArgs = strField(String(src.extraArgs == null ? "" : src.extraArgs).replace(/[\r\n\t]+/g, " "), 500);
     return s;
   }
 

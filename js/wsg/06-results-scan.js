@@ -448,6 +448,19 @@
       switchTab("account");
       return;
     }
+    // v2.8.2 (вариант 1): «Свои флаги CLI» — явный отказ при невалидном вводе
+    // (дубли GUI-флагов, неизвестные/битые токены) — по тому же принципу,
+    // что и enum-гейт выше; без него половина аргументов отваливалась молча
+    if (s.extraArgs && String(s.extraArgs).trim()) {
+      const pa = parseExtraArgs(s.extraArgs);
+      if (pa.errors.length) {
+        S.running.scan = false;
+        setScanRunning(false);
+        toast(tF(pa.errors[0].id, { f: pa.errors[0].f }), "err");
+        switchTab("scan");
+        return;
+      }
+    }
     const withP = !!s.tunPing;
     const withSpeed = !!(s.speed || s.bestBySpeed);
     // v2.4.6 (F31): идентификатор запуска — устаревшие колбэки не трогают новую сессию;

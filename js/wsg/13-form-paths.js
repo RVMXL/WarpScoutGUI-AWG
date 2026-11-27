@@ -56,11 +56,45 @@
       jmin: $("#fJmin").value === "" ? "" : +$("#fJmin").value,
       jmax: $("#fJmax").value === "" ? "" : +$("#fJmax").value,
     };
+    /* v2.8.2 (запрос пользователя): AWG 3.1 прямо на вкладке «Скан» — тумблер
+       «Тайминги AWG 3.1» и тайминги — ТЕ ЖЕ общие значения, что и в конфиге
+       (S.cfg.ver / S.cfg.obf — единый источник, как junk в v2.7.0): правка
+       здесь синхронно меняет вкладку «Конфиг» и предпросмотр.
+       ВАЖНО: все чтения формы — ДО любых записей-зеркал (syncCfgInputsFromState
+       пишет зеркала обратно, в т.ч. fUse31): иначе одна половина sync могла бы
+       перетереть вторую (война зеркал внутри одного вызова). */
+    const u31 = document.getElementById("fUse31");
+    const u31Val = u31 ? !!u31.checked : null;
+    const t31 = {};
+    const T31_IDS = { cpa: "fCpa", rekeyAfter: "fRekeyAfter", rekeyTo: "fRekeyTo", rejectAfter: "fRejectAfter", keepaliveTo: "fKeepaliveTo", maxHs: "fMaxHs" };
+    Object.keys(T31_IDS).forEach((k) => {
+      const el = document.getElementById(T31_IDS[k]);
+      if (el) t31[k] = String(el.value == null ? "" : el.value).trim();
+    });
+    const trEl = document.getElementById("fTrailers");
+    if (trEl) t31.trailers = trEl.checked ? "on" : "off";
+    const ncEl = document.getElementById("fNoCookies");
+    if (ncEl) t31.noCookies = ncEl.checked ? "on" : "off";
+    let cfgTouched = false;
+    // junk: правка на «Скан» → общий источник
     const oj = S.cfg.obf;
     if (junkIn.jc !== oj.jc || junkIn.jmin !== oj.jmin || junkIn.jmax !== oj.jmax) {
       oj.jc = junkIn.jc;
       oj.jmin = junkIn.jmin;
       oj.jmax = junkIn.jmax;
+      cfgTouched = true;
+    }
+    // тумблер 3.1: awg31 ↔ awg20 (общий источник «Конфиг → Версия»)
+    if (u31Val !== null) {
+      if (u31Val && S.cfg.ver !== "awg31") { S.cfg.ver = "awg31"; cfgTouched = true; }
+      else if (!u31Val && S.cfg.ver === "awg31") { S.cfg.ver = "awg20"; cfgTouched = true; }
+    }
+    // тайминги 3.1: правка на «Скан» → общий источник
+    const o31 = S.cfg.obf;
+    Object.keys(t31).forEach((k) => {
+      if (o31[k] !== t31[k]) { o31[k] = t31[k]; cfgTouched = true; }
+    });
+    if (cfgTouched) {
       syncCfgInputsFromState();
       renderConf();
     }
@@ -78,6 +112,9 @@
     // v2.8.0 (F4): автоподбор I1 (guard: в тестовом окружении поля может не быть)
     const aI1 = document.getElementById("fAutoI1");
     if (aI1) s.autoI1 = aI1.checked;
+    // v2.8.2 (вариант 1): «Свои флаги CLI» (guard — как у fAutoI1)
+    const ea = document.getElementById("fExtraArgs");
+    if (ea) s.extraArgs = String(ea.value == null ? "" : ea.value);
     if (IS_MOCK && window.NeutralinoMock) window.NeutralinoMock.autoI1Armed = !!s.autoI1; // демо-сценарий пустого скана
   }
 
@@ -112,6 +149,22 @@
     $("#fBestBySpeed").checked = s.bestBySpeed;
     const aI1b = document.getElementById("fAutoI1");
     if (aI1b) aI1b.checked = !!s.autoI1; // v2.8.0 (F4)
+    /* v2.8.2: AWG 3.1 на «Скан» — зеркала общего источника (тумблер = cfg.ver,
+       тайминги = S.cfg.obf; как junk-поля выше) + «Свои флаги CLI» */
+    const u31b = document.getElementById("fUse31");
+    if (u31b) u31b.checked = S.cfg.ver === "awg31";
+    const o31b = S.cfg.obf;
+    const T31_IDS2 = { fCpa: "cpa", fRekeyAfter: "rekeyAfter", fRekeyTo: "rekeyTo", fRejectAfter: "rejectAfter", fKeepaliveTo: "keepaliveTo", fMaxHs: "maxHs" };
+    Object.keys(T31_IDS2).forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = o31b[T31_IDS2[id]];
+    });
+    const trB = document.getElementById("fTrailers");
+    if (trB) trB.checked = o31b.trailers === "on";
+    const ncB = document.getElementById("fNoCookies");
+    if (ncB) ncB.checked = o31b.noCookies === "on";
+    const eaB = document.getElementById("fExtraArgs");
+    if (eaB) eaB.value = s.extraArgs || "";
     $$("#protoSeg .seg__btn").forEach((b) => b.classList.toggle("is-active", b.getAttribute("data-proto") === s.proto));
     $$("#i1Seg .seg__btn").forEach((b) => b.classList.toggle("is-active", (b.getAttribute("data-i1") || "") === (s.genI1 || "")));
     $("#cardAwg").classList.toggle("hidden", s.proto !== "awg");
@@ -176,6 +229,11 @@
     // v2.7.0: junk-поля карточки «Обфускация AmneziaWG» на вкладке «Скан» — те же
     // общие значения: правка на «Конфиге» мгновенно видна на «Скан»
     $("#fJc").value = o.jc; $("#fJmin").value = o.jmin; $("#fJmax").value = o.jmax;
+    // v2.8.2: тумблер «Тайминги AWG 3.1» на «Скан» — зеркало cfg.ver: смена версии
+    // на «Конфиге» (в т.ч. импорт .conf/бэкапа) мгновенно видна на «Скан», иначе
+    // следующий ввод в форме скана вернул бы старое значение (война зеркал)
+    const u31m = document.getElementById("fUse31");
+    if (u31m) u31m.checked = c.ver === "awg31";
     $("#cfgS1").value = o.s1; $("#cfgS2").value = o.s2; $("#cfgS3").value = o.s3; $("#cfgS4").value = o.s4;
     $("#cfgH1").value = o.h1; $("#cfgH2").value = o.h2; $("#cfgH3").value = o.h3; $("#cfgH4").value = o.h4;
     $("#cfgI1").value = o.i1;
