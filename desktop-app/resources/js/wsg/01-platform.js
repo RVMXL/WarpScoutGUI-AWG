@@ -102,6 +102,21 @@
   ];
   const MAC_KEY_MAP = {};
   MAC_TEXT.forEach((row) => { MAC_KEY_MAP[row[0]] = row[1]; });
+  /* v2.8.4: android-замены целых фраз: [канонический RU, android-RU, android-EN].
+     Применяются к ЗНАЧЕНИЮ по идентификатору (platPhraseOf) только на Android:
+     папка данных приложения фиксирована системой
+     (/storage/emulated/0/Android/data/ru.warpscout.gui/files/WARPScoutGUI),
+     кнопки «Выбрать…»/«По умолчанию» на мобильной скрыты (15-init), поэтому
+     десктопная фраза «можно выбрать и другую папку — например, на другом диске»
+     на Android вводит в заблуждение (запрос пользователя к 2.8.3). */
+  const ANDROID_TEXT = [
+    ["Аккаунт, отчёты и веб-кэш движка (EBWebView) — в одной папке: %APPDATA%\\WARPScoutGUI.exe. Она создаётся программой сама и всегда на месте. Можно выбрать и другую — например, на другом диске.",
+     "Аккаунт, отчёты и веб-кэш движка — в одной папке: папка данных приложения. Она создаётся программой сама и всегда на месте.",
+     "Account, reports and the engine web cache live in one folder: the app's data folder. The app creates it itself, so it is always there."],
+    ["Аккаунт, отчёты и веб-кэш движка (EBWebView) — в одной папке: %APPDATA%\\WARPScoutGUI.exe. Она создаётся программой сама и всегда на месте — никаких ссылок и объединений. Можно выбрать и другую папку — например, на другом диске.",
+     "Аккаунт, отчёты и веб-кэш движка — в одной папке: папка данных приложения. Она создаётся программой сама и всегда на месте — никаких ссылок и объединений.",
+     "The account, reports and the engine's web cache live in one folder: the app's data folder. The program creates it itself and it is always there — no symlinks or junctions."],
+  ];
   // нормализация ключей/строк для Linux/macOS: имена файлов, разделители, пути.
   // v2.5.1: папка данных в шаблонах — по платформе (os.getPath("data")):
   //   Linux — ~/.local/share/<имя>, macOS — ~/Library/Application Support/<имя>
@@ -132,6 +147,12 @@
     const e = (typeof I18N !== "undefined") && I18N[id];
     if (!e) return null;
     const canon = e.ru;
+    if (IS_ANDROID) { // v2.8.4: android-фразы поверх linux/mac-механизма (см. ANDROID_TEXT)
+      for (let ai = 0; ai < ANDROID_TEXT.length; ai++) {
+        if (ANDROID_TEXT[ai][0] === canon) return lang === "en" ? ANDROID_TEXT[ai][2] : ANDROID_TEXT[ai][1];
+      }
+      return null;
+    }
     for (let li = 0; li < LINUX_TEXT.length; li++) {
       const row = LINUX_TEXT[li];
       if (row[0] !== canon) continue;
