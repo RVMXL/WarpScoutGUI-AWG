@@ -1,24 +1,17 @@
 # WarpScoutGUI 2.6.3 — фикс проверки warpscout (prerelease)
 
+[English](RELEASE-2.6.3.en.md) | Русский
+
 WarpScoutGUI 2.6.3 — точечный фикс регресса 2.6.2, найденного пользователем:
 на части машин приложение писало «**warpscout: не найден**» или «**Файл найден,
 но версию получить не удалось**» при РАБОЧЕМ `warpscout.exe` рядом с программой
 (в 2.6.1 той же сборки ошибки не было).
 
-WarpScoutGUI 2.6.3 is a targeted fix for a 2.6.2 regression reported by a user:
-on some machines the app showed “**warpscout: not found**” or “**File found,
-but the version could not be obtained**” even though `warpscout.exe` was fine
-next to the program (the same binaries worked in 2.6.1).
-
 **Статус выпуска: ПРЕРЕЛИЗ 2.6.3.** Ядро warpscout не менялось (0.16.0 во всех
 пакетах, байт-в-байт те же файлы, что в 2.6.1/2.6.2 — SHA-256 пины `deps.json`
 сходятся). Функциональность сканирования и генерации конфигов не менялась.
 
-**Release status: PRERELEASE 2.6.3.** The warpscout core is unchanged (0.16.0 in
-every package, byte-identical files to 2.6.1/2.6.2 — `deps.json` SHA-256 pins
-match). Scanning and config generation behaviour is unchanged.
-
-## Причина и фиксы / Root cause and fixes
+## Причина и фиксы
 
 - **Механика регресса.** В 2.6.2 (FE-3) synthetic-exit моста стал двухтактным:
   страховочный свип подтверждает потерю exit-события двумя тиками по 5 с (~10 с).
@@ -55,7 +48,7 @@ match). Scanning and config generation behaviour is unchanged.
   отвергается; мусор в stdout → отвергается; файла нет → «не найден». Тест
   регресса проверен на старой логике гейта — падает (ловит). Всего 75/75.
 
-## Изменения по платформам (2.6.3) / Platform changes (2.6.3)
+## Изменения по платформам (2.6.3)
 
 | Платформа | Изменения |
 |---|---|
@@ -66,23 +59,14 @@ match). Scanning and config generation behaviour is unchanged.
 | **macOS (mac-x64)** | Как win64. |
 | **Android (android-arm64)** | Как win64; разрешение — по-прежнему только `INTERNET`, versionCode 20603. |
 
-Windows / Linux / macOS / Android: only the warpscout version-check timing fix
-and the early-UI bootstrap inside resources.neu; everything else is unchanged
-from 2.6.2.
-
-## Обновление / Upgrade
+## Обновление
 
 Установка поверх 2.6.2 — распаковать ZIP целиком в ту же папку (заменить файлы).
 Папка данных не переезжает, настройки/аккаунт/история сохраняются. Проверка
 статуса warpscout выполняется автоматически при запуске; при неудаче — вкладка
 «Аккаунт» → «Проверить warpscout» (принудительная проверка).
 
-To upgrade from 2.6.2 — unpack the ZIP entirely over the same folder (replace
-files). The data folder stays put; settings/account/history are kept. The
-warpscout status check runs automatically at startup; if it fails — “Account”
-tab → “Check warpscout” (forced re-check).
-
-## Артефакты / Artifacts
+## Артефакты
 
 | Файл | SHA-256 |
 |---|---|
@@ -100,18 +84,15 @@ tab → “Check warpscout” (forced re-check).
 `0087ccdf2111709e8a43e4d15facd2fbd566faa18f9611c1539c804d703efbc2`;
 apksigner verify: OK.
 
-**APK (android-arm64):** versionCode 20603, single `INTERNET` permission,
-core `libwarpscout.so` — warpscout 0.16.0 (pinned in `deps.json`, AND-2),
-signed with the project master key (cert SHA-256 `67969ff2…ac9841`, the same
-key as 2.6.1/2.6.2 — updates install over without reinstalling). APK SHA-256:
-`0087ccdf2111709e8a43e4d15facd2fbd566faa18f9611c1539c804d703efbc2`;
-apksigner verify: OK.
-
-## Верификация / Verification
+## Верификация
 
 - 75/75 юнит-тестов (`node --test desktop-app/tests/*.test.js`), включая 5 новых
   wscheck-тестов; регрессионный тест проверен на старом гейте (падает — ловит).
+
 - `check-i18n.py`: 186 текстов + 63 атрибута, misses 0.
+
 - `gen-version.py --check`: 2.6.3 согласована везде (versionCode 20603).
+
 - `verify-deps.py`: 13/13 бинарников соответствуют SHA-пинам `deps.json`.
+
 - Зип: ровно 9 записей, футер README.txt « WARPSCOUT GUI v2.6.3 · warpscout v0.16.0».

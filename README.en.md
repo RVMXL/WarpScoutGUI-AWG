@@ -190,7 +190,7 @@ The account, reports, settings and the engine's web cache are stored **outside**
 | `desktop-app/tools/` | Build and supply-chain verification tools: `pack-neu.py` (builds `resources.neu`), `build-zips.py` (deterministic release zips; the README footer is printed from the single version source — audit INFRA-D), `gen-version.py` (version code generation, `--check` is a CI gate), `verify-deps.py` + `fetch-binaries.py` + `deps.json` (SBOM-lite: SHA-256 of all 13 shipped artifacts), `check-i18n.py` (an i18n audit), `unpack-neu.py`, `sync-demo.sh` |
 | `desktop-app/android/` | A Gradle-free Android project: `AndroidManifest.xml`, `java/`, `res/`, `build-apk.sh` (aapt2 + d8 + apksigner) |
 | `desktop-app/pkg/WARPScoutGUI-<platform>/` | Built packages (binary + `resources.neu` + `bin/warpscout` + `licenses/` + `README.txt`) |
-| `desktop-app/AUDIT-v2.5.0.md`, `desktop-app/RELEASE-2.5.0.md` … `desktop-app/RELEASE-2.8.4.md` | The first audit report and line-by-line notes for each release (RU/EN, a platform table, SHA-256) |
+| `desktop-app/AUDIT-v2.5.0.md`, `desktop-app/RELEASE-2.5.0.md` … `desktop-app/RELEASE-2.8.4.md` (with paired `*.en.md` files) | The first audit report and notes for each release — one language per file: Russian `RELEASE-X.Y.Z.md` + English `RELEASE-X.Y.Z.en.md`, cross-links in the headers; artifact SHA-256 tables live in the release bodies |
 | `docs/` | Interface screenshots |
 
 ## Building from source

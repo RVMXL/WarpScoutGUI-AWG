@@ -129,11 +129,16 @@ jobs:
           SDK_DIR=/tmp/android-sdk bash desktop-app/android/build-apk.sh
 
       # ── публикация ──
-      - name: "11. заметки релиза: RELEASE-$VER.md + SHA-таблица, собранная здесь"
+      # Заметки релиза — одноязычные: RELEASE-$VER.md (русский) + парный
+      # RELEASE-$VER.en.md (английский). В теле релиза относительная EN-ссылка
+      # из файла переписывается на абсолютный blob/main-URL (в release notes
+      # GitHub относительные ссылки не резолвит).
+      - name: "11. заметки релиза: RELEASE-$VER.md (RU) + SHA-таблица, собранная здесь"
         run: |
           [ -f "desktop-app/RELEASE-$VER.md" ] || { echo "✗ нет desktop-app/RELEASE-$VER.md"; exit 1; }
+          [ -f "desktop-app/RELEASE-$VER.en.md" ] || { echo "✗ нет desktop-app/RELEASE-$VER.en.md"; exit 1; }
           {
-            cat "desktop-app/RELEASE-$VER.md"
+            sed "s#](RELEASE-$VER.en.md)#](https://github.com/${{ github.repository }}/blob/main/desktop-app/RELEASE-$VER.en.md)#" "desktop-app/RELEASE-$VER.md"
             echo ""
             echo "## Артефакты (SHA-256, собрано CI для тега $TAG)"
             echo ""

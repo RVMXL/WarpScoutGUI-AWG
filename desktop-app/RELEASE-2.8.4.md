@@ -1,5 +1,7 @@
 # WarpScoutGUI 2.8.4 — полноценный релиз ветки 2.8
 
+[English](RELEASE-2.8.4.en.md) | Русский
+
 WarpScoutGUI 2.8.4 — перевод ветки 2.8 в полноценный релиз: серия 2.8.0–2.8.3
 (живой скан `-stream-json`, банер обновления GUI, экспорт mihomo-json/usque,
 автоподбор профиля I1, повтор скана из истории, подтверждение закрытия окна с
@@ -11,18 +13,7 @@ QUIC, пресеты «Жёсткая сеть») проверена польз�
 отчёты, конфиги, аккаунт, история, бэкапы — полная совместимость с
 2.8.3/2.8.2/2.8.1/2.8.0/2.7.3.
 
-WarpScoutGUI 2.8.4 — promotion of the 2.8 branch to a full release: the
-2.8.0–2.8.3 series (live `-stream-json` scan, GUI update banner, mihomo-json /
-usque export, I1 profile auto-pick, scan rerun from history, close-window
-confirmation with active SOCKS, custom CLI flags, AWG 3.1 on the Scan tab,
-QUIC as the default I1 profile, the "Hard network" presets) has been verified
-by the user on real machines. Plus two items: the mobile "Data folder" card no
-longer promises moving the folder to "another drive" (desktop-only behavior),
-and the repository docs gained English versions of README/CHANGELOG. Data
-formats are unchanged: reports, configs, account, history and backups remain
-fully compatible with 2.8.3/2.8.2/2.8.1/2.8.0/2.7.3.
-
-## Что изменилось / What changed
+## Что изменилось
 
 - **Мобильная карточка «Папка данных» без фразы про «другой диск».** Хинт
   говорил «Можно выбрать и другую папку — например, на другом диске» — верно
@@ -34,17 +25,6 @@ fully compatible with 2.8.3/2.8.2/2.8.1/2.8.0/2.7.3.
   (карточка «Папка данных» на «Настройках» и карточка «Пути») теперь без
   обещания выбора другой папки; EN-вариант синхронно. Десктоп и веб-демо — без
   изменений.
-
-  The mobile "Data folder" card no longer shows the desktop-only phrase about
-  moving the folder to "another drive". On Android the data folder is fixed by
-  the system
-  (/storage/emulated/0/Android/data/ru.warpscout.gui/files/WARPScoutGUI) and
-  the "Pick…"/"Reset" buttons have been hidden since 2.5.0; the platform layer
-  gained android-specific full-phrase replacements (ANDROID_TEXT — the same
-  identifier-based mechanism as the Linux/macOS phrases), so both hint
-  variants ("Data folder" card on Settings and the "Paths" card) no longer
-  promise choosing another folder; the EN variant is in sync. Desktop and the
-  web demo are unchanged.
 
 - **README и CHANGELOG — русские по умолчанию, в начале — ссылка на
   английские версии.** README.en.md и CHANGELOG.en.md — полные синхронные
@@ -62,11 +42,7 @@ fully compatible with 2.8.3/2.8.2/2.8.1/2.8.0/2.7.3.
   банер «⬆ WarpScoutGUI 2.8.4» увидят пользователи 2.7.3 и всех 2.8.x
   (releases/latest не отдаёт пререлизы).
 
-  Release status: full release. releases/latest now returns 2.8.4, so the
-  "⬆ WarpScoutGUI 2.8.4" banner appears for users on 2.7.3 and every 2.8.x
-  (releases/latest does not return pre-releases).
-
-## Изменения по платформам (2.8.4) / Platform changes (2.8.4)
+## Изменения по платформам (2.8.4)
 
 | Платформа | Изменения |
 |---|---|
@@ -77,11 +53,13 @@ fully compatible with 2.8.3/2.8.2/2.8.1/2.8.0/2.7.3.
 | **macOS (mac-x64)** | Общие ресурсы: только текстовая правка платформенного слоя; ядро warpscout 0.17.0 — без изменений. |
 | **Android (apk)** | Общие ресурсы: текстовая правка платформенного слоя (карточка «Папка данных» — android-фразы); versionCode 20804. |
 
-## Проверки / Verification
+## Проверки
 
 - Тесты: 168, все зелёные (`node --test desktop-app/tests/*.test.js`).
+
 - check-i18n: OK (новых ключей словаря нет — android-фразы применяются к
   значениям по идентификаторам, RU/EN синхронно).
+
 - gen-version --check: OK 2.8.4; verify-deps: OK (пины ядер 0.17.0).
 
 ## Статус выпуска
@@ -90,8 +68,3 @@ fully compatible with 2.8.3/2.8.2/2.8.1/2.8.0/2.7.3.
 пререлизный цикл для содержимого ветки 2.8 завершён, серия 2.8.0–2.8.3
 проверена. releases/latest возвращает 2.8.4 — банер «⬆ WarpScoutGUI 2.8.4»
 сработает у пользователей 2.7.3/2.8.0/2.8.1/2.8.2/2.8.3.
-
-This release is a full release (prerelease=false, make_latest=true): the
-pre-release cycle for the 2.8 branch content is complete, the 2.8.0–2.8.3
-series has been verified. releases/latest returns 2.8.4, so the "⬆
-WarpScoutGUI 2.8.4" banner appears for users on 2.7.3/2.8.0/2.8.1/2.8.2/2.8.3.

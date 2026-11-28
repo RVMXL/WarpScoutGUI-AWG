@@ -1,18 +1,14 @@
 # WarpScoutGUI 2.6.4 — три UX-улучшения по отзывам (prerelease)
 
+[English](RELEASE-2.6.4.en.md) | Русский
+
 WarpScoutGUI 2.6.4 — релиз удобства: три улучшения интерфейса по конкретным
 запросам пользователя. Ядро warpscout не менялось (0.16.0 во всех пакетах,
 байт-в-байт те же файлы, что в 2.6.1–2.6.3 — SHA-256 пины `deps.json` сходятся),
 логика сканирования и генерации конфигов не менялась — меняется только то,
 как результаты показываются и подставляются.
 
-WarpScoutGUI 2.6.4 is a usability release: three UI improvements based on
-specific user feedback. The warpscout core is unchanged (0.16.0 in every
-package, byte-identical files to 2.6.1–2.6.3 — `deps.json` SHA-256 pins match);
-scanning and config generation behaviour is unchanged — only how results are
-displayed and pre-filled.
-
-## Что изменилось / What changed
+## Что изменилось
 
 - **Живой индикатор фильтров узлов (вкладка «Скан»).** Раньше в шапке карточки
   «Фильтры узлов» висела статичная надпись «DME исключён» — она показывалась
@@ -23,12 +19,6 @@ displayed and pre-filled.
   «Применить найденное», смена языка); длинный список — с многоточием,
   полный — в подсказке.
 
-  Live node-filter badge (Scan tab). The old static “DME excluded” caption is
-  replaced by a badge that mirrors ACTIVE filters in real time: `✗` — excluded
-  nodes/countries, `✓` — “only” nodes/countries, countries marked; hidden when
-  no filters are active; updates on any field change, presets, “Apply found”,
-  language switch; long lists ellipsize with the full list in the tooltip.
-
 - **Умный выбор эндпоинта (вкладка «Конфиг»).** Раньше выпадающий список был
   плоским и было «неочевидно, что верхний эндпоинт — самый быстрый». Теперь
   список перестроен группами: сверху — **лучший эндпоинт каждой ноды**
@@ -37,13 +27,6 @@ displayed and pre-filled.
   строками. Кроме того, **после завершения скана лучший эндпоинт сразу
   подставляется в конфиг** — «В конфиг»/генерация работают с ним без лишних
   кликов; вручную выбрать другой можно в одну операцию.
-
-  Smart endpoint picker (Config tab). The flat dropdown is regrouped: the best
-  endpoint of EVERY node at the top (sorted by in-tunnel ping, ★ on the
-  absolute best, ping shown next to each), an “Others” group below with all
-  remaining rows. After a scan finishes, the best endpoint is auto-filled into
-  the config — generation works with it right away; picking another one is a
-  single dropdown action.
 
 - **Сквозной I1 из «Поиска параметров» (find-junk → конфиг).** Раньше найденный
   find-junk КОНКРЕТНЫЙ пакет I1 (CLI сохраняет его сырым флагом `-i1`)/gui
@@ -54,19 +37,12 @@ displayed and pre-filled.
   и в отчёт не выносит (вытащить его из скана невозможно), конкретный I1 даёт
   именно «Поиск параметров» → find-junk.
 
-  End-to-end I1 from the Param finder (find-junk → config). The concrete I1
-  packet found by find-junk (kept by the CLI as a raw `-i1` flag) is no longer
-  discarded — it is inserted straight into the I1 field of the Config tab
-  (with a toast). An honest hint under the field explains that a `-gen-i1`
-  scan generates the packet on the fly and never reports it — the concrete
-  packet comes from the Param finder.
-
 - **Тесты.** 75 → 80 юнит-тестов (`tests/endpoints.test.js`): группировка
   «лучшие с каждой ноды» (приоритет tunPing над ping, torn-исключение, узел
   «?», немутация входа), сквозной I1 (сырой `-i1` из find-junk доезжает до
   `cfg.obf.i1`, тост показан).
 
-## Изменения по платформам (2.6.4) / Platform changes (2.6.4)
+## Изменения по платформам (2.6.4)
 
 | Платформа | Изменения |
 |---|---|
@@ -77,19 +53,13 @@ displayed and pre-filled.
 | **macOS (mac-x64)** | Как win64. |
 | **Android (android-arm64)** | Как win64; разрешение — по-прежнему только `INTERNET`, versionCode 20604. |
 
-Windows / Linux / macOS / Android: the three UX improvements inside
-resources.neu; everything else is unchanged from 2.6.3.
-
-## Обновление / Upgrade
+## Обновление
 
 Установка поверх 2.6.3 — распаковать ZIP целиком в ту же папку (заменить
 файлы). Папка данных не переезжает, настройки/аккаунт/история/пресеты
 сохраняются.
 
-To upgrade from 2.6.3 — unpack the ZIP entirely over the same folder (replace
-files). The data folder stays put; settings/account/history/presets are kept.
-
-## Артефакты / Artifacts
+## Артефакты
 
 | Файл | SHA-256 |
 |---|---|
@@ -105,21 +75,20 @@ files). The data folder stays put; settings/account/history/presets are kept.
 подпись — мастер-ключ проекта (серт. SHA-256 `67969ff2…ac9841`, тот же,
 что в 2.6.1–2.6.3 — обновление поверх без переустановки); apksigner verify: OK.
 
-**APK (android-arm64):** versionCode 20604, single `INTERNET` permission,
-core `libwarpscout.so` — warpscout 0.16.0 (pinned in `deps.json`, AND-2),
-signed with the project master key (cert SHA-256 `67969ff2…ac9841`, the same
-key as 2.6.1–2.6.3 — updates install over without reinstalling); apksigner
-verify: OK.
-
-## Верификация / Verification
+## Верификация
 
 - 80/80 юнит-тестов (`node --test desktop-app/tests/*.test.js`), включая 5 новых
   (`tests/endpoints.test.js`: группировка ×4, сквозной I1 ×1).
+
 - `check-i18n.py`: 186 текстов + 62 атрибута, misses 0 (новые ключи
   `scan.filters.07/08`, `tools.17`, `conf.59/60/61` — RU/EN).
+
 - `gen-version.py --check`: 2.6.4 согласована везде (versionCode 20604).
+
 - `verify-deps.py`: 13/13 бинарников соответствуют SHA-пинам `deps.json`.
+
 - Зип: ровно 9 записей, футер README.txt « WARPSCOUT GUI v2.6.4 · warpscout v0.16.0».
+
 - Живая проверка в браузере (демо): бейдж реагирует на очистку/заполнение
   фильтров; после мок-скана лучший эндпоинт подставлен в конфиг, группы
   селекта «Лучшие с каждой ноды» (★, пинг) и «Остальные» на месте; найденный
