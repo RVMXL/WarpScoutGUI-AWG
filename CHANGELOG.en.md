@@ -4,7 +4,7 @@ English | [Русский](CHANGELOG.md)
 
 All notable changes to WARPScoutGUI-AWG are recorded here; the order is reverse chronological, the version date = the date of the release commit in git.
 
-Release policy (since 2.5.0): every release contains the artifacts of all supported platforms under a single version number — stating what changed on each platform, or explicitly recording that nothing changed; all 2.5.x releases are published on GitHub with the prerelease status (the "Release policy" block — `desktop-app/RELEASE-2.5.0.md`; extended release notes — `desktop-app/RELEASE-2.5.0.md`, `RELEASE-2.5.8.md`, `RELEASE-2.5.9.md`).
+Release policy (since 2.5.0): every release contains the artifacts of all supported platforms under a single version number — stating what changed on each platform, or explicitly recording that nothing changed; all 2.5.x releases are published on GitHub with the prerelease status (the "Release policy" block — `docs/RELEASE-2.5.0.md`; extended release notes — `docs/RELEASE-2.5.0.md`, `RELEASE-2.5.8.md`, `RELEASE-2.5.9.md`).
 
 ## [2.8.4] — 2026-11-28
 
@@ -244,7 +244,7 @@ Android: a launch fix from the first smoke test on a real device.
 
 ## [2.5.0] — 2026-10-11
 
-A cross-platform pre-release: a single code base for six platforms (expanded — `desktop-app/RELEASE-2.5.0.md`).
+A cross-platform pre-release: a single code base for six platforms (expanded — `docs/RELEASE-2.5.0.md`).
 
 - Windows x86_64: no functionality changes — a refactor of the platform layer without a behavior change (proven by a line-by-line comparison with 2.4.6 and live regression runs); the packages renamed to the "name-OS-architecture" format, the licenses moved into `licenses/`.
 - Linux x86_64 / Linux ARM64: a new platform — the platform layer (`~/.local/share`, chmod +x instead of Unblock-File), the WebKitGTK dependencies documented; the ARM64 warpscout core verified under emulation (version/register/scan/report).

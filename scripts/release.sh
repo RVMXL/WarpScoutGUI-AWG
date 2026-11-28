@@ -18,7 +18,7 @@
 # Что делает: pre-flight проверки релизной политики (fail-fast, см. WS_FORCE) →
 # гейт CI на коммите тега (публикация не уезжает при красной/непрогнанной сборке)
 # → auth-проверка → push main (только fast-forward) → push тега vX.Y.Z → создание
-# пререлиза (notes из desktop-app/RELEASE-X.Y.Z.md, reuse если уже существует) →
+# пререлиза (notes из docs/RELEASE-X.Y.Z.md, reuse если уже существует) →
 # загрузка артефактов download/WARPScoutGUI-X.Y.Z-* (уже прикреплённые пропускаются)
 # → round-trip-проверка SHA-256. Идемпотентен: безопасен к перезапуску, не форсит,
 # ничего не удаляет.
@@ -45,7 +45,7 @@ if [ -z "$VER" ]; then
   VER="$(python3 -c "import json;print(json.load(open('$PROJ/desktop-app/neutralino.config.json'))['version'])")"
 fi
 TAG="v$VER"
-RNOTES="$PROJ/desktop-app/RELEASE-$VER.md"
+RNOTES="$PROJ/docs/RELEASE-$VER.md"
 DL="$PROJ/download"
 RELNAME="WarpScoutGUI $VER (prerelease)"
 
