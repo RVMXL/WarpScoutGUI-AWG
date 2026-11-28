@@ -18,7 +18,7 @@
 
 Готовые сборки — в разделе **[Releases](https://github.com/RVMXL/WarpScoutGUI-AWG/releases)**.
 
-Текущая версия: **v2.8.3 (prerelease)** — [releases/tag/v2.8.3](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.3), единый выпуск для шести целевых платформ, собирается и публикуется CI по пушу тега. Выпуск сознательно помечен как пререлиз (ручная проверка); после проверки он переводится в полноценный релиз, и только тогда банер «⬆ WarpScoutGUI» в приложении предложит его пользователям 2.7.3/2.8.0/2.8.1/2.8.2.
+Текущая версия: **v2.8.4** — [releases/tag/v2.8.4](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.4), единый выпуск для шести целевых платформ, собирается и публикуется CI по пушу тега. Это полноценный релиз: серия 2.8.0–2.8.3 выходила как пререлизы (ручная проверка), проверена и закрыта — банер «⬆ WarpScoutGUI» в приложении предложит v2.8.4 пользователям 2.7.3/2.8.0/2.8.1/2.8.2/2.8.3.
 
 Ключевые свойства текущей сборки:
 
@@ -34,14 +34,14 @@
 
 | Артефакт | Платформа | Размер |
 |---|---|---|
-| `WARPScoutGUI-2.8.3-win64` | Windows 10/11 (x86_64) | 6,4 МБ |
-| `WARPScoutGUI-2.8.3-linux64` | Linux (x86_64) | 5,0 МБ |
-| `WARPScoutGUI-2.8.3-linux-arm64` | Linux (ARM64 / aarch64) | 4,4 МБ |
-| `WARPScoutGUI-2.8.3-mac-arm64` | macOS Apple Silicon (M1–M4) | 5,8 МБ |
-| `WARPScoutGUI-2.8.3-mac-x64` | macOS Intel | 6,2 МБ |
-| `WARPScoutGUI-2.8.3-android-arm64.apk` | Android 7.0+ (ARM64) | 5,1 МБ |
+| `WARPScoutGUI-2.8.4-win64` | Windows 10/11 (x86_64) | 6,4 МБ |
+| `WARPScoutGUI-2.8.4-linux64` | Linux (x86_64) | 5,0 МБ |
+| `WARPScoutGUI-2.8.4-linux-arm64` | Linux (ARM64 / aarch64) | 4,4 МБ |
+| `WARPScoutGUI-2.8.4-mac-arm64` | macOS Apple Silicon (M1–M4) | 5,8 МБ |
+| `WARPScoutGUI-2.8.4-mac-x64` | macOS Intel | 6,2 МБ |
+| `WARPScoutGUI-2.8.4-android-arm64.apk` | Android 7.0+ (ARM64) | 5,1 МБ |
 
-Контрольные суммы SHA-256 всех артефактов — в [примечаниях к релизу](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.3) и в разделе [«Проверка целостности»](#проверка-целостности) ниже.
+Контрольные суммы SHA-256 всех артефактов — в [примечаниях к релизу](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.4) и в разделе [«Проверка целостности»](#проверка-целостности) ниже.
 
 **Состав desktop-архива** (одинаков на всех платформах, 9 записей):
 
@@ -57,7 +57,7 @@ licenses/               — лицензии всех компонентов (4 
 
 ### Windows (x64)
 
-1. Скачайте `WARPScoutGUI-2.8.3-win64.zip` из [релиза](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.3) (пререлиз: в списке Releases он помечен как Pre-release).
+1. Скачайте `WARPScoutGUI-2.8.4-win64.zip` из [релиза](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.4).
 2. Распакуйте папку целиком в любое место (например, `D:\WARPScoutGUI`). Внутри должна остаться структура `WARPScoutGUI.exe`, `resources.neu`, `bin\`, `licenses\` — не разъединяйте их.
 3. Запустите `WARPScoutGUI.exe` — установка не требуется.
 4. Если SmartScreen предупреждает (приложение не подписано сертификатом Microsoft): «Подробнее» → «Выполнить в любом случае».
@@ -108,7 +108,7 @@ Arch:           sudo pacman -S webkit2gtk-4.1
 
 ### Android (ARM64)
 
-1. Скачайте `WARPScoutGUI-2.8.3-android-arm64.apk` из [релиза v2.8.3](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.3) (помечен Pre-release).
+1. Скачайте `WARPScoutGUI-2.8.4-android-arm64.apk` из [релиза v2.8.4](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.4).
 2. Откройте файл на устройстве и разрешите установку из неизвестных источников для приложения, которым открываете (Chrome/Файлы) — стандартный запрос Android для APK вне Play Market.
 3. Установите APK и запустите приложение **WARPScoutGUI**.
 
@@ -132,24 +132,24 @@ Arch:           sudo pacman -S webkit2gtk-4.1
 
 ### Проверка целостности
 
-SHA-256 артефактов релиза v2.8.3 (собрано CI для тега v2.8.3):
+SHA-256 артефактов релиза v2.8.4 (собрано CI для тега v2.8.4):
 
 | Файл | SHA-256 |
 |---|---|
-| `WARPScoutGUI-2.8.3-win64.zip` | `26541e0ca71b337f719cfcbe09822baaa2fab105615b66a692f3dda879cc3f59` |
-| `WARPScoutGUI-2.8.3-linux64.zip` | `2af1f6fa2a3e7f00ae9c64de4deeb9a450796500d1eed95bbfb50fd638538ad7` |
-| `WARPScoutGUI-2.8.3-linux-arm64.zip` | `03a76af4aac448a6d3e1da16f9659573056961cdd61e23dfb469c8c6e41b4908` |
-| `WARPScoutGUI-2.8.3-mac-arm64.zip` | `c1044a1bf6ba2e82868f2e366c6b90979fa88e02800aa02faa01e4b1af28c183` |
-| `WARPScoutGUI-2.8.3-mac-x64.zip` | `75c8876f8cd92c6fcb503c46c9434d29d0013c22b24ef0e03a5eff7834d3e6f7` |
-| `WARPScoutGUI-2.8.3-android-arm64.apk` | `8166c8047cfd64395e5c7471cff07fd7448434ccc8b067ccf0021aa67eae48ce` |
+| `WARPScoutGUI-2.8.4-win64.zip` | `6d7074406c304316d4a66bfb38d3593ea6dcaa154c46a81111f6c273abd34368` |
+| `WARPScoutGUI-2.8.4-linux64.zip` | `9c26983b0bcb1085ebf936cd5c4e903fd7c6f3f7cb4fae9f8376295e3ac9a3b0` |
+| `WARPScoutGUI-2.8.4-linux-arm64.zip` | `c498d7e45ad91b554317582f6e1f4b3f723051b57631abfcf8886efe776e5846` |
+| `WARPScoutGUI-2.8.4-mac-arm64.zip` | `2cda3c8320ee6e22813cc7844a950e15bce6148090a0b28b193ae58dea3fdc5c` |
+| `WARPScoutGUI-2.8.4-mac-x64.zip` | `02345bad57290a2bccc5fc4c36eabf0faa68d547120c2b0cff59b03ed26f0154` |
+| `WARPScoutGUI-2.8.4-android-arm64.apk` | `e835b6ce2ba2259af6bb849f423519f6ee209c605f92b475aafcfc47f36349ba` |
 
 Проверка после скачивания:
 
 ```bash
 # Linux / macOS
-shasum -a 256 WARPScoutGUI-2.8.3-*.zip
+shasum -a 256 WARPScoutGUI-2.8.4-*.zip
 # Windows (PowerShell)
-Get-FileHash WARPScoutGUI-2.8.3-win64.zip -Algorithm SHA256
+Get-FileHash WARPScoutGUI-2.8.4-win64.zip -Algorithm SHA256
 ```
 
 **Подпись APK.** Android-сборка подписана фиксированным ключом — обновления устанавливаются поверх установленной версии без потери данных. Отпечаток сертификата (SHA-256) для проверки:
@@ -190,7 +190,7 @@ Get-FileHash WARPScoutGUI-2.8.3-win64.zip -Algorithm SHA256
 | `desktop-app/tools/` | Инструменты сборки и верификации цепочки поставки: `pack-neu.py` (сборка `resources.neu`), `build-zips.py` (детерминированные release-zip; футер README печатается из единого источника версии — аудит INFRA-D), `gen-version.py` (кодогенерация версии, `--check` — гейт CI), `verify-deps.py` + `fetch-binaries.py` + `deps.json` (SBOM-lite: SHA-256 всех 13 поставляемых артефактов), `check-i18n.py` (аудит i18n), `unpack-neu.py`, `sync-demo.sh` |
 | `desktop-app/android/` | Android-проект без Gradle: `AndroidManifest.xml`, `java/`, `res/`, `build-apk.sh` (aapt2 + d8 + apksigner) |
 | `desktop-app/pkg/WARPScoutGUI-<платформа>/` | Собранные пакеты (бинарь + `resources.neu` + `bin/warpscout` + `licenses/` + `README.txt`) |
-| `desktop-app/AUDIT-v2.5.0.md`, `desktop-app/RELEASE-2.5.0.md` … `desktop-app/RELEASE-2.8.3.md` | Отчёт первого аудита и построчные примечания к каждому релизу (RU/EN, платформенная таблица, SHA-256) |
+| `desktop-app/AUDIT-v2.5.0.md`, `desktop-app/RELEASE-2.5.0.md` … `desktop-app/RELEASE-2.8.4.md` | Отчёт первого аудита и построчные примечания к каждому релизу (RU/EN, платформенная таблица, SHA-256) |
 | `docs/` | Скриншоты интерфейса |
 
 ## Сборка из исходников

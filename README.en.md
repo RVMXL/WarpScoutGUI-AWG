@@ -18,7 +18,7 @@ A desktop and mobile application (Neutralino.js / WebView) around the `warpscout
 
 Ready-made builds are in the **[Releases](https://github.com/RVMXL/WarpScoutGUI-AWG/releases)** section.
 
-Current version: **v2.8.3 (prerelease)** — [releases/tag/v2.8.3](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.3), a single release for the six target platforms, built and published by CI on a tag push. The release is deliberately marked as a pre-release (manual verification); after verification it is converted to a full release, and only then will the "⬆ WarpScoutGUI" banner in the app offer it to users of 2.7.3/2.8.0/2.8.1/2.8.2.
+Current version: **v2.8.4** — [releases/tag/v2.8.4](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.4), a single release for the six target platforms, built and published by CI on a tag push. This is a full release: the 2.8.0–2.8.3 series was published as pre-releases (manual verification), has been verified and is closed — the "⬆ WarpScoutGUI" banner in the app will offer v2.8.4 to users of 2.7.3/2.8.0/2.8.1/2.8.2/2.8.3.
 
 Key properties of the current build:
 
@@ -34,14 +34,14 @@ Version-by-version change history — in [`CHANGELOG.md`](CHANGELOG.en.md) and t
 
 | Artifact | Platform | Size |
 |---|---|---|
-| `WARPScoutGUI-2.8.3-win64` | Windows 10/11 (x86_64) | 6.4 MB |
-| `WARPScoutGUI-2.8.3-linux64` | Linux (x86_64) | 5.0 MB |
-| `WARPScoutGUI-2.8.3-linux-arm64` | Linux (ARM64 / aarch64) | 4.4 MB |
-| `WARPScoutGUI-2.8.3-mac-arm64` | macOS Apple Silicon (M1–M4) | 5.8 MB |
-| `WARPScoutGUI-2.8.3-mac-x64` | macOS Intel | 6.2 MB |
-| `WARPScoutGUI-2.8.3-android-arm64.apk` | Android 7.0+ (ARM64) | 5.1 MB |
+| `WARPScoutGUI-2.8.4-win64` | Windows 10/11 (x86_64) | 6.4 MB |
+| `WARPScoutGUI-2.8.4-linux64` | Linux (x86_64) | 5.0 MB |
+| `WARPScoutGUI-2.8.4-linux-arm64` | Linux (ARM64 / aarch64) | 4.4 MB |
+| `WARPScoutGUI-2.8.4-mac-arm64` | macOS Apple Silicon (M1–M4) | 5.8 MB |
+| `WARPScoutGUI-2.8.4-mac-x64` | macOS Intel | 6.2 MB |
+| `WARPScoutGUI-2.8.4-android-arm64.apk` | Android 7.0+ (ARM64) | 5.1 MB |
 
-SHA-256 checksums of all artifacts are in the [release notes](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.3) and in the [Integrity check](#integrity-check) section below.
+SHA-256 checksums of all artifacts are in the [release notes](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.4) and in the [Integrity check](#integrity-check) section below.
 
 **Contents of the desktop archive** (identical on all platforms, 9 entries):
 
@@ -57,7 +57,7 @@ licenses/               — licenses of all components (4 files)
 
 ### Windows (x64)
 
-1. Download `WARPScoutGUI-2.8.3-win64.zip` from the [release](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.3) (pre-release: it is marked as Pre-release in the Releases list).
+1. Download `WARPScoutGUI-2.8.4-win64.zip` from the [release](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.4).
 2. Unpack the folder as a whole to any location (for example, `D:\WARPScoutGUI`). The structure inside must stay intact: `WARPScoutGUI.exe`, `resources.neu`, `bin\`, `licenses\` — do not separate them.
 3. Run `WARPScoutGUI.exe` — no installation required.
 4. If SmartScreen warns (the app is not signed with a Microsoft certificate): "More info" → "Run anyway".
@@ -108,7 +108,7 @@ Requirements: macOS 11 Big Sur or newer. No extra dependencies — the interface
 
 ### Android (ARM64)
 
-1. Download `WARPScoutGUI-2.8.3-android-arm64.apk` from [release v2.8.3](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.3) (marked Pre-release).
+1. Download `WARPScoutGUI-2.8.4-android-arm64.apk` from [release v2.8.4](https://github.com/RVMXL/WarpScoutGUI-AWG/releases/tag/v2.8.4).
 2. Open the file on the device and allow installation from unknown sources for the app you open it with (Chrome/Files) — the standard Android request for an APK outside Play Market.
 3. Install the APK and launch the **WARPScoutGUI** app.
 
@@ -132,24 +132,24 @@ The copy of reports and configs in `Download/WARPScoutGUI` is exactly that — a
 
 ### Integrity check
 
-SHA-256 of the v2.8.3 release artifacts (assembled by CI for the v2.8.3 tag):
+SHA-256 of the v2.8.4 release artifacts (assembled by CI for the v2.8.4 tag):
 
 | File | SHA-256 |
 |---|---|
-| `WARPScoutGUI-2.8.3-win64.zip` | `26541e0ca71b337f719cfcbe09822baaa2fab105615b66a692f3dda879cc3f59` |
-| `WARPScoutGUI-2.8.3-linux64.zip` | `2af1f6fa2a3e7f00ae9c64de4deeb9a450796500d1eed95bbfb50fd638538ad7` |
-| `WARPScoutGUI-2.8.3-linux-arm64.zip` | `03a76af4aac448a6d3e1da16f9659573056961cdd61e23dfb469c8c6e41b4908` |
-| `WARPScoutGUI-2.8.3-mac-arm64.zip` | `c1044a1bf6ba2e82868f2e366c6b90979fa88e02800aa02faa01e4b1af28c183` |
-| `WARPScoutGUI-2.8.3-mac-x64.zip` | `75c8876f8cd92c6fcb503c46c9434d29d0013c22b24ef0e03a5eff7834d3e6f7` |
-| `WARPScoutGUI-2.8.3-android-arm64.apk` | `8166c8047cfd64395e5c7471cff07fd7448434ccc8b067ccf0021aa67eae48ce` |
+| `WARPScoutGUI-2.8.4-win64.zip` | `6d7074406c304316d4a66bfb38d3593ea6dcaa154c46a81111f6c273abd34368` |
+| `WARPScoutGUI-2.8.4-linux64.zip` | `9c26983b0bcb1085ebf936cd5c4e903fd7c6f3f7cb4fae9f8376295e3ac9a3b0` |
+| `WARPScoutGUI-2.8.4-linux-arm64.zip` | `c498d7e45ad91b554317582f6e1f4b3f723051b57631abfcf8886efe776e5846` |
+| `WARPScoutGUI-2.8.4-mac-arm64.zip` | `2cda3c8320ee6e22813cc7844a950e15bce6148090a0b28b193ae58dea3fdc5c` |
+| `WARPScoutGUI-2.8.4-mac-x64.zip` | `02345bad57290a2bccc5fc4c36eabf0faa68d547120c2b0cff59b03ed26f0154` |
+| `WARPScoutGUI-2.8.4-android-arm64.apk` | `e835b6ce2ba2259af6bb849f423519f6ee209c605f92b475aafcfc47f36349ba` |
 
 Verification after downloading:
 
 ```bash
 # Linux / macOS
-shasum -a 256 WARPScoutGUI-2.8.3-*.zip
+shasum -a 256 WARPScoutGUI-2.8.4-*.zip
 # Windows (PowerShell)
-Get-FileHash WARPScoutGUI-2.8.3-win64.zip -Algorithm SHA256
+Get-FileHash WARPScoutGUI-2.8.4-win64.zip -Algorithm SHA256
 ```
 
 **APK signature.** The Android build is signed with a fixed key — updates install over the installed version without data loss. The certificate fingerprint (SHA-256) for verification:
@@ -190,7 +190,7 @@ The account, reports, settings and the engine's web cache are stored **outside**
 | `desktop-app/tools/` | Build and supply-chain verification tools: `pack-neu.py` (builds `resources.neu`), `build-zips.py` (deterministic release zips; the README footer is printed from the single version source — audit INFRA-D), `gen-version.py` (version code generation, `--check` is a CI gate), `verify-deps.py` + `fetch-binaries.py` + `deps.json` (SBOM-lite: SHA-256 of all 13 shipped artifacts), `check-i18n.py` (an i18n audit), `unpack-neu.py`, `sync-demo.sh` |
 | `desktop-app/android/` | A Gradle-free Android project: `AndroidManifest.xml`, `java/`, `res/`, `build-apk.sh` (aapt2 + d8 + apksigner) |
 | `desktop-app/pkg/WARPScoutGUI-<platform>/` | Built packages (binary + `resources.neu` + `bin/warpscout` + `licenses/` + `README.txt`) |
-| `desktop-app/AUDIT-v2.5.0.md`, `desktop-app/RELEASE-2.5.0.md` … `desktop-app/RELEASE-2.8.3.md` | The first audit report and line-by-line notes for each release (RU/EN, a platform table, SHA-256) |
+| `desktop-app/AUDIT-v2.5.0.md`, `desktop-app/RELEASE-2.5.0.md` … `desktop-app/RELEASE-2.8.4.md` | The first audit report and line-by-line notes for each release (RU/EN, a platform table, SHA-256) |
 | `docs/` | Interface screenshots |
 
 ## Building from source
