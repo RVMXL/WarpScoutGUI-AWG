@@ -1,5 +1,7 @@
 # WARPScoutGUI-AWG
 
+[English](README.en.md) | Русский
+
 Графическая оболочка для [**warpscout**](https://github.com/vernette/warpscout) — CLI-сканера WARP-эндпоинтов от [vernette](https://github.com/vernette) (Go, MIT). Суффикс **-AWG** отличает этот GUI от прочих обёрток: проект работает с конфигурациями в формате **AmneziaWG** (awg31).
 
 Десктопное и мобильное приложение (Neutralino.js / WebView) вокруг CLI-утилиты `warpscout`: регистрация WARP-аккаунтов, генерация `.conf` в формате AmneziaWG, импорт/валидация конфигов, QR-коды, сканер живых WARP-эндпоинтов.
