@@ -7,10 +7,9 @@ WarpScoutGUI 2.8.4 — promotion of the 2.8 branch to a full release: the
 usque export, I1 profile auto-pick, scan rerun from history, close-window
 confirmation with active SOCKS, custom CLI flags, AWG 3.1 on the Scan tab,
 QUIC as the default I1 profile, the "Hard network" presets) has been verified
-by the user on real machines. Plus two items: the mobile "Data folder" card no
-longer promises moving the folder to "another drive" (desktop-only behavior),
-and the repository docs gained English versions of README/CHANGELOG. Data
-formats are unchanged: reports, configs, account, history and backups remain
+by the user on real machines. Plus one item: the mobile "Data folder" card no
+longer promises moving the folder to "another drive" (desktop-only behavior).
+Data formats are unchanged: reports, configs, account, history and backups remain
 fully compatible with 2.8.3/2.8.2/2.8.1/2.8.0/2.7.3.
 
 ## What changed
@@ -28,7 +27,8 @@ web demo are unchanged.
 
 - Release status: full release. releases/latest now returns 2.8.4, so the
 "⬆ WarpScoutGUI 2.8.4" banner appears for users on 2.7.3 and every 2.8.x
-(releases/latest does not return pre-releases).
+(releases/latest does not return pre-releases). In the packaged README.txt the
+"PRERELEASE X.Y.Z" status is replaced with "full release".
 
 ## Platform changes (2.8.4)
 
